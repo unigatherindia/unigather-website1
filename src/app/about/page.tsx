@@ -1,14 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
 import { 
   Users, Heart, Target, Star, Award, Clock, 
-  MapPin, Calendar, Lightbulb, Zap, Shield, Globe 
+  MapPin, Calendar, Lightbulb, Zap, Shield, Globe, Loader2 
 } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 export default function AboutPage() {
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+
+  // Predefined founders - these will always be displayed
   const founders = [
     {
       name: 'Vansh Miglani',
@@ -25,6 +31,44 @@ export default function AboutPage() {
       linkedin: '#'
     }
   ];
+
+  // Fetch team members from Firestore
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!db) {
+        setIsLoadingTeam(false);
+        return;
+      }
+
+      try {
+        setIsLoadingTeam(true);
+        const teamCollection = collection(db, 'teamMembers');
+        const q = query(teamCollection, orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        
+        const members = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+          role: doc.data().designation,
+          bio: doc.data().description,
+          avatar: doc.data().imageUrl,
+          linkedin: '#'
+        }));
+
+        setTeamMembers(members);
+      } catch (error: any) {
+        console.error('Error fetching team members:', error);
+        // Continue even if fetch fails - still show founders
+      } finally {
+        setIsLoadingTeam(false);
+      }
+    };
+
+    fetchTeamMembers();
+  }, []);
+
+  // Combine founders with team members from Firestore
+  const allTeamMembers = [...founders, ...teamMembers];
 
   const values = [
     {
@@ -306,44 +350,52 @@ export default function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {founders.map((founder, index) => (
-              <motion.div
-                key={founder.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                viewport={{ once: true }}
-                className="group text-center"
-              >
-                <div className="relative mb-6">
-                  <div className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-gradient-to-r from-primary-500/30 to-primary-400/20 group-hover:scale-105 transition-transform duration-300 border-4 border-primary-500/20">
-                    {founder.avatar.includes('/media/') ? (
-                      <img 
-                        src={founder.avatar} 
-                        alt={founder.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Users className="w-20 h-20 text-primary-400" />
-                      </div>
-                    )}
+          {isLoadingTeam ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+              <span className="ml-3 text-gray-300">Loading team...</span>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {allTeamMembers.map((member, index) => (
+                <motion.div
+                  key={member.id || member.name}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  className="group text-center"
+                >
+                  <div className="relative mb-6">
+                    <div className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-gradient-to-r from-primary-500/30 to-primary-400/20 group-hover:scale-105 transition-transform duration-300 border-4 border-primary-500/20">
+                      {member.avatar && (member.avatar.includes('/media/') || member.avatar.startsWith('http')) ? (
+                        <img 
+                          src={member.avatar} 
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Users className="w-20 h-20 text-primary-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary-500/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary-500/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
-                  {founder.name}
-                </h3>
-                <p className="text-primary-400 font-medium mb-4">
-                  {founder.role}
-                </p>
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  {founder.bio}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
+                    {member.name}
+                  </h3>
+                  <p className="text-primary-400 font-medium mb-4">
+                    {member.role}
+                  </p>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {member.bio}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

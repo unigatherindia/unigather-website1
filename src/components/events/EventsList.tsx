@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Users, Clock, Star, Heart, Share2, 
-  IndianRupee, User, UserCheck, ChevronRight, Ticket 
+  IndianRupee, User, UserCheck, ChevronRight, Ticket, Loader2
 } from 'lucide-react';
 import BookingModal from './BookingModal';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 interface Event {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
   category: string;
@@ -42,88 +45,91 @@ interface Event {
 
 const EventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [likedEvents, setLikedEvents] = useState<number[]>([]);
+  const [likedEvents, setLikedEvents] = useState<(string | number)[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample events data - in production, this would come from your database
-  const events: Event[] = [
-    {
-      id: 1,
-      title: 'Sunset Hiking & Photography',
-      description: 'Capture breathtaking sunset views while making new friends on this guided hiking adventure.',
-      category: 'Outdoor',
-      date: '2025-09-28',
-      time: '16:00',
-      location: 'Sahyadri Hills',
-      address: 'Lonavala, Maharashtra',
-      price: { male: 899, female: 799 },
-      maxCapacity: 25,
-      currentParticipants: { male: 8, female: 12 },
-      rating: 4.8,
-      reviews: 156,
-      difficulty: 'Moderate',
-      duration: '4 hours',
-      highlights: ['Professional Photography Tips', 'Sunset Views', 'Group Bonding'],
-      organizer: {
-        name: 'Rohan Adventure Club',
-        avatar: '/api/placeholder/40/40',
-        rating: 4.9
-      },
-      image: '/api/placeholder/600/400',
-      featured: true
-    },
-    {
-      id: 2,
-      title: 'Cooking Workshop: Italian Cuisine',
-      description: 'Learn authentic Italian recipes while bonding with fellow food enthusiasts.',
-      category: 'Creative',
-      date: '2025-09-29',
-      time: '18:00',
-      location: 'Culinary Studio',
-      address: 'Bandra West, Mumbai',
-      price: { male: 1299, female: 1199 },
-      maxCapacity: 16,
-      currentParticipants: { male: 4, female: 8 },
-      rating: 4.9,
-      reviews: 89,
-      difficulty: 'Easy',
-      duration: '3 hours',
-      highlights: ['3-Course Meal', 'Chef Guidance', 'Recipe Book'],
-      organizer: {
-        name: 'Chef Maria\'s Kitchen',
-        avatar: '/api/placeholder/40/40',
-        rating: 4.8
-      },
-      image: '/api/placeholder/600/400',
-      featured: false
-    },
-    {
-      id: 3,
-      title: 'Stand-up Comedy Night',
-      description: 'Laugh your heart out with local comedians and meet people who share your sense of humor.',
-      category: 'Social',
-      date: '2025-09-30',
-      time: '20:00',
-      location: 'Comedy Club Central',
-      address: 'Koramangala, Bangalore',
-      price: { male: 599, female: 499 },
-      maxCapacity: 40,
-      currentParticipants: { male: 15, female: 18 },
-      rating: 4.7,
-      reviews: 203,
-      difficulty: 'Easy',
-      duration: '2.5 hours',
-      highlights: ['Live Comedy', 'Networking Break', 'Welcome Drinks'],
-      organizer: {
-        name: 'Laugh Out Loud Events',
-        avatar: '/api/placeholder/40/40',
-        rating: 4.6
-      },
-      image: '/api/placeholder/600/400',
-      featured: true
-    }
-  ];
+  // Fetch events from Firestore
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!db) {
+        console.warn('Firebase is not initialized');
+        setIsLoading(false);
+        return;
+      }
 
-  const toggleLike = (eventId: number) => {
+      setIsLoading(true);
+      try {
+        const eventsCollection = collection(db, 'events');
+        
+        // Try with orderBy, fallback to simple query if index is missing
+        let querySnapshot;
+        try {
+          const eventsQuery = query(eventsCollection, orderBy('createdAt', 'desc'));
+          querySnapshot = await getDocs(eventsQuery);
+        } catch (orderError: any) {
+          if (orderError.code === 'failed-precondition') {
+            console.warn('Index not found, fetching without orderBy');
+            querySnapshot = await getDocs(eventsCollection);
+          } else {
+            throw orderError;
+          }
+        }
+
+        const eventsData: Event[] = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          
+          // Handle createdAt - could be Timestamp or string
+          let dateStr = data.date;
+          if (!dateStr && data.createdAt) {
+            if (data.createdAt instanceof Timestamp) {
+              dateStr = data.createdAt.toDate().toISOString().split('T')[0];
+            }
+          }
+
+          return {
+            id: doc.id,
+            title: data.title || 'Untitled Event',
+            description: data.description || '',
+            category: data.category || 'Social',
+            date: dateStr || new Date().toISOString().split('T')[0],
+            time: data.time || '12:00',
+            location: data.location || '',
+            address: data.address || '',
+            price: {
+              male: data.priceMale || 0,
+              female: data.priceFemale || 0
+            },
+            maxCapacity: data.maxCapacity || 0,
+            currentParticipants: data.currentParticipants || { male: 0, female: 0 },
+            rating: data.rating || 0,
+            reviews: data.reviews || 0,
+            difficulty: data.difficulty || 'Easy',
+            duration: data.duration || '',
+            highlights: data.highlights || [],
+            organizer: data.organizer || {
+              name: 'Unigather',
+              avatar: '/api/placeholder/40/40',
+              rating: 0
+            },
+            image: data.image || '/api/placeholder/600/400',
+            featured: data.featured || false
+          };
+        });
+
+        setEvents(eventsData);
+      } catch (error: any) {
+        console.error('Error fetching events:', error);
+        toast.error('Failed to load events. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  const toggleLike = (eventId: string | number) => {
     setLikedEvents(prev => 
       prev.includes(eventId) 
         ? prev.filter(id => id !== eventId)
@@ -159,6 +165,25 @@ const EventsList: React.FC = () => {
       day: 'numeric' 
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+        <span className="ml-3 text-gray-400">Loading events...</span>
+      </div>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-white mb-2">No events found</h3>
+        <p className="text-gray-400">Check back soon for exciting events!</p>
+      </div>
+    );
+  }
 
   return (
     <>

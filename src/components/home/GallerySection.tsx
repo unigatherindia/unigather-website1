@@ -1,106 +1,79 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Users, Camera, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, Heart, Users, Camera, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+interface GalleryImage {
+  id: string;
+  url: string;
+  publicId?: string;
+  fileName: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  uploadedAt?: any;
+}
 
 const GallerySection: React.FC = () => {
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
-
-  // Sample gallery images - in production, these would come from your database
-  const galleryImages = [
-    {
-      id: 1,
-      src: '/api/placeholder/600/400',
-      alt: 'Group photo at beach cleanup event',
-      title: 'Beach Cleanup Adventure',
-      description: '50+ participants came together for environmental conservation',
-      category: 'Outdoor',
-      participants: 52
-    },
-    {
-      id: 2,
-      src: '/api/placeholder/600/400',
-      alt: 'Cooking workshop participants',
-      title: 'Culinary Connections',
-      description: 'Learning new recipes while making new friends',
-      category: 'Workshop',
-      participants: 28
-    },
-    {
-      id: 3,
-      src: '/api/placeholder/600/400',
-      alt: 'Hiking group at mountain peak',
-      title: 'Mountain Peak Expedition',
-      description: 'Conquering heights and fears together',
-      category: 'Adventure',
-      participants: 35
-    },
-    {
-      id: 4,
-      src: '/api/placeholder/600/400',
-      alt: 'Game night participants laughing',
-      title: 'Board Game Bonanza',
-      description: 'Laughter, strategy, and new friendships',
-      category: 'Indoor',
-      participants: 24
-    },
-    {
-      id: 5,
-      src: '/api/placeholder/600/400',
-      alt: 'Art workshop creative session',
-      title: 'Creative Canvas Night',
-      description: 'Expressing creativity in a supportive community',
-      category: 'Creative',
-      participants: 18
-    },
-    {
-      id: 6,
-      src: '/api/placeholder/600/400',
-      alt: 'Dance workshop group',
-      title: 'Rhythm & Connection',
-      description: 'Moving to the beat of friendship',
-      category: 'Dance',
-      participants: 42
-    },
-    {
-      id: 7,
-      src: '/api/placeholder/600/400',
-      alt: 'Tech meetup networking',
-      title: 'Tech Talk & Connect',
-      description: 'Innovation meets social connection',
-      category: 'Professional',
-      participants: 65
-    },
-    {
-      id: 8,
-      src: '/api/placeholder/600/400',
-      alt: 'Picnic in the park',
-      title: 'Sunday Park Picnic',
-      description: 'Simple pleasures, lasting memories',
-      category: 'Casual',
-      participants: 38
-    },
-    {
-      id: 9,
-      src: '/api/placeholder/600/400',
-      alt: 'Photography walk group',
-      title: 'City Photography Walk',
-      description: 'Capturing moments and connections',
-      category: 'Creative',
-      participants: 22
-    }
-  ];
-
-  const categories = ['All', 'Outdoor', 'Workshop', 'Adventure', 'Indoor', 'Creative', 'Dance', 'Professional', 'Casual'];
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+
+  // Fetch gallery images from Firestore
+  useEffect(() => {
+    const fetchGalleryImages = async () => {
+      if (!db) {
+        console.error('Firestore is not initialized');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const galleryCollection = collection(db, 'gallery');
+        const q = query(galleryCollection, orderBy('uploadedAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        
+        const images: GalleryImage[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            url: data.url || '',
+            publicId: data.publicId,
+            fileName: data.fileName || 'Untitled',
+            title: data.title || data.fileName?.split('.')[0] || 'Untitled',
+            description: data.description || '',
+            category: data.category || 'All',
+            uploadedAt: data.uploadedAt,
+          };
+        });
+
+        setGalleryImages(images);
+      } catch (error: any) {
+        console.error('Error fetching gallery images:', error);
+        // If there's an error, show empty state instead of crashing
+        setGalleryImages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGalleryImages();
+  }, []);
+
+  // Extract unique categories from images
+  const categories = ['All', ...Array.from(new Set(galleryImages.map(img => img.category || 'All').filter(cat => cat !== 'All')))];
 
   const filteredImages = activeCategory === 'All' 
     ? galleryImages 
-    : galleryImages.filter(img => img.category === activeCategory);
+    : galleryImages.filter(img => (img.category || 'All') === activeCategory);
 
   const nextImage = () => {
-    if (selectedImage !== null) {
+    if (selectedImage !== null && filteredImages.length > 0) {
       const currentIndex = filteredImages.findIndex(img => img.id === selectedImage);
       const nextIndex = (currentIndex + 1) % filteredImages.length;
       setSelectedImage(filteredImages[nextIndex].id);
@@ -108,7 +81,7 @@ const GallerySection: React.FC = () => {
   };
 
   const prevImage = () => {
-    if (selectedImage !== null) {
+    if (selectedImage !== null && filteredImages.length > 0) {
       const currentIndex = filteredImages.findIndex(img => img.id === selectedImage);
       const prevIndex = (currentIndex - 1 + filteredImages.length) % filteredImages.length;
       setSelectedImage(filteredImages[prevIndex].id);
@@ -190,77 +163,97 @@ const GallerySection: React.FC = () => {
         </motion.div>
 
         {/* Gallery Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          <AnimatePresence>
-            {filteredImages.map((image) => (
-              <motion.div
-                key={image.id}
-                variants={itemVariants}
-                layout
-                className="group relative overflow-hidden rounded-2xl cursor-pointer"
-                onClick={() => setSelectedImage(image.id)}
-              >
-                <div className="aspect-w-4 aspect-h-3 bg-dark-700">
-                  <div className="w-full h-64 bg-gradient-to-br from-primary-500/20 to-primary-400/10 flex items-center justify-center">
-                    <div className="text-center">
-                      <Users className="w-12 h-12 text-primary-400 mx-auto mb-2" />
-                      <p className="text-white font-semibold">{image.title}</p>
-                      <p className="text-gray-300 text-sm">{image.participants} participants</p>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+            <span className="ml-3 text-gray-300">Loading gallery...</span>
+          </div>
+        ) : filteredImages.length === 0 ? (
+          <div className="text-center py-20">
+            <Camera className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No images yet</h3>
+            <p className="text-gray-400">Check back soon for amazing moments from our community!</p>
+          </div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            <AnimatePresence>
+              {filteredImages.map((image) => (
+                <motion.div
+                  key={image.id}
+                  variants={itemVariants}
+                  layout
+                  className="group cursor-pointer"
+                  onClick={() => setSelectedImage(image.id)}
+                >
+                  <div className="relative overflow-hidden rounded-2xl mb-3">
+                    <div className="aspect-w-4 aspect-h-3 bg-dark-700">
+                      <img
+                        src={image.url}
+                        alt={image.title || image.fileName}
+                        className="w-full h-64 object-cover"
+                        loading="lazy"
+                      />
                     </div>
-                  </div>
-                </div>
-                
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="px-2 py-1 bg-primary-500 text-white text-xs rounded-full">
-                        {image.category}
-                      </span>
-                      <div className="flex items-center text-white text-sm">
-                        <Users className="w-4 h-4 mr-1" />
-                        {image.participants}
+                    
+                    {/* Overlay on Hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="absolute bottom-0 left-0 right-0 p-6">
+                        <div className="flex items-center justify-between mb-2">
+                          {image.category && image.category !== 'All' && (
+                            <span className="px-2 py-1 bg-primary-500 text-white text-xs rounded-full">
+                              {image.category}
+                            </span>
+                          )}
+                        </div>
+                        {image.description && (
+                          <p className="text-gray-300 text-sm line-clamp-2 mb-2">
+                            {image.description}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <h3 className="text-white font-semibold text-lg mb-1">
+
+                    {/* Hover Effects */}
+                    <div className="absolute inset-0 bg-primary-500/0 group-hover:bg-primary-500/5 transition-colors duration-300" />
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <Heart className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Title below image */}
+                  <div className="px-2">
+                    <h3 className="text-white font-semibold text-base text-center">
                       {image.title}
                     </h3>
-                    <p className="text-gray-300 text-sm">
-                      {image.description}
-                    </p>
                   </div>
-                </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
-                {/* Hover Effects */}
-                <div className="absolute inset-0 bg-primary-500/0 group-hover:bg-primary-500/5 transition-colors duration-300" />
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Load More Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="text-center mt-12"
-        >
-          <button className="px-8 py-3 bg-dark-700 text-white rounded-full font-medium hover:bg-dark-600 transition-colors duration-300 border border-gray-600 hover:border-primary-500">
-            View More Memories
-          </button>
-        </motion.div>
+        {/* Load More Button - Only show if there are images */}
+        {filteredImages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mt-12"
+          >
+            <button className="px-8 py-3 bg-dark-700 text-white rounded-full font-medium hover:bg-dark-600 transition-colors duration-300 border border-gray-600 hover:border-primary-500">
+              View More Memories
+            </button>
+          </motion.div>
+        )}
       </div>
 
       {/* Modal */}
@@ -281,35 +274,35 @@ const GallerySection: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {(() => {
-                const currentImage = galleryImages.find(img => img.id === selectedImage);
+                const currentImage = filteredImages.find(img => img.id === selectedImage);
                 return currentImage ? (
                   <>
                     <div className="bg-dark-800 rounded-2xl overflow-hidden">
-                      <div className="aspect-w-16 aspect-h-10 bg-gradient-to-br from-primary-500/20 to-primary-400/10">
-                        <div className="w-full h-96 flex items-center justify-center">
-                          <div className="text-center">
-                            <Users className="w-16 h-16 text-primary-400 mx-auto mb-4" />
-                            <h3 className="text-white text-2xl font-bold mb-2">{currentImage.title}</h3>
-                            <p className="text-gray-300 mb-4">{currentImage.description}</p>
-                            <div className="flex items-center justify-center text-primary-400">
-                              <Users className="w-5 h-5 mr-2" />
-                              <span>{currentImage.participants} participants joined this event</span>
-                            </div>
-                          </div>
-                        </div>
+                      <div className="aspect-w-16 aspect-h-10">
+                        <img
+                          src={currentImage.url}
+                          alt={currentImage.title || currentImage.fileName}
+                          className="w-full h-96 object-contain bg-dark-900"
+                        />
                       </div>
                       <div className="p-6 bg-dark-700">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
-                            <span className="px-3 py-1 bg-primary-500 text-white text-sm rounded-full">
-                              {currentImage.category}
-                            </span>
+                            {currentImage.category && currentImage.category !== 'All' && (
+                              <span className="px-3 py-1 bg-primary-500 text-white text-sm rounded-full">
+                                {currentImage.category}
+                              </span>
+                            )}
                             <div className="flex items-center text-gray-300">
                               <Heart className="w-4 h-4 mr-1 text-red-400" />
                               <span>Loved by community</span>
                             </div>
                           </div>
                         </div>
+                        <h3 className="text-white text-2xl font-bold mt-4 mb-2">{currentImage.title}</h3>
+                        {currentImage.description && (
+                          <p className="text-gray-300">{currentImage.description}</p>
+                        )}
                       </div>
                     </div>
                   </>

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { 
   Users, 
   Mail, 
-  Phone, 
   MapPin, 
   Instagram, 
   Facebook, 
@@ -147,16 +146,10 @@ const Footer: React.FC = () => {
                 <Mail className="w-4 h-4 text-primary-400" />
                 <span className="text-sm">info@unigather.co.in</span>
               </div>
-              <div className="flex items-center space-x-3 text-gray-400">
-                <Phone className="w-4 h-4 text-primary-400" />
-                <span className="text-sm">+91 79737 71593</span>
-              </div>
               <div className="flex items-start space-x-3 text-gray-400">
                 <MapPin className="w-4 h-4 text-primary-400 mt-0.5" />
                 <span className="text-sm">
-                  Civil Lines,<br />
-                  Ludhiana, PB, India<br />
-                  141001
+                  Ludhiana, PB, India
                 </span>
               </div>
             </div>
