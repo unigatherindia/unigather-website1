@@ -1,4 +1,3 @@
-// src/app/admin/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -387,13 +386,13 @@ export default function AdminPage() {
       const images = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as any[];
 
-      setUploadedImages(images.map(img => ({
+      setUploadedImages(images.map((img: any) => ({
         id: img.id,
-        url: img.url,
-        publicId: img.publicId,
-        fileName: img.fileName,
+        url: img.url || '',
+        publicId: img.publicId || '',
+        fileName: img.fileName || '',
         title: img.title || img.fileName?.split('.')[0] || 'Untitled',
         uploadedAt: img.uploadedAt?.toDate?.() || new Date(img.uploadedAt),
       })));
