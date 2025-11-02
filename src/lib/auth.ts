@@ -90,6 +90,11 @@ export const signIn = async (
   password: string
 ): Promise<UserCredential> => {
   try {
+    // Check if auth is initialized
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized. Please check your Firebase configuration.');
+    }
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential;
   } catch (error: any) {
@@ -100,6 +105,9 @@ export const signIn = async (
 // Sign out
 export const logout = async (): Promise<void> => {
   try {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized. Please check your Firebase configuration.');
+    }
     await signOut(auth);
   } catch (error: any) {
     throw error;
@@ -109,6 +117,9 @@ export const logout = async (): Promise<void> => {
 // Send password reset email
 export const resetPassword = async (email: string): Promise<void> => {
   try {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized. Please check your Firebase configuration.');
+    }
     await sendPasswordResetEmail(auth, email);
   } catch (error: any) {
     throw error;
@@ -117,6 +128,9 @@ export const resetPassword = async (email: string): Promise<void> => {
 
 // Get current user
 export const getCurrentUser = (): User | null => {
+  if (!auth) {
+    return null;
+  }
   return auth.currentUser;
 };
 
