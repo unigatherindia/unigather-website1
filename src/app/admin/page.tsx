@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
 import { 
-  Upload, Plus, Users, Settings, LogOut, 
+  Upload, Plus, Users, LogOut, 
   Image, FileText, Video, Calendar, MapPin,
   Search, Filter, Edit, Trash2, Eye, UserPlus,
   X, Check, AlertCircle, Save, Camera, Loader2, UserCircle
@@ -837,10 +837,6 @@ export default function AdminPage() {
                 <p className="text-gray-400">Manage your platform content and users</p>
               </div>
               <div className="flex items-center space-x-4">
-                <button className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </button>
                 <button 
                   onClick={async () => {
                     try {

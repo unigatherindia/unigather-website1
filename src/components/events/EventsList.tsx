@@ -12,7 +12,7 @@ import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firesto
 import toast from 'react-hot-toast';
 
 interface Event {
-  id: string | number;
+  id: string;
   title: string;
   description: string;
   category: string;
@@ -45,7 +45,7 @@ interface Event {
 
 const EventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [likedEvents, setLikedEvents] = useState<(string | number)[]>([]);
+  const [likedEvents, setLikedEvents] = useState<string[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -129,7 +129,7 @@ const EventsList: React.FC = () => {
     fetchEvents();
   }, []);
 
-  const toggleLike = (eventId: string | number) => {
+  const toggleLike = (eventId: string) => {
     setLikedEvents(prev => 
       prev.includes(eventId) 
         ? prev.filter(id => id !== eventId)
