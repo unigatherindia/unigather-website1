@@ -35,7 +35,6 @@ const Footer: React.FC = () => {
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Terms & Conditions', href: '/terms' },
     { name: 'Refund Policy', href: '/refund' },
-    { name: 'Cart', href: '/cart' },
   ];
 
   return (

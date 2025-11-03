@@ -829,7 +829,7 @@ export default function AdminPage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-4xl font-bold text-white mb-2">
                   Admin <span className="gradient-text">Dashboard</span>
@@ -857,7 +857,7 @@ export default function AdminPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-4 border-b border-gray-700">
+            <div className="flex flex-wrap gap-2 border-b border-gray-700">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -865,7 +865,7 @@ export default function AdminPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`px-6 py-3 flex items-center space-x-2 font-medium transition-colors border-b-2 ${
+                    className={`px-3 py-2 sm:px-6 sm:py-3 text-sm sm:text-base flex items-center space-x-2 font-medium transition-colors border-b-2 ${
                       isActive
                         ? 'text-primary-400 border-primary-400'
                         : 'text-gray-400 border-transparent hover:text-gray-300'

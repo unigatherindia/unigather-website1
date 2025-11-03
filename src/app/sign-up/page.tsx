@@ -6,7 +6,7 @@ import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
 import { 
   Mail, Lock, User, Phone, UserPlus, Eye, EyeOff, 
-  ArrowRight, Users, Sparkles, CheckCircle 
+  ArrowRight, Users, Sparkles 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -19,11 +19,9 @@ export default function SignUpPage() {
     email: '',
     phone: '',
     password: '',
-    confirmPassword: '',
     agreeToTerms: false,
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -34,7 +32,7 @@ export default function SignUpPage() {
   };
 
   const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
       toast.error('Please fill in all fields');
       return false;
     }
@@ -58,11 +56,6 @@ export default function SignUpPage() {
 
     if (formData.password.length < 6) {
       toast.error('Password must be at least 6 characters long');
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
       return false;
     }
 
@@ -264,42 +257,7 @@ export default function SignUpPage() {
                   )}
                 </div>
 
-                {/* Confirm Password Field */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      className={`w-full pl-11 pr-11 py-3 bg-dark-700 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
-                        formData.confirmPassword && formData.password === formData.confirmPassword
-                          ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
-                          : formData.confirmPassword
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                          : 'border-gray-600 focus:border-primary-500 focus:ring-primary-500/20'
-                      }`}
-                      placeholder="Confirm your password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                    <div className="mt-2 flex items-center space-x-2 text-green-400 text-sm">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Passwords match</span>
-                    </div>
-                  )}
-                </div>
+                
 
                 {/* Terms and Conditions */}
                 <div className="flex items-start space-x-3">
