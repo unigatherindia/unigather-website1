@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -130,6 +130,7 @@ export default function SignInPage() {
   };
 
   return (
+    <Suspense fallback={null}>
     <Layout>
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 overflow-hidden pt-20">
         {/* Background Elements */}
@@ -349,6 +350,7 @@ export default function SignInPage() {
         </div>
       </section>
     </Layout>
+    </Suspense>
   );
 }
 

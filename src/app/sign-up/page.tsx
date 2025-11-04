@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -113,6 +113,7 @@ export default function SignUpPage() {
   const strength = passwordStrength();
 
   return (
+    <Suspense fallback={null}>
     <Layout>
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 overflow-hidden pt-20">
         {/* Background Elements */}
@@ -339,6 +340,7 @@ export default function SignUpPage() {
         </div>
       </section>
     </Layout>
+    </Suspense>
   );
 }
 
