@@ -763,7 +763,7 @@ export default function AdminPage() {
                         <p className="mb-2 text-sm text-gray-400">
                           <span className="font-semibold">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 20MB</p>
                         <p className="text-xs text-gray-500 mt-2">Images will be uploaded to Cloudinary and synced to the gallery</p>
                       </div>
                       <input
@@ -1460,7 +1460,7 @@ export default function AdminPage() {
                           <p className="mb-2 text-sm text-gray-400">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 20MB</p>
                         </div>
                         <input
                           type="file"
