@@ -8,7 +8,7 @@ import {
   Upload, Plus, LogOut, 
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
-  Save, Camera, Loader2, UserCircle
+  Save, Camera, Loader2, UserCircle, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '@/lib/firebase';
