@@ -44,13 +44,13 @@ const ChatBot: React.FC = () => {
       // Simple intent matching for common FAQs
       const lower = msg.toLowerCase();
       let canned: string | null = null;
-      if (/(how .*join.*event|join our events|join an event)/i.test(lower)) {
+      if (/(how .*join.*event|join our events|events|event|join an event)/i.test(lower)) {
         canned =
           'Visit our website and locate the "Join Our Events" thumbnail.\n\n' +
           'Open the events page and browse the events listed.\n\n' +
           'Select the event you want to join.\n\n' +
           'Complete the booking to secure your spot.';
-      } else if (/(refund policy|refunds|cancel.*refund|postpone.*refund)/i.test(lower)) {
+      } else if (/(refund policy|refunds|refund|cancel.*refund|postpone.*refund)/i.test(lower)) {
         canned =
           "Unigather's refund policy is simple: Tickets are non-refundable if you can't attend, but you can join any upcoming event instead. If an event is canceled or postponed, you can get a refund within 24 hours by emailing unigatherindia@gmail.com.";
       } else if (/(what is unigather|about unigather|who are you)/i.test(lower)) {

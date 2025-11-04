@@ -5,21 +5,21 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
 import { 
-  Upload, Plus, Users, LogOut, 
+  Upload, Plus, LogOut, 
   Image, FileText, Video, Calendar, MapPin,
-  Search, Filter, Edit, Trash2, Eye, UserPlus,
-  X, Check, AlertCircle, Save, Camera, Loader2, UserCircle
+  Search, Edit, Trash2, 
+  Save, Camera, Loader2, UserCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { syncUserToFirestore, logout } from '@/lib/auth';
+import { logout } from '@/lib/auth';
 import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
 
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'events' | 'users' | 'about'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'events' | 'about'>('upload');
 
   // Check admin authentication on mount
   useEffect(() => {
@@ -82,131 +82,6 @@ export default function AdminPage() {
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
 
-  // Users State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-
-  // Fetch users from Firestore
-  const fetchUsers = async () => {
-    if (!db) {
-      toast.error('Firebase is not initialized. Please check your configuration.');
-      return;
-    }
-
-    setIsLoadingUsers(true);
-    try {
-      const usersCollection = collection(db, 'users');
-      
-      // Try with orderBy first, if it fails due to missing index, try without
-      let querySnapshot;
-      try {
-        const usersQuery = query(usersCollection, orderBy('createdAt', 'desc'));
-        querySnapshot = await getDocs(usersQuery);
-      } catch (orderError: any) {
-        // If orderBy fails (likely due to missing index), try without it
-        if (orderError.code === 'failed-precondition') {
-          console.warn('Index not found, fetching without orderBy');
-          querySnapshot = await getDocs(usersCollection);
-        } else {
-          throw orderError;
-        }
-      }
-      
-      if (querySnapshot.empty) {
-        console.log('Firestore users collection is empty.');
-        console.log('Note: Users in Firebase Authentication are separate from Firestore.');
-        console.log('Make sure Firestore is enabled and users have signed up AFTER the Firestore save was implemented.');
-        setUsers([]);
-        toast('No users found in Firestore database. Users who signed up before Firestore was set up will not appear here.', {
-          icon: 'ℹ️',
-          duration: 5000,
-        });
-        return;
-      }
-      
-      const usersData = querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        // Handle createdAt - could be Timestamp, string, or Date
-        let joinedDate = data.joinedDate;
-        if (!joinedDate && data.createdAt) {
-          if (data.createdAt instanceof Timestamp) {
-            joinedDate = data.createdAt.toDate().toISOString().split('T')[0];
-          } else if (typeof data.createdAt === 'string') {
-            joinedDate = new Date(data.createdAt).toISOString().split('T')[0];
-          } else {
-            joinedDate = new Date(data.createdAt).toISOString().split('T')[0];
-          }
-        }
-        
-        // Get phone number - check multiple possible field names
-        const phone = data.phone || data.phoneNumber || data.mobile || data.contact || '';
-        
-        return {
-          id: doc.id,
-          name: data.name || data.displayName || 'N/A',
-          email: data.email || 'N/A',
-          phone: phone || 'N/A',
-          joinedDate: joinedDate || 'N/A',
-          eventsAttended: data.eventsAttended || 0,
-          status: data.status || 'active',
-        };
-      });
-      
-      setUsers(usersData);
-    } catch (error: any) {
-      console.error('Error fetching users:', error);
-      const errorMessage = error.message || 'Failed to load users. Please try again.';
-      
-      // Check if it's a permissions error
-      if (error.code === 'permission-denied') {
-        toast.error('Permission denied. Please check Firestore security rules in Firebase Console.');
-        console.error('Firestore Security Rules Error:', error);
-        console.log('Go to Firebase Console > Firestore Database > Rules and ensure read access is allowed.');
-      } else if (error.code === 'failed-precondition' || error.message?.includes('index')) {
-        toast.error('Firestore index required. Check browser console for the link to create index.');
-        console.error('Index Error:', error);
-      } else if (error.code === 'unavailable' || error.message?.includes('service')) {
-        toast.error('Firestore service unavailable. Make sure Firestore Database is enabled in Firebase Console.');
-        console.error('Service Error:', error);
-        console.log('Go to Firebase Console > Firestore Database and enable it if not already enabled.');
-      } else {
-        toast.error(errorMessage);
-        console.error('Full error details:', error);
-      }
-    } finally {
-      setIsLoadingUsers(false);
-    }
-  };
-
-  // Sync current user to Firestore if they exist in Auth but not in Firestore
-  const syncCurrentUser = async () => {
-    if (!auth || !auth.currentUser || !db) {
-      toast.error('Please sign in first to sync your user data.');
-      return;
-    }
-
-    try {
-      setIsLoadingUsers(true);
-      await syncUserToFirestore(auth.currentUser);
-      toast.success('Your user data has been synced to Firestore!');
-      // Refresh users list
-      await fetchUsers();
-    } catch (error: any) {
-      console.error('Sync error:', error);
-      toast.error(error.message || 'Failed to sync user. Please check Firestore setup.');
-    } finally {
-      setIsLoadingUsers(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'users') {
-      fetchUsers();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -773,20 +648,6 @@ export default function AdminPage() {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const name = user.name?.toLowerCase() || '';
-    const email = user.email?.toLowerCase() || '';
-    const search = searchQuery.toLowerCase();
-    return name.includes(search) || email.includes(search);
-  });
-
-  const toggleUserSelection = (userId: string) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
 
   // Fetch events when events tab is active
   useEffect(() => {
@@ -800,7 +661,6 @@ export default function AdminPage() {
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'create', label: editingEvent ? 'Edit Event' : 'Create Event', icon: Plus },
     { id: 'events', label: 'Events', icon: Calendar },
-    { id: 'users', label: 'Users', icon: Users },
     { id: 'about', label: 'About Us', icon: UserCircle },
   ];
 
@@ -1523,189 +1383,6 @@ export default function AdminPage() {
             </motion.div>
           )}
 
-          {/* Users Section */}
-          {activeTab === 'users' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="bg-dark-800 rounded-2xl border border-gray-700 p-6">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Users Management</h2>
-                    <p className="text-gray-400">Manage all registered users</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="relative flex-1 md:flex-none">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search users..."
-                        className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full md:w-64"
-                      />
-                    </div>
-                    <button 
-                      onClick={fetchUsers}
-                      disabled={isLoadingUsers}
-                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
-                      title="Refresh users list"
-                    >
-                      {isLoadingUsers ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Users className="w-4 h-4" />
-                      )}
-                      <span>Refresh</span>
-                    </button>
-                    {auth?.currentUser && (
-                      <button 
-                        onClick={syncCurrentUser}
-                        disabled={isLoadingUsers}
-                        className="px-4 py-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors flex items-center space-x-2 disabled:opacity-50"
-                        title="Sync your account to Firestore"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        <span>Sync Me</span>
-                      </button>
-                    )}
-                    <button className="px-4 py-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors flex items-center space-x-2">
-                      <Filter className="w-4 h-4" />
-                      <span>Filter</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Users Table */}
-                {isLoadingUsers ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-400">Loading users...</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-700">
-                          <th className="text-left py-4 px-4">
-                            <input
-                              type="checkbox"
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedUsers(filteredUsers.map(u => u.id));
-                                } else {
-                                  setSelectedUsers([]);
-                                }
-                              }}
-                              className="w-4 h-4 text-primary-500 bg-dark-700 border-gray-600 rounded focus:ring-primary-500"
-                            />
-                          </th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Name</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Email</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Phone</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Joined</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Events</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Status</th>
-                          <th className="text-left py-4 px-4 text-gray-300 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUsers.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="text-center py-12 text-gray-400">
-                              No users found
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredUsers.map((user) => (
-                        <tr key={user.id} className="border-b border-gray-800 hover:bg-dark-700/50 transition-colors">
-                          <td className="py-4 px-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedUsers.includes(user.id)}
-                              onChange={() => toggleUserSelection(user.id)}
-                              className="w-4 h-4 text-primary-500 bg-dark-700 border-gray-600 rounded focus:ring-primary-500"
-                            />
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full flex items-center justify-center">
-                                <Users className="w-5 h-5 text-white" />
-                              </div>
-                              <span className="text-white font-medium">{user.name || 'N/A'}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-gray-300">{user.email || 'N/A'}</td>
-                          <td className="py-4 px-4 text-gray-300">
-                            {user.phone && user.phone !== 'N/A' ? (
-                              <span className="font-mono">{user.phone}</span>
-                            ) : (
-                              <span className="text-gray-500">N/A</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-gray-300">{user.joinedDate || 'N/A'}</td>
-                          <td className="py-4 px-4">
-                            <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded-full text-sm">
-                              {user.eventsAttended || 0}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`px-2 py-1 rounded-full text-sm ${
-                              user.status === 'active'
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-gray-500/20 text-gray-400'
-                            }`}>
-                              {user.status || 'active'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center space-x-2">
-                              <button className="p-2 hover:bg-dark-600 rounded-lg transition-colors" title="View">
-                                <Eye className="w-4 h-4 text-gray-400 hover:text-primary-400" />
-                              </button>
-                              <button className="p-2 hover:bg-dark-600 rounded-lg transition-colors" title="Edit">
-                                <Edit className="w-4 h-4 text-gray-400 hover:text-blue-400" />
-                              </button>
-                              <button className="p-2 hover:bg-dark-600 rounded-lg transition-colors" title="Delete">
-                                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-700">
-                  <div className="text-gray-400 text-sm">
-                    Showing {filteredUsers.length} of {users.length} users
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors">
-                      Previous
-                    </button>
-                    <button className="px-4 py-2 bg-primary-500 text-white rounded-lg">
-                      1
-                    </button>
-                    <button className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors">
-                      2
-                    </button>
-                    <button className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors">
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {/* About Us Section */}
           {activeTab === 'about' && (
             <motion.div
@@ -1904,4 +1581,5 @@ export default function AdminPage() {
     </Layout>
   );
 }
+
 

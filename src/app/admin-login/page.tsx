@@ -99,11 +99,11 @@ export default function AdminLoginPage() {
             className="mb-6"
           >
             <Link
-              href="/sign-in"
+              href="/"
               className="inline-flex items-center space-x-2 text-gray-400 hover:text-primary-400 transition-colors"
             >
               <ArrowRight className="w-4 h-4 rotate-180" />
-              <span>Back to Sign In</span>
+              <span>Back to Home</span>
             </Link>
           </motion.div>
 

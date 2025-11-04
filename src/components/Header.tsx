@@ -3,17 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { logout } from '@/lib/auth';
+import { Menu, X, Users, Calendar, Info, Mail, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,20 +27,10 @@ const Header: React.FC = () => {
     { name: 'Contact', href: '/contact', icon: Mail },
   ];
 
-  const isAuthPage = pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/admin' || pathname === '/admin-login';
+  const isAuthPage = pathname === '/admin' || pathname === '/admin-login';
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      router.push('/sign-in');
-    } catch (e) {
-      toast.error('Failed to log out. Please try again.');
-    }
   };
 
   return (
@@ -135,13 +121,13 @@ const Header: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="hidden md:flex items-center space-x-3"
             >
-              <button 
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-red-400 transition-colors duration-300"
+              <Link 
+                href="/admin-login"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-primary-400 transition-colors duration-300"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="font-medium">Log Out</span>
-              </button>
+                <Settings className="w-4 h-4" />
+                <span className="font-medium">Admin</span>
+              </Link>
             </motion.div>
           )}
 
@@ -202,14 +188,14 @@ const Header: React.FC = () => {
                 transition={{ duration: 0.3, delay: navigationItems.length * 0.1 }}
                 className="mt-4 pt-4 border-t border-gray-700 space-y-3"
               >
-                <button 
-                  onClick={() => { setIsMenuOpen(false); handleLogout(); }}
-                  className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-500/5 transition-all duration-300"
+                <Link
+                  href="/admin-login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg text-gray-300 hover:text-primary-400 hover:bg-primary-500/5 transition-all duration-300"
                 >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">Log Out</span>
-                </button>
-                
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Admin</span>
+                </Link>
               </motion.div>
             </div>
           </motion.div>

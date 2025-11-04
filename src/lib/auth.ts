@@ -136,7 +136,10 @@ export const resetPassword = async (email: string): Promise<void> => {
     if (!auth) {
       throw new Error('Firebase Auth is not initialized. Please check your Firebase configuration.');
     }
-    await sendPasswordResetEmail(auth, email);
+    const actionCodeSettings = typeof window !== 'undefined'
+      ? { url: `${window.location.origin}/`, handleCodeInApp: false }
+      : undefined as any;
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
   } catch (error: any) {
     throw error;
   }
@@ -171,6 +174,12 @@ export const getFirebaseErrorMessage = (errorCode: string): string => {
       return 'Too many failed attempts. Please try again later.';
     case 'auth/network-request-failed':
       return 'Network error. Please check your internet connection.';
+    case 'auth/missing-android-pkg-name':
+    case 'auth/missing-continue-uri':
+    case 'auth/invalid-continue-uri':
+      return 'Reset link configuration is invalid. Please contact support.';
+    case 'auth/unauthorized-continue-uri':
+      return 'This domain is not authorized for password resets. Please contact support.';
     default:
       return 'An error occurred. Please try again.';
   }

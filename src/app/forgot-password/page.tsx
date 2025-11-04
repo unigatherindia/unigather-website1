@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Mail, Send, ArrowLeft, Users } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { resetPassword } from '@/lib/auth';
+import { resetPassword, getFirebaseErrorMessage } from '@/lib/auth';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -28,7 +28,8 @@ export default function ForgotPasswordPage() {
       await resetPassword(email);
       toast.success('Password reset email sent. Check your inbox.');
     } catch (e: any) {
-      toast.error('Failed to send reset email. Please try again.');
+      const msg = e?.code ? getFirebaseErrorMessage(e.code) : 'Failed to send reset email. Please try again.';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -102,9 +103,9 @@ export default function ForgotPasswordPage() {
               </form>
 
               <div className="mt-6 text-center">
-                <Link href="/sign-in" className="inline-flex items-center text-primary-400 hover:text-primary-300">
+                <Link href="/" className="inline-flex items-center text-primary-400 hover:text-primary-300">
                   <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back to Sign In
+                  Back to Home
                 </Link>
               </div>
             </motion.div>
