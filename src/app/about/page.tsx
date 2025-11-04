@@ -209,7 +209,7 @@ export default function AboutPage() {
             </h2>
             <p className="text-xl text-gray-300 leading-relaxed">
               Like many great ideas, Unigather was born from a personal struggle. Our founder, 
-              Arjun, moved to Mumbai for a new job and found himself surrounded by millions of 
+              Vansh, moved to Mumbai for a new job and found himself surrounded by millions of 
               people yet feeling incredibly lonely.
             </p>
           </motion.div>
@@ -228,14 +228,14 @@ export default function AboutPage() {
                   to be a better way to meet genuine people who could become real friends.
                 </p>
                 <p className="text-lg leading-relaxed">
-                  So in December 2022, Arjun organized a simple coffee meetup for "strangers who 
+                  So in December 2022, Vansh organized a simple coffee meetup for "strangers who 
                   want to become friends." He posted it online, expecting maybe 5-6 people. 
                   Twenty-three showed up.
                 </p>
                 <p className="text-lg leading-relaxed">
                   That first meetup lasted four hours. People exchanged numbers, made plans to meet 
                   again, and most importantly, formed real connections. Three of those original 
-                  attendees are now among Arjun's closest friends.
+                  attendees are now among Vansh's closest friends.
                 </p>
                 <div className="bg-primary-500/10 border border-primary-500/20 rounded-2xl p-6">
                   <blockquote className="text-lg italic text-primary-400">
@@ -243,7 +243,7 @@ export default function AboutPage() {
                     A movement that says it's okay to be new in the city, it's okay to feel lonely, 
                     and it's definitely okay to want more friends."
                   </blockquote>
-                  <cite className="block text-right text-gray-400 mt-4">- Arjun Patel, Founder</cite>
+                  <cite className="block text-right text-gray-400 mt-4">- Vansh Miglani, Founder</cite>
                 </div>
               </div>
             </motion.div>
