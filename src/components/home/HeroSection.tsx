@@ -59,19 +59,15 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12"
+                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-12 w-full sm:w-auto max-w-sm sm:max-w-none mx-auto lg:mx-0"
               >
                 <Link
                   href="/events"
-                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center justify-center"
+                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-4 py-3 text-sm sm:px-6 sm:py-3 sm:text-base md:px-8 md:py-4 md:text-lg rounded-full font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center justify-center w-full sm:w-auto overflow-hidden"
                 >
                   Join Our Events
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <button className="group flex items-center justify-center px-8 py-4 border-2 border-gray-600 text-white rounded-full font-semibold text-lg hover:border-primary-400 hover:text-primary-400 transition-all duration-300">
-                  <Play className="w-5 h-5 mr-2" />
-                  Watch Story
-                </button>
               </motion.div>
 
               {/* Stats */}
@@ -106,7 +102,7 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, delay: 0.3 }}
-                className="relative"
+                className="relative origin-center scale-[0.7] sm:scale-100"
               >
                 {/* Main Circle */}
                 <div className="relative w-96 h-96 mx-auto">

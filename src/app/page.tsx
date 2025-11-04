@@ -2,6 +2,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import Layout from '@/components/Layout';
+import ChatBot from '@/components/ChatBot';
 import HeroSection from '@/components/home/HeroSection';
 import AboutSection from '@/components/home/AboutSection';
 
@@ -39,6 +40,7 @@ export default function HomePage() {
       <Suspense fallback={<SectionLoader />}>
         <CTASection />
       </Suspense>
+      <ChatBot />
     </Layout>
   );
 }

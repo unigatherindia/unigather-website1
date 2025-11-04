@@ -168,7 +168,7 @@ export default function AboutPage() {
               one event at a time.
             </p>
 
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
               {[
                 { number: '10,000+', label: 'Friends Made' },
                 { number: '500+', label: 'Events Hosted' },
@@ -179,12 +179,12 @@ export default function AboutPage() {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
-                  className="p-6 bg-dark-700/50 backdrop-blur-sm rounded-2xl border border-gray-700/50"
+                  className="p-3 sm:p-4 md:p-6 bg-dark-700/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 transform origin-top-left scale-[0.1] sm:scale-[0.6] md:scale-100"
                 >
-                  <div className="text-3xl font-bold gradient-text mb-2">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold gradient-text mb-1 sm:mb-2">
                     {stat.number}
                   </div>
-                  <div className="text-gray-400">
+                  <div className="text-xs sm:text-sm md:text-base text-gray-400">
                     {stat.label}
                   </div>
                 </motion.div>
@@ -256,7 +256,7 @@ export default function AboutPage() {
               className="relative"
             >
               <div className="bg-gradient-to-br from-primary-500/20 to-primary-400/10 rounded-3xl p-8 border border-primary-500/20">
-                <div className="grid grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-2 gap-4 sm:gap-5 md:gap-6 mb-6">
                   {milestones.map((milestone, index) => (
                     <motion.div
                       key={milestone.year}
@@ -264,15 +264,15 @@ export default function AboutPage() {
                       whileInView={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.5, delay: index * 0.1 }}
                       viewport={{ once: true }}
-                      className="text-center p-4 bg-dark-800/50 rounded-2xl backdrop-blur-sm"
+                      className="text-center p-3 sm:p-3.5 md:p-4 bg-dark-800/50 rounded-2xl backdrop-blur-sm transform origin-top-left scale-[0.6] sm:scale-90 md:scale-100"
                     >
-                      <div className="text-2xl font-bold text-primary-400 mb-1">
+                      <div className="text-xl sm:text-2xl font-bold text-primary-400 mb-1">
                         {milestone.year}
                       </div>
-                      <div className="text-white font-semibold text-sm mb-2">
+                      <div className="text-white font-semibold text-xs sm:text-sm mb-2">
                         {milestone.title}
                       </div>
-                      <div className="text-xs text-gray-400 leading-relaxed">
+                      <div className="text-[11px] sm:text-xs text-gray-400 leading-relaxed">
                         {milestone.description}
                       </div>
                     </motion.div>
@@ -303,7 +303,7 @@ export default function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {values.map((value, index) => {
               const Icon = value.icon;
               return (
@@ -313,15 +313,15 @@ export default function AboutPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className="group p-8 bg-dark-800 rounded-3xl border border-gray-700/50 hover:border-primary-500/30 transition-all duration-300 hover:transform hover:scale-105"
+                  className="group p-5 sm:p-6 md:p-8 bg-dark-800 rounded-3xl border border-gray-700/50 hover:border-primary-500/30 transition-all duration-300 transform origin-top-left scale-[0.6] sm:scale-90 md:scale-100 hover:scale-[0.62] sm:hover:scale-95 md:hover:scale-105"
                 >
-                  <div className="flex items-center justify-center w-16 h-16 bg-dark-700 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <Icon className={`w-8 h-8 ${value.color}`} />
+                  <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-dark-700 rounded-2xl mb-4 sm:mb-5 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Icon className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 ${value.color}`} />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-primary-400 transition-colors">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 sm:mb-3 md:mb-4 group-hover:text-primary-400 transition-colors">
                     {value.title}
                   </h3>
-                  <p className="text-gray-300 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-300 leading-relaxed">
                     {value.description}
                   </p>
                 </motion.div>

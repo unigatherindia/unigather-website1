@@ -180,7 +180,7 @@ const GallerySection: React.FC = () => {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6"
           >
             <AnimatePresence>
               {filteredImages.map((image) => (
@@ -196,7 +196,7 @@ const GallerySection: React.FC = () => {
                       <img
                         src={image.url}
                         alt={image.title || image.fileName}
-                        className="w-full h-64 object-cover"
+                        className="w-full h-[8.8rem] sm:h-[11rem] md:h-[15.4rem] lg:h-[17.6rem] object-cover"
                         loading="lazy"
                       />
                     </div>
@@ -240,20 +240,7 @@ const GallerySection: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Load More Button - Only show if there are images */}
-        {filteredImages.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <button className="px-8 py-3 bg-dark-700 text-white rounded-full font-medium hover:bg-dark-600 transition-colors duration-300 border border-gray-600 hover:border-primary-500">
-              View More Memories
-            </button>
-          </motion.div>
-        )}
+        {/* Load More removed per request */}
       </div>
 
       {/* Modal */}

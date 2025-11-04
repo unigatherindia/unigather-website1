@@ -260,13 +260,15 @@ const StatsSection: React.FC = () => {
           <p className="text-lg text-gray-300 mb-6">
             Ready to become part of these amazing statistics?
           </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
-          >
-            Join Our Next Event
-          </motion.button>
+          <a href="/events">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
+            >
+              Join Our Next Event
+            </motion.button>
+          </a>
         </motion.div>
       </div>
     </section>

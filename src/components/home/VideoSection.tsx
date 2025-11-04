@@ -140,25 +140,7 @@ const VideoSection: React.FC = () => {
         </motion.div>
 
         {/* Call to Action */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          viewport={{ once: true }}
-          className="text-center mt-16"
-        >
-          <p className="text-lg text-gray-300 mb-6">
-            Ready to be part of the next success story?
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect inline-flex items-center space-x-2"
-          >
-            <Play className="w-5 h-5" />
-            <span>Join Our Next Event</span>
-          </motion.button>
-        </motion.div>
+        
       </div>
     </section>
   );
