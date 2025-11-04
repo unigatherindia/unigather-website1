@@ -16,7 +16,7 @@ const ChatBot: React.FC = () => {
     {
       role: 'assistant',
       content:
-        'Hi! I am the Unigather assistant. Ask me about events, refunds, or how to get started.',
+        'Hi! I am the Unigather assistant.',
     },
   ]);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -41,14 +41,38 @@ const ChatBot: React.FC = () => {
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
     setLoading(true);
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg }),
-      });
-      const data = await res.json();
-      const reply = data?.reply || "Sorry, I couldn't get that right now.";
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+      // Simple intent matching for common FAQs
+      const lower = msg.toLowerCase();
+      let canned: string | null = null;
+      if (/(how .*join.*event|join our events|join an event)/i.test(lower)) {
+        canned =
+          'Visit our website and locate the "Join Our Events" thumbnail.\n\n' +
+          'Open the events page and browse the events listed.\n\n' +
+          'Select the event you want to join.\n\n' +
+          'Complete the booking to secure your spot.';
+      } else if (/(refund policy|refunds|cancel.*refund|postpone.*refund)/i.test(lower)) {
+        canned =
+          "Unigather's refund policy is simple: Tickets are non-refundable if you can't attend, but you can join any upcoming event instead. If an event is canceled or postponed, you can get a refund within 24 hours by emailing unigatherindia@gmail.com.";
+      } else if (/(what is unigather|about unigather|who are you)/i.test(lower)) {
+        canned =
+          "We're a passionate community dedicated to creating meaningful connections between strangers. Through carefully crafted events and activities, we transform awkward first meetings into lasting friendships.";
+      } else if (/(contact support|support|help.*contact|reach you|contact us|email us|call us|whatsapp)/i.test(lower)) {
+        canned =
+          'You can contact Unigather by emailing unigatherindia@gmail.com or WhatsApp at +91 7901751593. We try to respond within 24 hours. For urgent matters, please message us on WhatsApp first before calling.';
+      }
+
+      if (canned) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: canned as string }]);
+      } else {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg }),
+        });
+        const data = await res.json();
+        const reply = data?.reply || "Sorry, I couldn't get that right now.";
+        setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+      }
     } catch (e: any) {
       setMessages((prev) => [
         ...prev,
