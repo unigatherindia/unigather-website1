@@ -48,7 +48,7 @@ const StatsSection: React.FC = () => {
     },
     {
       icon: Clock,
-      number: 2.5,
+      number: 3.5,
       label: 'Years Strong',
       description: 'Building communities since 2022',
       color: 'from-pink-500 to-pink-400'

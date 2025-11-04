@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
+import { MessageCircle, X, Sparkles } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -10,7 +10,6 @@ interface ChatMessage {
 
 const ChatBot: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -19,6 +18,7 @@ const ChatBot: React.FC = () => {
         'Hi! I am the Unigather assistant.',
     },
   ]);
+  const [askedQuestions, setAskedQuestions] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const suggestions = [
@@ -28,18 +28,53 @@ const ChatBot: React.FC = () => {
     'How to contact support?',
   ];
 
+  // Find which suggestion matches the user's message
+  const findMatchingSuggestion = (msg: string): string | null => {
+    const msgLower = msg.toLowerCase().trim();
+    for (const suggestion of suggestions) {
+      const suggestionLower = suggestion.toLowerCase().trim();
+      // Check for exact match or if the message contains the suggestion text
+      if (msgLower === suggestionLower || 
+          msgLower.includes(suggestionLower) || 
+          suggestionLower.includes(msgLower)) {
+        return suggestion;
+      }
+    }
+    // Also check for intent-based matching
+    if (/(how .*join.*event|join our events|events|event|join an event)/i.test(msgLower)) {
+      return 'How do I join an event?';
+    } else if (/(refund policy|refunds|refund|cancel.*refund|postpone.*refund)/i.test(msgLower)) {
+      return 'What is your refund policy?';
+    } else if (/(what is unigather|about unigather|who are you)/i.test(msgLower)) {
+      return 'What is Unigather?';
+    } else if (/(contact support|support|help.*contact|reach you|contact us|email us|call us|whatsapp)/i.test(msgLower)) {
+      return 'How to contact support?';
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages, open]);
 
-  const send = async () => {
-    const msg = input.trim();
-    if (!msg || loading) return;
-    setInput('');
+  const processMessage = async (msg: string) => {
+    if (!msg.trim() || loading) return;
+    
+    // Check if this message matches a predefined suggestion
+    const matchingSuggestion = findMatchingSuggestion(msg);
+    if (matchingSuggestion) {
+      setAskedQuestions((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(matchingSuggestion);
+        return newSet;
+      });
+    }
+    
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
     setLoading(true);
+    
     try {
       // Simple intent matching for common FAQs
       const lower = msg.toLowerCase();
@@ -83,6 +118,7 @@ const ChatBot: React.FC = () => {
     }
   };
 
+
   return (
     <>
       {!open && (
@@ -103,25 +139,36 @@ const ChatBot: React.FC = () => {
               </div>
               <div className="font-semibold">Unigather Assistant</div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white">
+            <button 
+              onClick={() => {
+                setOpen(false);
+                // Reset asked questions when closing chat
+                setAskedQuestions(new Set());
+              }} 
+              className="text-gray-400 hover:text-white"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Suggestions */}
-          {messages.length <= 1 && (
+          {/* Suggestions - Show only unasked questions */}
+          {suggestions.filter(s => !askedQuestions.has(s)).length > 0 && (
             <div className="p-3 border-b border-gray-700 bg-dark-900/50">
               <div className="text-xs text-gray-400 mb-2">Try asking:</div>
               <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setInput(s)}
-                    className="px-3 py-1.5 text-xs rounded-full bg-dark-700 hover:bg-dark-600 border border-gray-600 text-gray-200"
-                  >
-                    {s}
-                  </button>
-                ))}
+                {suggestions
+                  .filter(s => !askedQuestions.has(s))
+                  .map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        processMessage(s);
+                      }}
+                      className="px-3 py-1.5 text-xs rounded-full bg-dark-700 hover:bg-dark-600 border border-gray-600 text-gray-200 hover:border-primary-500 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
               </div>
             </div>
           )}
@@ -155,26 +202,13 @@ const ChatBot: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="border-t border-gray-700 p-3">
-            <div className="flex items-center gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') send();
-                }}
-                placeholder="Ask about events, refunds, getting started..."
-                className="flex-1 px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
-              <button
-                onClick={send}
-                disabled={loading}
-                className="px-3 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white disabled:opacity-60"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+          {suggestions.filter(s => !askedQuestions.has(s)).length === 0 && (
+            <div className="border-t border-gray-700 p-4 text-center">
+              <p className="text-sm text-gray-400">
+                All questions have been answered. Close and reopen the chat to ask questions again.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       )}
     </>

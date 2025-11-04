@@ -47,8 +47,19 @@ export default function ContactPage() {
     setIsSubmitting(true);
     
     try {
-      // In a real application, you would send this to your backend
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
       
       toast.success('Message sent successfully! We\'ll get back to you soon.');
       setFormData({
@@ -59,8 +70,9 @@ export default function ContactPage() {
         message: '',
         type: 'general'
       });
-    } catch (error) {
-      toast.error('Failed to send message. Please try again.');
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      toast.error(error.message || 'Failed to send message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -431,7 +443,7 @@ export default function ContactPage() {
               <p className="text-gray-300 text-center">
                 Our team typically responds to inquiries within 24 hours during business hours. 
                 For urgent matters related to ongoing events, please call us directly at 
-                <a href="tel:+917973771593" className="text-primary-400 font-medium hover:text-primary-300 transition-colors"> +91 79737 71593</a>.
+                <a href="tel:+91 7901751593" className="text-primary-400 font-medium hover:text-primary-300 transition-colors"> +91 79737 71593</a>.
               </p>
             </div>
           </motion.div>

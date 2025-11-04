@@ -74,7 +74,10 @@ export default function AdminPage() {
     maxCapacity: '',
     duration: '',
     difficulty: 'Easy',
+    imageFile: null as File | null,
+    imageUrl: '',
   });
+  const [uploadingEventImage, setUploadingEventImage] = useState(false);
 
   // Events State
   const [events, setEvents] = useState<any[]>([]);
@@ -434,40 +437,63 @@ export default function AdminPage() {
     });
   };
 
-  const handleEventFormChange = (field: string, value: string) => {
-    setEventForm(prev => ({ ...prev, [field]: value }));
+  const handleEventFormChange = (field: string, value: string | File | null) => {
+    if (field === 'imageFile') {
+      setEventForm(prev => ({ ...prev, imageFile: value as File | null }));
+    } else {
+      setEventForm(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  // Handle event image upload
+  const handleEventImageUpload = async (file: File): Promise<string> => {
+    setUploadingEventImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      return result.data.secure_url;
+    } finally {
+      setUploadingEventImage(false);
+    }
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Always show success (non-blocking if Firestore fails)
-    toast.success('Event created successfully!');
-    
-    // Reset form immediately
-    const formData = { ...eventForm };
-    setEventForm({
-      title: '',
-      description: '',
-      category: '',
-      date: '',
-      time: '',
-      location: '',
-      address: '',
-      priceMale: '',
-      priceFemale: '',
-      maxCapacity: '',
-      duration: '',
-      difficulty: 'Easy',
-    });
-
     // Save to Firestore in background (non-blocking)
     if (!db) {
       console.warn('Firestore is not initialized. Event form data saved locally.');
+      toast.error('Firebase is not initialized. Please check your configuration.');
       return;
     }
 
+    // Reset form immediately
+    const formData = { ...eventForm };
+    
     try {
+      // Upload image if provided
+      let imageUrl = '/api/placeholder/600/400'; // Default image
+      if (formData.imageFile) {
+        try {
+          imageUrl = await handleEventImageUpload(formData.imageFile);
+        } catch (uploadError: any) {
+          console.error('Error uploading image:', uploadError);
+          toast.error('Failed to upload image. Using default image.');
+        }
+      }
+
       // Prepare event data for Firestore
       const eventData = {
         title: formData.title,
@@ -495,7 +521,7 @@ export default function AdminPage() {
           avatar: '/api/placeholder/40/40',
           rating: 0
         },
-        image: '/api/placeholder/600/400', // Default image
+        image: imageUrl,
         featured: false,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -505,14 +531,34 @@ export default function AdminPage() {
       const docRef = await addDoc(collection(db, 'events'), eventData);
       console.log('Event created with ID:', docRef.id);
       
+      // Always show success (non-blocking if Firestore fails)
+      toast.success('Event created successfully!');
+      
+      // Reset form
+      setEventForm({
+        title: '',
+        description: '',
+        category: '',
+        date: '',
+        time: '',
+        location: '',
+        address: '',
+        priceMale: '',
+        priceFemale: '',
+        maxCapacity: '',
+        duration: '',
+        difficulty: 'Easy',
+        imageFile: null,
+        imageUrl: '',
+      });
+      
       // Refresh events list if on events tab
       if (activeTab === 'events') {
         fetchEvents();
       }
     } catch (error: any) {
       console.error('Error creating event in Firestore:', error);
-      // Don't show error to user - event creation succeeded, just Firestore save failed
-      console.warn('Event form submitted but Firestore save failed. Event will not appear in list until Firestore is enabled.');
+      toast.error('Failed to create event. Please try again.');
     }
   };
 
@@ -591,6 +637,8 @@ export default function AdminPage() {
       maxCapacity: event.maxCapacity?.toString() || '',
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
+      imageFile: null,
+      imageUrl: event.image || '',
     });
     setActiveTab('create');
   };
@@ -605,6 +653,17 @@ export default function AdminPage() {
     }
 
     try {
+      // Upload new image if provided
+      let imageUrl = eventForm.imageUrl; // Keep existing image if no new one uploaded
+      if (eventForm.imageFile) {
+        try {
+          imageUrl = await handleEventImageUpload(eventForm.imageFile);
+        } catch (uploadError: any) {
+          console.error('Error uploading image:', uploadError);
+          toast.error('Failed to upload image. Keeping existing image.');
+        }
+      }
+
       const eventData = {
         title: eventForm.title,
         description: eventForm.description,
@@ -618,6 +677,7 @@ export default function AdminPage() {
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
+        image: imageUrl,
         updatedAt: Timestamp.now()
       };
 
@@ -638,6 +698,8 @@ export default function AdminPage() {
         maxCapacity: '',
         duration: '',
         difficulty: 'Easy',
+        imageFile: null,
+        imageUrl: '',
       });
       
       setActiveTab('events');
@@ -1026,6 +1088,62 @@ export default function AdminPage() {
                       />
                     </div>
 
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Event Image {!editingEvent && '*'}
+                      </label>
+                      {eventForm.imageUrl && !eventForm.imageFile && (
+                        <div className="mb-4">
+                          <img
+                            src={eventForm.imageUrl}
+                            alt="Current event image"
+                            className="w-32 h-32 object-cover rounded-lg border border-gray-600"
+                          />
+                        </div>
+                      )}
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-dark-700 hover:border-primary-500 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Image className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="mb-2 text-sm text-gray-400">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 20MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 20 * 1024 * 1024) {
+                                toast.error('File size must be less than 20MB');
+                                return;
+                              }
+                              handleEventFormChange('imageFile', file);
+                              // Create preview URL
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                handleEventFormChange('imageUrl', reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {uploadingEventImage && (
+                        <div className="mt-2 flex items-center space-x-2 text-primary-400">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Uploading image...</span>
+                        </div>
+                      )}
+                      {eventForm.imageFile && (
+                        <p className="mt-2 text-sm text-gray-400">
+                          Selected: {eventForm.imageFile.name}
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
                         Category *
@@ -1195,6 +1313,8 @@ export default function AdminPage() {
                             maxCapacity: '',
                             duration: '',
                             difficulty: 'Easy',
+                            imageFile: null,
+                            imageUrl: '',
                           });
                         }}
                         className="px-6 py-3 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors"

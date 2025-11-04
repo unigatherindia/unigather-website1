@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Calendar, MapPin, Users, Clock, Star, Heart, Share2, 
+  Calendar, MapPin, Users, Clock, Star, 
   IndianRupee, User, UserCheck, ChevronRight, Ticket, Loader2
 } from 'lucide-react';
 import BookingModal from './BookingModal';
@@ -45,7 +45,6 @@ interface Event {
 
 const EventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [likedEvents, setLikedEvents] = useState<string[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -129,14 +128,6 @@ const EventsList: React.FC = () => {
     fetchEvents();
   }, []);
 
-  const toggleLike = (eventId: string) => {
-    setLikedEvents(prev => 
-      prev.includes(eventId) 
-        ? prev.filter(id => id !== eventId)
-        : [...prev, eventId]
-    );
-  };
-
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return 'text-green-400 bg-green-500/20';
@@ -219,32 +210,34 @@ const EventsList: React.FC = () => {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="absolute top-4 right-4 z-20 flex space-x-2">
-                <button
-                  onClick={() => toggleLike(event.id)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-300 ${
-                    likedEvents.includes(event.id)
-                      ? 'bg-red-500/80 text-white'
-                      : 'bg-black/40 text-gray-300 hover:bg-red-500/80 hover:text-white'
-                  }`}
-                >
-                  <Heart className={`w-4 h-4 ${likedEvents.includes(event.id) ? 'fill-current' : ''}`} />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm text-gray-300 hover:text-white transition-colors flex items-center justify-center">
-                  <Share2 className="w-4 h-4" />
-                </button>
-              </div>
-
               {/* Image */}
               <div className="relative h-48 overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-br from-primary-500/30 to-primary-400/20 flex items-center justify-center">
-                  <div className="text-center">
-                    <Calendar className="w-12 h-12 text-primary-400 mx-auto mb-2" />
-                    <p className="text-white font-semibold">{event.category} Event</p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                {event.image && event.image !== '/api/placeholder/600/400' ? (
+                  <>
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <Calendar className="w-12 h-12 text-white mx-auto mb-2 drop-shadow-lg" />
+                        <p className="text-white font-semibold drop-shadow-lg">{event.category} Event</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-full h-full bg-gradient-to-br from-primary-500/30 to-primary-400/20 flex items-center justify-center">
+                      <div className="text-center">
+                        <Calendar className="w-12 h-12 text-primary-400 mx-auto mb-2" />
+                        <p className="text-white font-semibold">{event.category} Event</p>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  </>
+                )}
               </div>
 
               {/* Content */}
@@ -318,15 +311,8 @@ const EventsList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Rating & Organizer */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="text-white font-medium">{event.rating}</span>
-                    </div>
-                    <span className="text-gray-400 text-sm">({event.reviews} reviews)</span>
-                  </div>
+                {/* Organizer */}
+                <div className="flex items-center justify-end mb-6">
                   <div className="text-xs text-gray-400">
                     by {event.organizer.name}
                   </div>
