@@ -221,7 +221,11 @@ const CTASection: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-              {(isLoading ? Array.from({ length: 3 }) : upcomingEvents).map((event, index) => (
+              {(
+                isLoading
+                  ? (Array.from({ length: 3 }) as unknown as EventItem[])
+                  : upcomingEvents
+              ).map((event, index) => (
                 <motion.div
                   key={isLoading ? index : event.id}
                   initial={{ opacity: 0, y: 30 }}
