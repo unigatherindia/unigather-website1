@@ -9,14 +9,14 @@ import {
   ArrowRight, Users, Sparkles, Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { signIn, signInWithGoogle, getFirebaseErrorMessage } from '@/lib/auth';
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [redirectTo, setRedirectTo] = useState('/');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -37,6 +37,17 @@ export default function SignInPage() {
         setFormData(prev => ({ ...prev, email: savedEmail, password: savedPassword }));
       }
     } catch {}
+  }, []);
+
+  // Read redirect param from URL on client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const r = params.get('redirect');
+        if (r) setRedirectTo(r);
+      } catch {}
+    }
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
@@ -94,7 +105,6 @@ export default function SignInPage() {
           localStorage.removeItem('unigather_remember_password');
         }
       } catch {}
-      const redirectTo = searchParams?.get('redirect') || '/';
       router.push(redirectTo);
     } catch (error: any) {
       if (error?.code === 'auth/user-not-found') {
@@ -119,7 +129,6 @@ export default function SignInPage() {
       }
       await signInWithGoogle();
       toast.success('Signed in with Google!');
-      const redirectTo = searchParams?.get('redirect') || '/';
       router.push(redirectTo);
     } catch (error: any) {
       const message = error?.code ? getFirebaseErrorMessage(error.code) : 'Google sign-in failed. Please try again.';

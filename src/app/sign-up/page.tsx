@@ -9,12 +9,11 @@ import {
   ArrowRight, Users, Sparkles 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { signUp, getFirebaseErrorMessage } from '@/lib/auth';
 
 export default function SignUpPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
