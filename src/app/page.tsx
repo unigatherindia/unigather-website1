@@ -1,10 +1,12 @@
 'use client';
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ChatBot from '@/components/ChatBot';
 import HeroSection from '@/components/home/HeroSection';
 import AboutSection from '@/components/home/AboutSection';
+import { useRouter } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth';
 
 // Lazy load components that are below the fold
 const StatsSection = lazy(() => import('@/components/home/StatsSection'));
@@ -21,18 +23,27 @@ const SectionLoader = () => (
 );
 
 export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) {
+      router.replace('/sign-in?redirect=/');
+    }
+  }, []);
+
   return (
     <Layout>
       <HeroSection />
+      <Suspense fallback={<SectionLoader />}>
+        <GallerySection />
+      </Suspense>
       <AboutSection />
       <Suspense fallback={<SectionLoader />}>
         <StatsSection />
       </Suspense>
       <Suspense fallback={<SectionLoader />}>
         <VideoSection />
-      </Suspense>
-      <Suspense fallback={<SectionLoader />}>
-        <GallerySection />
       </Suspense>
       <Suspense fallback={<SectionLoader />}>
         <TestimonialSection />

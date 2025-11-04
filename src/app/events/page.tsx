@@ -4,7 +4,6 @@ import React from 'react';
 import Layout from '@/components/Layout';
 import EventsHero from '@/components/events/EventsHero';
 import EventsList from '@/components/events/EventsList';
-import EventFilters from '@/components/events/EventFilters';
 
 export default function EventsPage() {
   return (
@@ -12,7 +11,6 @@ export default function EventsPage() {
       <EventsHero />
       <section className="py-16 bg-dark-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <EventFilters />
           <EventsList />
         </div>
       </section>

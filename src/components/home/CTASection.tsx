@@ -1,34 +1,81 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, Calendar, Users, Heart, Star, Sparkles } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+interface EventItem {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time?: string;
+  category?: string;
+  maxCapacity?: number;
+  currentParticipants?: { male: number; female: number };
+}
 
 const CTASection: React.FC = () => {
-  const upcomingEvents = [
-    {
-      title: 'Weekend Hiking Adventure',
-      date: 'This Saturday',
-      participants: 42,
-      maxCapacity: 50,
-      type: 'Outdoor'
-    },
-    {
-      title: 'Creative Art Workshop',
-      date: 'Next Sunday', 
-      participants: 18,
-      maxCapacity: 25,
-      type: 'Creative'
-    },
-    {
-      title: 'Tech Networking Meetup',
-      date: 'Friday Evening',
-      participants: 67,
-      maxCapacity: 75,
-      type: 'Professional'
-    }
-  ];
+  const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUpcoming = async () => {
+      if (!db) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const eventsCol = collection(db, 'events');
+        const q = query(eventsCol, orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        const items: EventItem[] = snap.docs.map((doc) => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            title: d.title || 'Untitled Event',
+            date: d.date || new Date().toISOString().split('T')[0],
+            time: d.time,
+            category: d.category || 'Event',
+            maxCapacity: d.maxCapacity || 0,
+            currentParticipants: d.currentParticipants || { male: 0, female: 0 },
+          };
+        });
+        const sorted = items
+          .filter((e) => e.date)
+          .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
+        setUpcomingEvents(sorted.slice(0, 3));
+      } catch (e) {
+        setUpcomingEvents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUpcoming();
+  }, []);
+
+  const totalParticipants = (e: EventItem) => {
+    if (!e.currentParticipants) return 0;
+    return (e.currentParticipants.male || 0) + (e.currentParticipants.female || 0);
+    };
+
+  const capacity = (e: EventItem) => e.maxCapacity || 0;
+
+  const capacityPct = (e: EventItem) => {
+    const cap = capacity(e);
+    const participants = totalParticipants(e);
+    if (cap <= 0) return 0;
+    return Math.min(100, Math.round((participants / cap) * 100));
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
     <section className="py-20 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 relative overflow-hidden">
@@ -174,53 +221,63 @@ const CTASection: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-              {upcomingEvents.map((event, index) => (
+              {(isLoading ? Array.from({ length: 3 }) : upcomingEvents).map((event, index) => (
                 <motion.div
-                  key={event.title}
+                  key={isLoading ? index : event.id}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
                   whileHover={{ scale: 1.03, y: -5 }}
-                  className="group bg-dark-800 border border-gray-700/50 rounded-2xl p-6 hover:border-primary-500/30 transition-all duration-300 relative overflow-hidden"
+                  className="group bg-dark-800 border border-gray-700/50 rounded-2xl hover:border-primary-500/30 transition-all duration-300 relative overflow-hidden"
                 >
+                  <Link href="/events" className="block p-6">
                   {/* Background Gradient */}
                   <div className="absolute inset-0 bg-gradient-to-r from-primary-500/0 group-hover:from-primary-500/5 to-transparent transition-all duration-300"></div>
                   
                   <div className="relative z-10">
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        event.type === 'Outdoor' ? 'bg-green-500/20 text-green-400' :
-                        event.type === 'Creative' ? 'bg-purple-500/20 text-purple-400' :
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {event.type}
-                      </div>
+                      {isLoading ? (
+                        <div className="px-3 py-1 rounded-full text-xs font-medium bg-dark-600 text-gray-500">&nbsp;</div>
+                      ) : (
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          (event.category || '') === 'Outdoor' ? 'bg-green-500/20 text-green-400' :
+                          (event.category || '') === 'Creative' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {event.category || 'Event'}
+                        </div>
+                      )}
                       <div className="text-primary-400 font-bold text-sm">
-                        {event.date}
+                        {isLoading ? '...' : formatDate(event.date)}
                       </div>
                     </div>
                     
                     <h4 className="text-white font-bold text-lg mb-3 group-hover:text-primary-400 transition-colors">
-                      {event.title}
+                      {isLoading ? 'Loading...' : event.title}
                     </h4>
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center text-gray-300 text-sm">
                         <Users className="w-4 h-4 mr-1" />
-                        {event.participants}/{event.maxCapacity} joined
+                        {isLoading ? '.../...' : `${totalParticipants(event)}/${capacity(event)} joined`}
                       </div>
                       <div className="w-16 h-2 bg-dark-600 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500"
-                          style={{ width: `${(event.participants / event.maxCapacity) * 100}%` }}
+                          style={{ width: `${isLoading ? 0 : capacityPct(event)}%` }}
                         ></div>
                       </div>
                     </div>
                   </div>
+                  </Link>
                 </motion.div>
               ))}
             </div>
+
+            {!isLoading && upcomingEvents.length === 0 && (
+              <div className="text-center text-gray-400 mt-4">No upcoming events yet. Check back soon!</div>
+            )}
           </motion.div>
 
           {/* Final Encouragement */}

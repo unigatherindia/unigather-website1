@@ -71,15 +71,15 @@ export default function ContactPage() {
       icon: Mail,
       title: 'Email Us',
       description: 'Get in touch via email',
-      contact: 'info@unigather.co.in',
-      action: 'mailto:info@unigather.co.in'
+      contact: 'unigatherindia@gmail.com',
+      action: 'mailto:unigatherindia@gmail.com'
     },
     {
       icon: Phone,
       title: 'Call Us',
       description: 'Speak with our team',
-      contact: '+91 79737 71593',
-      action: 'tel:+917973771593'
+      contact: '+91 79017 51593',
+      action: 'tel:+91 79017 51593'
     },
     {
       icon: MapPin,
@@ -99,9 +99,6 @@ export default function ContactPage() {
 
   const socialLinks = [
     { name: 'Instagram', icon: Instagram, href: 'https://instagram.com/unigather_india', color: 'hover:text-pink-400' },
-    { name: 'Facebook', icon: Facebook, href: 'https://facebook.com/unigather_india', color: 'hover:text-blue-400' },
-    { name: 'Twitter', icon: Twitter, href: 'https://twitter.com/unigather_india', color: 'hover:text-cyan-400' },
-    { name: 'LinkedIn', icon: Linkedin, href: 'https://linkedin.com/company/unigather', color: 'hover:text-blue-500' },
   ];
 
   const inquiryTypes = [

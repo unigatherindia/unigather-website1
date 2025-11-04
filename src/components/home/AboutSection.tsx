@@ -233,6 +233,23 @@ const AboutSection: React.FC = () => {
             );
           })}
         </motion.div>
+
+        {/* CTA: Join Our Events */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          viewport={{ once: true }}
+          className="mt-12 text-center"
+        >
+          <a
+            href="/events"
+            className="inline-flex items-center space-x-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 text-white font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 shadow-md"
+          >
+            <span>Join Our Events</span>
+            <span className="text-white">→</span>
+          </a>
+        </motion.div>
       </div>
     </section>
   );

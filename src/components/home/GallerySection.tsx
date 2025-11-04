@@ -21,7 +21,7 @@ const GallerySection: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState('');
 
   // Fetch gallery images from Firestore
   useEffect(() => {
@@ -66,11 +66,17 @@ const GallerySection: React.FC = () => {
   }, []);
 
   // Extract unique categories from images
-  const categories = ['All', ...Array.from(new Set(galleryImages.map(img => img.category || 'All').filter(cat => cat !== 'All')))];
+  const categories = Array.from(
+    new Set(
+      galleryImages
+        .map(img => (img.category && img.category !== 'All' ? img.category : ''))
+        .filter(Boolean)
+    )
+  );
 
-  const filteredImages = activeCategory === 'All' 
-    ? galleryImages 
-    : galleryImages.filter(img => (img.category || 'All') === activeCategory);
+  const filteredImages = activeCategory
+    ? galleryImages.filter(img => (img.category || '') === activeCategory)
+    : galleryImages;
 
   const nextImage = () => {
     if (selectedImage !== null && filteredImages.length > 0) {

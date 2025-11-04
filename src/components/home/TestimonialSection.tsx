@@ -129,37 +129,37 @@ const TestimonialSection: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.5 }}
-              className="bg-gradient-to-br from-dark-800 to-dark-700 rounded-3xl p-8 md:p-12 border border-gray-700/50 relative overflow-hidden"
+              className="bg-gradient-to-br from-dark-800 to-dark-700 rounded-3xl p-4 sm:p-6 md:p-8 border border-gray-700/50 relative overflow-hidden"
             >
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary-500 to-transparent rounded-full transform translate-x-32 -translate-y-32"></div>
               </div>
 
-              <div className="grid lg:grid-cols-3 gap-8 items-center relative z-10">
+              <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 items-center relative z-10">
                 {/* Testimonial Content */}
                 <div className="lg:col-span-2">
-                  <div className="flex items-center mb-6">
-                    <Quote className="w-12 h-12 text-primary-400 mr-4" />
+                  <div className="flex items-center mb-4">
+                    <Quote className="w-10 h-10 text-primary-400 mr-3" />
                     <div className="flex space-x-1">
                       {[...Array(currentTestimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
                       ))}
                     </div>
                   </div>
 
-                  <blockquote className="text-xl md:text-2xl text-gray-200 leading-relaxed mb-8 font-light">
+                  <blockquote className="text-base sm:text-lg md:text-xl text-gray-200 leading-relaxed mb-4 sm:mb-6 font-light">
                     "{currentTestimonial.text}"
                   </blockquote>
 
                   <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center space-x-2 px-4 py-2 bg-primary-500/10 rounded-full border border-primary-500/20">
+                    <div className="flex items-center space-x-2 px-3 py-1 bg-primary-500/10 rounded-full border border-primary-500/20">
                       <Users className="w-4 h-4 text-primary-400" />
                       <span className="text-primary-400 text-sm font-medium">
                         {currentTestimonial.friendsMade} friends made
                       </span>
                     </div>
-                    <div className="px-4 py-2 bg-dark-600 rounded-full">
+                    <div className="px-3 py-1 bg-dark-600 rounded-full">
                       <span className="text-gray-300 text-sm">
                         Event: {currentTestimonial.event}
                       </span>
@@ -169,16 +169,16 @@ const TestimonialSection: React.FC = () => {
 
                 {/* Author Info */}
                 <div className="text-center lg:text-left">
-                  <div className="relative inline-block mb-6">
-                    <div className="w-24 h-24 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full flex items-center justify-center mx-auto lg:mx-0">
-                      <Users className="w-12 h-12 text-white" />
+                  <div className="relative inline-block mb-4">
+                    <div className="w-20 h-20 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full flex items-center justify-center mx-auto lg:mx-0">
+                      <Users className="w-10 h-10 text-white" />
                     </div>
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-dark-800 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-dark-800 flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                     </div>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-white mb-2">
+                  <h3 className="text-xl font-bold text-white mb-1">
                     {currentTestimonial.name}
                   </h3>
                   <p className="text-primary-400 font-medium mb-1">
@@ -196,9 +196,9 @@ const TestimonialSection: React.FC = () => {
           <div className="flex items-center justify-center mt-8 space-x-4">
             <button
               onClick={prevTestimonial}
-              className="w-12 h-12 bg-dark-700 hover:bg-dark-600 rounded-full flex items-center justify-center text-white transition-colors duration-300 hover:text-primary-400"
+              className="w-10 h-10 bg-dark-700 hover:bg-dark-600 rounded-full flex items-center justify-center text-white transition-colors duration-300 hover:text-primary-400"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
 
             {/* Dots Indicator */}
@@ -218,9 +218,9 @@ const TestimonialSection: React.FC = () => {
 
             <button
               onClick={nextTestimonial}
-              className="w-12 h-12 bg-dark-700 hover:bg-dark-600 rounded-full flex items-center justify-center text-white transition-colors duration-300 hover:text-primary-400"
+              className="w-10 h-10 bg-dark-700 hover:bg-dark-600 rounded-full flex items-center justify-center text-white transition-colors duration-300 hover:text-primary-400"
             >
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>

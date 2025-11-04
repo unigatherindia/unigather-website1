@@ -19,9 +19,6 @@ const Footer: React.FC = () => {
 
   const socialLinks = [
     { name: 'Instagram', icon: Instagram, href: 'https://instagram.com/unigather_india', color: 'hover:text-pink-400' },
-    { name: 'Facebook', icon: Facebook, href: 'https://facebook.com/unigather_india', color: 'hover:text-blue-400' },
-    { name: 'Twitter', icon: Twitter, href: 'https://twitter.com/unigather_india', color: 'hover:text-cyan-400' },
-    { name: 'LinkedIn', icon: Linkedin, href: 'https://linkedin.com/company/unigather', color: 'hover:text-blue-500' },
   ];
 
   const quickLinks = [
@@ -32,7 +29,7 @@ const Footer: React.FC = () => {
   ];
 
   const policyLinks = [
-    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Privacy Policy', href: '/privacy-policy' },
     { name: 'Terms & Conditions', href: '/terms' },
     { name: 'Refund Policy', href: '/refund' },
   ];
@@ -143,7 +140,7 @@ const Footer: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-gray-400">
                 <Mail className="w-4 h-4 text-primary-400" />
-                <span className="text-sm">info@unigather.co.in</span>
+                <a href="mailto:unigatherindia@gmail.com" className="text-sm hover:text-primary-300 transition-colors">unigatherindia@gmail.com</a>
               </div>
               <div className="flex items-start space-x-3 text-gray-400">
                 <MapPin className="w-4 h-4 text-primary-400 mt-0.5" />
@@ -164,7 +161,7 @@ const Footer: React.FC = () => {
         >
           {/* Policy Links Row */}
           <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
-            <Link href="/privacy" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
+            <Link href="/privacy-policy" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
               Privacy Policy
             </Link>
             <span className="text-gray-600">•</span>

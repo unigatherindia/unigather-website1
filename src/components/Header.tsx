@@ -3,13 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, LogIn, UserPlus } from 'lucide-react';
+import { Menu, X, Users, Calendar, Info, Mail, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { logout } from '@/lib/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +35,16 @@ const Header: React.FC = () => {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Logged out successfully');
+      router.push('/sign-in');
+    } catch (e) {
+      toast.error('Failed to log out. Please try again.');
+    }
   };
 
   return (
@@ -121,26 +135,13 @@ const Header: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="hidden md:flex items-center space-x-3"
             >
-              <Link 
-                href="/sign-in"
-                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-primary-400 transition-colors duration-300"
+              <button 
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-red-400 transition-colors duration-300"
               >
-                <LogIn className="w-4 h-4" />
-                <span className="font-medium">Sign In</span>
-              </Link>
-              <Link 
-                href="/sign-up"
-                className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-6 py-2 rounded-full font-medium hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center space-x-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Sign Up</span>
-              </Link>
-              <Link 
-                href="/events"
-                className="px-4 py-2 border border-gray-600 text-gray-300 rounded-full font-medium hover:border-primary-400 hover:text-primary-400 transition-all duration-300"
-              >
-                Events
-              </Link>
+                <LogOut className="w-4 h-4" />
+                <span className="font-medium">Log Out</span>
+              </button>
             </motion.div>
           )}
 
@@ -201,28 +202,14 @@ const Header: React.FC = () => {
                 transition={{ duration: 0.3, delay: navigationItems.length * 0.1 }}
                 className="mt-4 pt-4 border-t border-gray-700 space-y-3"
               >
-                <Link 
-                  href="/sign-in"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:text-primary-400 hover:bg-primary-500/5 transition-all duration-300"
+                <button 
+                  onClick={() => { setIsMenuOpen(false); handleLogout(); }}
+                  className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-500/5 transition-all duration-300"
                 >
-                  <LogIn className="w-5 h-5" />
-                  <span className="font-medium">Sign In</span>
-                </Link>
-                <Link 
-                  href="/sign-up"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block w-full text-center bg-gradient-to-r from-primary-500 to-primary-400 text-white px-6 py-3 rounded-full font-medium hover:from-primary-600 hover:to-primary-500 transition-all duration-300"
-                >
-                  Sign Up
-                </Link>
-                <Link 
-                  href="/events"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block w-full text-center border border-gray-600 text-gray-300 px-6 py-3 rounded-full font-medium hover:border-primary-400 hover:text-primary-400 transition-all duration-300"
-                >
-                  Browse Events
-                </Link>
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-medium">Log Out</span>
+                </button>
+                
               </motion.div>
             </div>
           </motion.div>

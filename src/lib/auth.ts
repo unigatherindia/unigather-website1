@@ -102,6 +102,22 @@ export const signIn = async (
   }
 };
 
+// Sign in with Google
+export const signInWithGoogle = async (): Promise<UserCredential> => {
+  try {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized. Please check your Firebase configuration.');
+    }
+    const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(auth, provider);
+    return userCredential;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 // Sign out
 export const logout = async (): Promise<void> => {
   try {
