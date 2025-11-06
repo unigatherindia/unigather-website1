@@ -22,13 +22,24 @@ html {
 /* Responsive font sizing for better mobile experience */
 @media (max-width: 768px) {
   html {
-    font-size: 15px;
+    font-size: 14px;
   }
 }
 
 @media (max-width: 480px) {
   html {
-    font-size: 16px; /* Keep 16px minimum to prevent zoom on iOS */
+    font-size: 14px; /* Smaller for better fit on mobile */
+  }
+}
+
+/* Fix for specific Android devices (OnePlus, Samsung) */
+@media screen and (max-width: 428px) {
+  html {
+    font-size: 13px;
+  }
+  
+  body {
+    -webkit-text-size-adjust: none;
   }
 }
 
@@ -129,4 +140,37 @@ a {
 .glow-effect:hover {
   box-shadow: 0 0 30px rgba(249, 115, 22, 0.5);
   transition: box-shadow 0.3s ease;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 640px) {
+  /* Better button sizing */
+  button, .button {
+    min-height: 44px; /* iOS touch target minimum */
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Better input sizing */
+  input, textarea, select {
+    font-size: 16px !important; /* Prevent zoom on focus */
+    min-height: 44px;
+  }
+  
+  /* Better spacing */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Better text wrapping */
+  h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Prevent horizontal scroll */
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
 }

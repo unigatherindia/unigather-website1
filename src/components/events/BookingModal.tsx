@@ -145,11 +145,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       return;
     }
 
-    // Check if user is authenticated
+    // Optional: Suggest sign-in but allow guest booking
     if (!user) {
-      toast.error('Please sign in to continue with booking');
-      setShowAuthModal(true);
-      return;
+      toast.success('Proceeding as guest. Sign in for faster bookings next time!', {
+        duration: 3000,
+      });
     }
 
     setStep(2);
@@ -549,11 +549,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 />
                 <label htmlFor="terms" className="text-sm text-gray-300 leading-relaxed">
                   I agree to the{' '}
-                  <a href="#" className="text-primary-400 hover:text-primary-300 underline">
+                  <a href="/terms" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
                     Terms and Conditions
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-primary-400 hover:text-primary-300 underline">
+                  <a href="/privacy-policy" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
                     Privacy Policy
                   </a>
                   . I understand the event details and cancellation policy.
