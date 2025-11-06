@@ -16,14 +16,27 @@ export async function POST(request: NextRequest) {
       paymentId,
     } = await request.json();
 
+    // Check if email is configured
+    const emailUser = process.env.EMAIL_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD;
+
+    if (!emailUser || !emailPassword) {
+      console.warn('Email service not configured. Skipping email notification.');
+      return NextResponse.json({
+        success: true,
+        message: 'Booking confirmed, but email not configured',
+        warning: 'Email service not set up. Please configure SMTP credentials.',
+      });
+    }
+
     // Create transporter
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT || '587'),
       secure: false, // true for 465, false for other ports
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: emailUser,
+        pass: emailPassword,
       },
     });
 
