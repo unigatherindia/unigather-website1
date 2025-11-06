@@ -77,6 +77,7 @@ export default function AdminPage() {
     imageFile: null as File | null,
     imageUrl: '',
   });
+  const [applicableGenders, setApplicableGenders] = useState<{ male: boolean; female: boolean }>({ male: true, female: true });
   const [uploadingEventImage, setUploadingEventImage] = useState(false);
 
   // Events State
@@ -445,6 +446,19 @@ export default function AdminPage() {
     }
   };
 
+  const handleApplicableGenderToggle = (gender: 'male' | 'female') => {
+    setApplicableGenders(prev => {
+      const next = { ...prev, [gender]: !prev[gender] };
+      // Auto-set N/A if turned off, clear if turned on and currently N/A
+      if (!next[gender]) {
+        setEventForm(prevForm => ({ ...prevForm, [gender === 'male' ? 'priceMale' : 'priceFemale']: 'N/A' }));
+      } else {
+        setEventForm(prevForm => ({ ...prevForm, [gender === 'male' ? 'priceMale' : 'priceFemale']: prevForm[gender === 'male' ? 'priceMale' : 'priceFemale'] === 'N/A' ? '' : prevForm[gender === 'male' ? 'priceMale' : 'priceFemale'] }));
+      }
+      return next;
+    });
+  };
+
   // Handle event image upload
   const handleEventImageUpload = async (file: File): Promise<string> => {
     setUploadingEventImage(true);
@@ -494,6 +508,14 @@ export default function AdminPage() {
         }
       }
 
+      // Normalize prices: allow 'N/A' or numeric
+      const normalizePrice = (val: string): any => {
+        const v = (val || '').trim();
+        if (v.toUpperCase() === 'N/A') return 'N/A';
+        const n = parseInt(v);
+        return isNaN(n) ? 0 : n;
+      };
+
       // Prepare event data for Firestore
       const eventData = {
         title: formData.title,
@@ -503,8 +525,8 @@ export default function AdminPage() {
         time: formData.time,
         location: formData.location,
         address: formData.address,
-        priceMale: parseInt(formData.priceMale) || 0,
-        priceFemale: parseInt(formData.priceFemale) || 0,
+        priceMale: normalizePrice(formData.priceMale),
+        priceFemale: normalizePrice(formData.priceFemale),
         maxCapacity: parseInt(formData.maxCapacity) || 0,
         duration: formData.duration,
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
@@ -672,8 +694,9 @@ export default function AdminPage() {
         time: eventForm.time,
         location: eventForm.location,
         address: eventForm.address,
-        priceMale: parseInt(eventForm.priceMale) || 0,
-        priceFemale: parseInt(eventForm.priceFemale) || 0,
+        // Normalize prices on update as well
+        priceMale: (() => { const v=(eventForm.priceMale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
+        priceFemale: (() => { const v=(eventForm.priceFemale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
@@ -1055,7 +1078,7 @@ export default function AdminPage() {
               className="max-w-4xl mx-auto"
             >
               <div className="bg-dark-800 rounded-2xl border border-gray-700 p-8">
-                <h2 className="text-2xl font-bold text-white mb-6">{editingEvent ? 'Edit Event' : 'Create New Event'}</h2>
+                <h2 className="text-2xl font-bold text-white mb-6">{editingEvent ? 'Edit Event' : 'Create New Event · Updated'}</h2>
                 
                 <form onSubmit={editingEvent ? handleUpdateEvent : handleCreateEvent} className="space-y-6">
                   {/* Basic Information */}
@@ -1263,34 +1286,64 @@ export default function AdminPage() {
                       />
                     </div>
 
-                    <div>
+                    {/* Applicable Genders */}
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Male) ₹ *
+                        Applicable Genders
                       </label>
-                      <input
-                        type="number"
-                        value={eventForm.priceMale}
-                        onChange={(e) => handleEventFormChange('priceMale', e.target.value)}
-                        className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                        placeholder="899"
-                        min="0"
-                        required
-                      />
+                      <div className="flex items-center space-x-6 text-sm text-gray-300">
+                        <label className="inline-flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={applicableGenders.male}
+                            onChange={() => handleApplicableGenderToggle('male')}
+                            className="rounded border-gray-600 bg-dark-700"
+                          />
+                          <span>Male</span>
+                        </label>
+                        <label className="inline-flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={applicableGenders.female}
+                            onChange={() => handleApplicableGenderToggle('female')}
+                            className="rounded border-gray-600 bg-dark-700"
+                          />
+                          <span>Female</span>
+                        </label>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Uncheck to mark as N/A automatically.</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Female) ₹ *
+                        Price (Male) (₹ or N/A) *
                       </label>
                       <input
-                        type="number"
+                        type="text"
+                        value={eventForm.priceMale}
+                        onChange={(e) => handleEventFormChange('priceMale', e.target.value)}
+                        className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        placeholder="899 or N/A"
+                        disabled={!applicableGenders.male}
+                        required
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Price (Female) (₹ or N/A) *
+                      </label>
+                      <input
+                        type="text"
                         value={eventForm.priceFemale}
                         onChange={(e) => handleEventFormChange('priceFemale', e.target.value)}
                         className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                        placeholder="799"
-                        min="0"
+                        placeholder="799 or N/A"
+                        disabled={!applicableGenders.female}
                         required
                       />
+                      <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
                     </div>
                   </div>
 
@@ -1408,7 +1461,6 @@ export default function AdminPage() {
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Date</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Location</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Price</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Capacity</th>
                             <th className="text-right py-4 px-4 text-gray-300 font-medium">Actions</th>
                           </tr>
                         </thead>
@@ -1454,9 +1506,6 @@ export default function AdminPage() {
                                   <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
                                 </td>
                                 <td className="py-4 px-4 text-gray-300">
-                                  <div>
-                                    {(event.currentParticipants?.male || 0) + (event.currentParticipants?.female || 0)} / {event.maxCapacity || 0}
-                                  </div>
                                   <div className="text-sm text-gray-400">
                                     {event.difficulty || 'Easy'}
                                   </div>
