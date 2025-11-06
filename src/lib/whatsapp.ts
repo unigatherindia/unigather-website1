@@ -16,17 +16,46 @@ export interface WhatsAppBookingDetails {
 }
 
 /**
- * Generate WhatsApp message URL for booking confirmation
- * Opens WhatsApp with pre-filled confirmation message
+ * Generate WhatsApp URL to contact business with booking details
+ * Opens WhatsApp where customer can message business for support
  */
-export const sendWhatsAppBookingNotification = (
+export const createWhatsAppSupportLink = (
   details: WhatsAppBookingDetails,
-  businessPhone: string = '917901751593' // Unigather WhatsApp number
+  businessPhone: string = '917901751593' // Unigather WhatsApp support number
 ): string => {
   const message = `
-Hi ${details.customerName}! 👋
+Hi Unigather Team! 👋
 
-🎉 *Congratulations! Your booking with Unigather is confirmed!*
+I just completed my booking and wanted to confirm:
+
+📋 Booking ID: *${details.bookingId}*
+💳 Payment ID: ${details.paymentId}
+🎪 Event: *${details.eventTitle}*
+📅 Date: ${details.eventDate}
+
+Please confirm my booking details.
+
+Thank you!
+${details.customerName}
+  `.trim();
+
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodedMessage}`;
+  
+  return whatsappUrl;
+};
+
+/**
+ * Generate shareable booking confirmation for customer's own WhatsApp
+ * Customer can save this in their own WhatsApp chat
+ */
+export const createCustomerBookingConfirmation = (
+  details: WhatsAppBookingDetails
+): string => {
+  const message = `
+🎉 *MY BOOKING CONFIRMATION - Unigather*
+
+Hi ${details.customerName}! Your booking is confirmed! ✅
 
 *Booking Details:*
 ━━━━━━━━━━━━━━━━━━━━
@@ -39,23 +68,22 @@ Hi ${details.customerName}! 👋
 📅 Date: ${details.eventDate}
 🕐 Time: ${details.eventTime}
 📍 Location: ${details.eventLocation}
-🎟️ Ticket Type: ${details.ticketType}
-💰 Amount Paid: *₹${details.amount}*
+🎟️ Ticket: ${details.ticketType}
+💰 Paid: *₹${details.amount}*
 
-*Important Instructions:*
-✅ Please arrive 15 minutes before the event starts
-✅ Carry a valid ID proof for verification
-✅ Show this confirmation at the venue
-✅ Check your email for detailed information
+*Important:*
+✅ Arrive 15 minutes early
+✅ Carry valid ID proof
+✅ Show this at venue
 
-We're super excited to see you at the event! Get ready to make new friends and create unforgettable memories! 🎊
+🎊 Get ready to make new friends!
 
-_This is your booking confirmation from Unigather._
-_For any queries, feel free to reply to this message._
+Unigather Support: wa.me/917901751593
   `.trim();
 
+  // Share to customer's own WhatsApp (saved messages)
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodedMessage}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
   
   return whatsappUrl;
 };
