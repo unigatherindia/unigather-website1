@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Calendar, MapPin, Users, Clock, Star, 
-  IndianRupee, User, UserCheck, ChevronRight, Ticket, Loader2
+  Calendar, MapPin, Clock, Star, 
+  IndianRupee, ChevronRight, Ticket, Loader2, Users, User, UserCheck
 } from 'lucide-react';
 import BookingModal from './BookingModal';
 import { db } from '@/lib/firebase';
@@ -278,45 +278,17 @@ const EventsList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Participants */}
+                {/* Availability Notice */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center text-sm text-gray-300">
                       <Users className="w-4 h-4 mr-2 text-primary-400" />
-                      <span>{totalParticipants}/{event.maxCapacity} joined</span>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {Math.round(occupancyPercentage)}% full
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full bg-dark-600 rounded-full h-2 overflow-hidden mb-3">
-                    <div 
-                      className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500"
-                      style={{ width: `${occupancyPercentage}%` }}
-                    />
-                  </div>
-
-                  {/* Gender Split */}
-                  <div className="flex items-center space-x-4 text-xs">
-                    <div className="flex items-center space-x-1">
-                      <User className="w-3 h-3 text-blue-400" />
-                      <span className="text-gray-400">{event.currentParticipants.male} male</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <UserCheck className="w-3 h-3 text-pink-400" />
-                      <span className="text-gray-400">{event.currentParticipants.female} female</span>
+                      <span>Limited Seats Left</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Organizer */}
-                <div className="flex items-center justify-end mb-6">
-                  <div className="text-xs text-gray-400">
-                    by {event.organizer.name}
-                  </div>
-                </div>
+                {/* Organizer removed per design */}
 
                 {/* Pricing */}
                 <div className="bg-dark-800 rounded-2xl p-4 mb-6">
