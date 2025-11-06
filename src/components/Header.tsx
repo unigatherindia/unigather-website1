@@ -3,13 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, Settings } from 'lucide-react';
+import { Menu, X, Users, Calendar, Info, Mail, Settings, LogIn, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
+import AuthModal from '@/components/auth/AuthModal';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,14 +37,28 @@ const Header: React.FC = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMenuOpen(false);
+  };
+
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-dark-900/95 backdrop-blur-md shadow-lg' 
-          : 'bg-transparent'
-      }`}
-    >
+    <>
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
+
+      <header 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled 
+            ? 'bg-dark-900/95 backdrop-blur-md shadow-lg' 
+            : 'bg-transparent'
+        }`}
+      >
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* Logo */}
@@ -121,6 +139,29 @@ const Header: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="hidden md:flex items-center space-x-3"
             >
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2 px-3 py-2 text-gray-300">
+                    <User className="w-4 h-4" />
+                    <span className="font-medium text-sm">{user.displayName || user.email}</span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-primary-400 transition-colors duration-300"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="font-medium">Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors duration-300"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span className="font-medium">Sign In</span>
+                </button>
+              )}
               <Link 
                 href="/admin-login"
                 className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-primary-400 transition-colors duration-300"
@@ -188,6 +229,32 @@ const Header: React.FC = () => {
                 transition={{ duration: 0.3, delay: navigationItems.length * 0.1 }}
                 className="mt-4 pt-4 border-t border-gray-700 space-y-3"
               >
+                {user ? (
+                  <>
+                    <div className="flex items-center justify-center space-x-2 px-4 py-3 text-gray-300">
+                      <User className="w-5 h-5" />
+                      <span className="font-medium">{user.displayName || user.email}</span>
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg text-gray-300 hover:text-primary-400 hover:bg-primary-500/5 transition-all duration-300"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="font-medium">Sign Out</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowAuthModal(true);
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-all duration-300"
+                  >
+                    <LogIn className="w-5 h-5" />
+                    <span className="font-medium">Sign In</span>
+                  </button>
+                )}
                 <Link
                   href="/admin-login"
                   onClick={() => setIsMenuOpen(false)}
@@ -202,6 +269,7 @@ const Header: React.FC = () => {
         )}
       </AnimatePresence>
     </header>
+    </>
   );
 };
 
