@@ -146,8 +146,16 @@ a {
 @media (max-width: 640px) {
   /* Better button sizing */
   button, .button {
-    min-height: 44px; /* iOS touch target minimum */
-    padding: 0.75rem 1rem;
+    min-height: 48px; /* iOS touch target minimum - increased */
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+  }
+  
+  /* Larger CTA buttons on mobile */
+  .group.bg-gradient-to-r {
+    min-height: 52px;
+    padding: 1rem 1.5rem !important;
+    font-size: 1.05rem;
   }
   
   /* Better input sizing */

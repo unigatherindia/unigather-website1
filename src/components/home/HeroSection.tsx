@@ -63,7 +63,7 @@ const HeroSection: React.FC = () => {
               >
                 <Link
                   href="/events"
-                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-4 py-3 text-sm sm:px-6 sm:py-3 sm:text-base md:px-8 md:py-4 md:text-lg rounded-full font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center justify-center w-full sm:w-auto overflow-hidden"
+                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-6 py-4 text-base sm:px-6 sm:py-3 sm:text-base md:px-8 md:py-4 md:text-lg rounded-full font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center justify-center w-full sm:w-auto overflow-hidden"
                 >
                   Join Our Events
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
