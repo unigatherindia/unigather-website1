@@ -22,24 +22,24 @@ html {
 /* Responsive font sizing for better mobile experience */
 @media (max-width: 768px) {
   html {
-    font-size: 15px;
+    font-size: 17px; /* Increased for tablets */
   }
 }
 
 @media (max-width: 480px) {
   html {
-    font-size: 15px; /* Increased for better readability on mobile */
+    font-size: 16px; /* Increased for better readability on mobile */
   }
 }
 
 /* Fix for specific Android devices (OnePlus, Samsung) */
 @media screen and (max-width: 428px) {
   html {
-    font-size: 14.5px; /* Increased from 13px for better readability */
+    font-size: 16px; /* Increased for better readability on small phones */
   }
   
   body {
-    -webkit-text-size-adjust: none;
+    -webkit-text-size-adjust: 100%; /* Allow slight scaling */
   }
 }
 
@@ -146,22 +146,23 @@ a {
 @media (max-width: 640px) {
   /* Better button sizing */
   button, .button {
-    min-height: 48px; /* iOS touch target minimum - increased */
-    padding: 0.875rem 1.25rem;
-    font-size: 1.05rem; /* Increased from 1rem */
+    min-height: 50px; /* Larger touch targets */
+    padding: 1rem 1.5rem;
+    font-size: 1.125rem; /* 18px - significantly increased */
   }
   
   /* Larger CTA buttons on mobile */
   .group.bg-gradient-to-r {
-    min-height: 52px;
-    padding: 1rem 1.5rem !important;
-    font-size: 1.1rem; /* Increased from 1.05rem */
+    min-height: 56px;
+    padding: 1.125rem 1.75rem !important;
+    font-size: 1.25rem; /* 20px - much larger */
   }
   
   /* Better input sizing */
   input, textarea, select {
-    font-size: 16px !important; /* Prevent zoom on focus */
-    min-height: 44px;
+    font-size: 17px !important; /* Larger, still prevents zoom on iOS */
+    min-height: 48px;
+    padding: 0.75rem 1rem;
   }
   
   /* Better spacing */
@@ -177,22 +178,38 @@ a {
   }
   
   /* Larger body text on mobile */
-  p, span, div {
-    font-size: 1.05rem;
-    line-height: 1.6;
+  p, span, div, li, a {
+    font-size: 1.125rem !important; /* 18px base text */
+    line-height: 1.7;
   }
   
   /* Larger heading text on mobile */
   h1 {
-    font-size: 2rem !important;
+    font-size: 2.25rem !important; /* 36px */
+    line-height: 1.3;
   }
   
   h2 {
-    font-size: 1.65rem !important;
+    font-size: 1.875rem !important; /* 30px */
+    line-height: 1.4;
   }
   
   h3 {
-    font-size: 1.35rem !important;
+    font-size: 1.5rem !important; /* 24px */
+    line-height: 1.4;
+  }
+  
+  h4 {
+    font-size: 1.25rem !important; /* 20px */
+  }
+  
+  h5, h6 {
+    font-size: 1.125rem !important; /* 18px */
+  }
+  
+  /* Larger labels and small text */
+  label, small {
+    font-size: 1rem !important; /* 16px */
   }
   
   /* Prevent horizontal scroll */
