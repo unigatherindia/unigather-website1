@@ -54,18 +54,6 @@ body {
   -moz-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Force proper width containment */
-  width: 100%;
-  position: relative;
-}
-
-/* Ensure all major elements respect viewport width */
-#__next,
-main,
-section {
-  max-width: 100vw;
-  overflow-x: hidden;
-  position: relative;
 }
 
 /* Performance optimizations */
@@ -156,169 +144,105 @@ a {
 
 /* Mobile responsive improvements */
 @media (max-width: 640px) {
-  /* Force proper containment on mobile */
+  /* Prevent all overflow */
   * {
     max-width: 100%;
     box-sizing: border-box;
   }
   
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
   /* Better button sizing */
   button, .button {
-    min-height: 50px; /* Larger touch targets */
+    min-height: 50px;
     padding: 1rem 1.5rem;
-    font-size: 1.125rem; /* 18px - significantly increased */
-    max-width: 100%;
-    box-sizing: border-box;
+    font-size: 1.125rem;
   }
   
   /* Larger CTA buttons on mobile */
   .group.bg-gradient-to-r {
     min-height: 56px;
     padding: 1.125rem 1.75rem !important;
-    font-size: 1.25rem; /* 20px - much larger */
-    max-width: 100%;
+    font-size: 1.25rem;
   }
   
   /* Better input sizing */
   input, textarea, select {
-    font-size: 17px !important; /* Larger, still prevents zoom on iOS */
+    font-size: 17px !important;
     min-height: 48px;
     padding: 0.75rem 1rem;
-    max-width: 100%;
-    box-sizing: border-box;
   }
   
   /* Better spacing */
   .container {
     padding-left: 1rem;
     padding-right: 1rem;
-    max-width: 100%;
-    box-sizing: border-box;
+    max-width: 100vw;
   }
   
-  /* Better text wrapping for all text elements */
+  /* Fix text wrapping for ALL text */
   h1, h2, h3, h4, h5, h6, p, span, div, li, a, label {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    hyphens: auto;
-    -webkit-hyphens: auto;
-    -moz-hyphens: auto;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
   
   /* Larger body text on mobile */
-  p, span, div, li, a {
-    font-size: 1.125rem; /* 18px base text - removed !important */
-    line-height: 1.7;
+  p {
+    font-size: 1rem !important;
+    line-height: 1.6 !important;
   }
   
   /* Larger heading text on mobile */
   h1 {
-    font-size: 2.25rem; /* 36px - removed !important */
-    line-height: 1.3;
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
   }
   
   h2 {
-    font-size: 1.875rem; /* 30px - removed !important */
-    line-height: 1.4;
+    font-size: 1.75rem !important;
+    line-height: 1.3 !important;
   }
   
   h3 {
-    font-size: 1.5rem; /* 24px - removed !important */
-    line-height: 1.4;
+    font-size: 1.5rem !important;
+    line-height: 1.4 !important;
   }
   
   h4 {
-    font-size: 1.25rem; /* 20px - removed !important */
+    font-size: 1.25rem !important;
   }
   
   h5, h6 {
-    font-size: 1.125rem; /* 18px - removed !important */
+    font-size: 1.125rem !important;
   }
   
-  /* Larger labels and small text */
+  /* Labels and small text */
   label, small {
-    font-size: 1rem; /* 16px - removed !important */
+    font-size: 0.9rem !important;
   }
   
   /* Prevent horizontal scroll */
-  img, video, svg {
-    max-width: 100%;
+  img, video {
+    max-width: 100% !important;
     height: auto;
-    display: block;
   }
   
-  /* Fix flex containers */
-  .flex, [class*="flex"] {
-    flex-wrap: wrap;
-  }
-  
-  /* Fix grid containers */
-  .grid {
-    width: 100%;
-  }
-}
-
-/* Android-specific fixes */
-@media (max-width: 640px) {
-  /* Prevent viewport width issues on Android */
-  body {
-    min-width: 100vw;
-    width: 100%;
-    overflow-x: hidden;
-    position: relative;
-  }
-  
-  /* Fix modal and overlay widths */
-  [class*="modal"],
-  [class*="fixed"],
-  [class*="absolute"] {
-    max-width: 100vw;
-    left: 0;
-    right: 0;
-  }
-  
-  /* Better handling of long text strings */
-  .text-lg,
-  .text-xl,
-  .text-2xl,
-  .text-3xl,
-  .text-4xl {
-    word-break: break-word;
-  }
-  
-  /* Ensure proper padding doesn't cause overflow */
-  [class*="px-"],
-  [class*="py-"],
-  [class*="p-"] {
-    box-sizing: border-box;
-  }
-  
-  /* Fix navigation and header */
-  nav,
-  header {
+  /* Fix sections and divs to stay within viewport */
+  section, .section {
     max-width: 100vw;
     overflow-x: hidden;
-    width: 100%;
   }
   
-  /* Responsive tables */
-  table {
-    display: block;
-    overflow-x: auto;
-    width: 100%;
-  }
-  
-  /* Better form layouts */
-  form {
-    width: 100%;
+  /* Fix all text containers */
+  .text-center,
+  .text-left,
+  .text-right {
     max-width: 100%;
-  }
-  
-  /* Fix card layouts */
-  [class*="card"],
-  [class*="rounded"] {
-    max-width: 100%;
-    box-sizing: border-box;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 }

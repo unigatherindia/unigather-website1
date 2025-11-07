@@ -83,7 +83,7 @@ const Header: React.FC = () => {
               <div>
                 <h1 className={`font-bold gradient-text ${
                   isAuthPage ? 'text-2xl md:text-3xl lg:text-4xl' : 'text-xl md:text-2xl'
-                }`}>
+                }`} style={{ fontFamily: 'Inter, Arial, sans-serif', letterSpacing: '0.01em' }}>
                   Unigather
                 </h1>
                 <p className={`text-gray-400 hidden md:block ${

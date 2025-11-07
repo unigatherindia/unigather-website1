@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Unigather" <noreply@unigather.com>',
       to: customerEmail,
-      subject: `🎉 Booking Confirmed - ${eventTitle}`,
+      subject: `Booking Confirmed - ${eventTitle} | Unigather`,
       html: emailHtml,
       text: `Dear ${customerName},
 

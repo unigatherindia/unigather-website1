@@ -125,13 +125,13 @@ const ChatBot: React.FC = () => {
         <button
           aria-label="Open chat"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white p-4 shadow-lg ring-2 ring-primary-500/30"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 hover:from-primary-600 hover:to-primary-500 text-white p-3 sm:p-4 shadow-lg ring-2 ring-primary-500/30"
         >
-          <MessageCircle className="w-6 h-6" />
+          <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       )}
       {open && (
-        <div className="fixed bottom-6 right-6 z-40 w-[min(92vw,380px)] bg-dark-800/95 backdrop-blur border border-gray-700 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/30">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-[min(92vw,380px)] bg-dark-800/95 backdrop-blur border border-gray-700 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/30">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gradient-to-r from-dark-900 to-dark-800">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 flex items-center justify-center text-white text-xs">

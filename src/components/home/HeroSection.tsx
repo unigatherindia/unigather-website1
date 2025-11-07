@@ -34,9 +34,9 @@ const HeroSection: React.FC = () => {
                 transition={{ duration: 0.8 }}
                 className="mb-6"
               >
-                <span className="inline-flex items-center px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-sm font-medium mb-4">
-                  <Users className="w-4 h-4 mr-2" />
-                  Welcome to Unigather
+                <span className="inline-flex items-center px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-sm font-medium mb-4 max-w-full">
+                  <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Welcome to Unigather</span>
                 </span>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
                   <span className="gradient-text">Gathering Minds</span>
@@ -49,7 +49,8 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0"
+                className="text-base md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 px-2 sm:px-0"
+                style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}
               >
                 Turn strangers into lifelong friends through exciting events and meaningful connections. 
                 Every gathering is a new beginning, every stranger a potential best friend.
