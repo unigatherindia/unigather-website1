@@ -14,6 +14,7 @@ interface EventItem {
   time?: string;
   category?: string;
   maxCapacity?: number;
+  location?: string;
   currentParticipants?: { male: number; female: number };
 }
 
@@ -41,6 +42,7 @@ const CTASection: React.FC = () => {
             time: d.time,
             category: d.category || 'Event',
             maxCapacity: d.maxCapacity || 0,
+            location: d.location || '',
             currentParticipants: d.currentParticipants || { male: 0, female: 0 },
           };
         });
