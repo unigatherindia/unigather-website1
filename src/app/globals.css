@@ -144,77 +144,134 @@ a {
 
 /* Mobile responsive improvements */
 @media (max-width: 640px) {
+  /* CRITICAL: Prevent all overflow */
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  
+  /* Fix main containers */
+  main, section, div {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  
   /* Better button sizing */
   button, .button {
-    min-height: 50px; /* Larger touch targets */
+    min-height: 50px;
     padding: 1rem 1.5rem;
-    font-size: 1.125rem; /* 18px - significantly increased */
+    font-size: 1.125rem;
   }
   
   /* Larger CTA buttons on mobile */
   .group.bg-gradient-to-r {
     min-height: 56px;
     padding: 1.125rem 1.75rem !important;
-    font-size: 1.25rem; /* 20px - much larger */
+    font-size: 1.25rem;
+    max-width: 100%;
   }
   
   /* Better input sizing */
   input, textarea, select {
-    font-size: 17px !important; /* Larger, still prevents zoom on iOS */
+    font-size: 17px !important;
     min-height: 48px;
     padding: 0.75rem 1rem;
+    max-width: 100%;
   }
   
-  /* Better spacing */
+  /* Better spacing - CRITICAL FIX */
   .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    max-width: 100vw !important;
+    margin-left: auto;
+    margin-right: auto;
   }
   
-  /* Better text wrapping */
-  h1, h2, h3, h4, h5, h6 {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  /* Fix grid layouts */
+  .grid {
+    max-width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  /* Fix text wrapping for ALL text */
+  h1, h2, h3, h4, h5, h6, p, span, div, li, a, label {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+    -webkit-hyphens: auto !important;
   }
   
   /* Larger body text on mobile */
-  p, span, div, li, a {
-    font-size: 1.125rem !important; /* 18px base text */
-    line-height: 1.7;
+  p {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    max-width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
   
   /* Larger heading text on mobile */
   h1 {
-    font-size: 2.25rem !important; /* 36px */
-    line-height: 1.3;
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+    max-width: 100%;
   }
   
   h2 {
-    font-size: 1.875rem !important; /* 30px */
-    line-height: 1.4;
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+    max-width: 100%;
   }
   
   h3 {
-    font-size: 1.5rem !important; /* 24px */
-    line-height: 1.4;
+    font-size: 1.35rem !important;
+    line-height: 1.4 !important;
   }
   
   h4 {
-    font-size: 1.25rem !important; /* 20px */
+    font-size: 1.15rem !important;
   }
   
   h5, h6 {
-    font-size: 1.125rem !important; /* 18px */
+    font-size: 1rem !important;
   }
   
-  /* Larger labels and small text */
+  /* Labels and small text */
   label, small {
-    font-size: 1rem !important; /* 16px */
+    font-size: 0.85rem !important;
   }
   
   /* Prevent horizontal scroll */
   img, video {
-    max-width: 100%;
+    max-width: 100% !important;
     height: auto;
+  }
+  
+  /* Fix all text containers - CRITICAL */
+  .text-center,
+  .text-left,
+  .text-right {
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Fix max-width classes */
+  .max-w-2xl,
+  .max-w-3xl,
+  .max-w-4xl,
+  .max-w-5xl,
+  .max-w-6xl,
+  .max-w-7xl {
+    max-width: 100% !important;
   }
 }

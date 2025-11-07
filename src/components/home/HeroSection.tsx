@@ -27,21 +27,20 @@ const HeroSection: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Column - Text Content */}
-            <div className="text-center lg:text-left">
+            <div className="text-center lg:text-left w-full max-w-full overflow-hidden px-2 sm:px-0">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
                 className="mb-6"
               >
-                <span className="inline-flex items-center px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-sm font-medium mb-4">
-                  <Users className="w-4 h-4 mr-2" />
-                  Welcome to Unigather
+                <span className="inline-flex items-center px-3 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-xs sm:text-sm font-medium mb-4 mx-auto lg:mx-0 max-w-max">
+                  <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Welcome to Unigather</span>
                 </span>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
-                  <span className="gradient-text">Gathering Minds</span>
-                  <br />
-                  <span className="text-white">Uniting Hearts</span>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight px-2 sm:px-0">
+                  <span className="gradient-text block">Gathering Minds</span>
+                  <span className="text-white block">Uniting Hearts</span>
                 </h1>
               </motion.div>
 
@@ -49,7 +48,13 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0"
+                className="text-sm sm:text-base md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 px-4 sm:px-0"
+                style={{ 
+                  wordWrap: 'break-word', 
+                  overflowWrap: 'break-word',
+                  maxWidth: '100%',
+                  width: '100%'
+                }}
               >
                 Turn strangers into lifelong friends through exciting events and meaningful connections. 
                 Every gathering is a new beginning, every stranger a potential best friend.
