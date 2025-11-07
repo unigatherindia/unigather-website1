@@ -8,11 +8,11 @@ import {
   Upload, Plus, LogOut, 
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
-  Save, Camera, Loader2, UserCircle, X
+  Save, Camera, Loader2, UserCircle, X, Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, doc, getDoc, addDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { logout } from '@/lib/auth';
 import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
 
@@ -85,6 +85,9 @@ export default function AdminPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [bookingsByEvent, setBookingsByEvent] = useState<Record<string, any[]>>({});
+  const [loadingBookingsFor, setLoadingBookingsFor] = useState<string | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -620,6 +623,74 @@ export default function AdminPage() {
     } finally {
       setIsLoadingEvents(false);
     }
+  };
+
+  const formatBookingTimestamp = (value?: Date | null) => {
+    if (!value) return '—';
+    try {
+      return value.toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch (err) {
+      return value.toISOString();
+    }
+  };
+
+  const capitalize = (value?: string | null) => {
+    if (!value) return '';
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  };
+
+  const fetchBookingsForEvent = async (eventId: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized. Please check your configuration.');
+      return;
+    }
+
+    setLoadingBookingsFor(eventId);
+    try {
+      const bookingsCollection = collection(db, 'eventBookings');
+      const bookingsQuery = query(bookingsCollection, where('eventId', '==', eventId));
+      const snapshot = await getDocs(bookingsQuery);
+
+      const eventBookings = snapshot.docs.map((docSnapshot) => {
+        const data = docSnapshot.data();
+        const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+        return {
+          id: docSnapshot.id,
+          ...data,
+          createdAt: createdAt,
+        };
+      }).sort((a, b) => {
+        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return bTime - aTime;
+      });
+
+      setBookingsByEvent((prev) => ({
+        ...prev,
+        [eventId]: eventBookings,
+      }));
+    } catch (error: any) {
+      console.error('Error fetching bookings:', error);
+      toast.error('Failed to load bookings for this event.');
+    } finally {
+      setLoadingBookingsFor(null);
+    }
+  };
+
+  const handleToggleBookings = async (eventId: string) => {
+    if (expandedEventId === eventId) {
+      setExpandedEventId(null);
+      return;
+    }
+
+    if (!bookingsByEvent[eventId]) {
+      await fetchBookingsForEvent(eventId);
+    }
+
+    setExpandedEventId(eventId);
   };
 
   // Delete event
@@ -1461,6 +1532,8 @@ export default function AdminPage() {
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Date</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Location</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Price</th>
+                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Difficulty</th>
+                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Registrations</th>
                             <th className="text-right py-4 px-4 text-gray-300 font-medium">Actions</th>
                           </tr>
                         </thead>
@@ -1473,63 +1546,179 @@ export default function AdminPage() {
                                 event.category?.toLowerCase().includes(search) ||
                                 event.location?.toLowerCase().includes(search);
                             })
-                            .map((event) => (
-                              <tr key={event.id} className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
-                                <td className="py-4 px-4">
-                                  <input type="checkbox" className="rounded border-gray-600" />
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="font-medium text-white">{event.title || 'Untitled Event'}</div>
-                                  {event.description && (
-                                    <div className="text-sm text-gray-400 mt-1 line-clamp-1">{event.description}</div>
+                            .map((event) => {
+                              const maleCount = event.currentParticipants?.male || 0;
+                              const femaleCount = event.currentParticipants?.female || 0;
+                              const totalCount = maleCount + femaleCount;
+                              const maxCapacity = event.maxCapacity || 0;
+                              const bookingsForEvent = bookingsByEvent[event.id] || [];
+
+                              return (
+                                <React.Fragment key={event.id}>
+                                  <tr className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
+                                    <td className="py-4 px-4 align-top">
+                                      <input type="checkbox" className="rounded border-gray-600" />
+                                    </td>
+                                    <td className="py-4 px-4 align-top">
+                                      <div className="font-medium text-white">{event.title || 'Untitled Event'}</div>
+                                      {event.description && (
+                                        <div className="text-sm text-gray-400 mt-1 line-clamp-1">{event.description}</div>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4 align-top">
+                                      <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded text-sm">
+                                        {event.category || 'N/A'}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 px-4 text-gray-300 align-top">
+                                      <div>{event.date || 'N/A'}</div>
+                                      {event.time && (
+                                        <div className="text-sm text-gray-400">{event.time}</div>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4 text-gray-300 align-top">
+                                      <div>{event.location || 'N/A'}</div>
+                                      {event.address && (
+                                        <div className="text-sm text-gray-400 line-clamp-1">{event.address}</div>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4 text-gray-300 align-top">
+                                      <div>M: ₹{event.priceMale || 0}</div>
+                                      <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
+                                    </td>
+                                    <td className="py-4 px-4 text-gray-300 align-top">
+                                      <div>{event.difficulty || 'Easy'}</div>
+                                    </td>
+                                    <td className="py-4 px-4 text-gray-300 align-top">
+                                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <div>
+                                          <div className="text-white font-medium">
+                                            {totalCount}{maxCapacity ? ` / ${maxCapacity}` : ''} attendees
+                                          </div>
+                                          <div className="text-xs text-gray-400">M: {maleCount} · F: {femaleCount}</div>
+                                          {bookingsForEvent.length > 0 && (
+                                            <div className="text-xs text-gray-500">Synced: {bookingsForEvent.length}</div>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={() => handleToggleBookings(event.id)}
+                                          className="px-3 py-1.5 bg-dark-700 border border-primary-500/40 rounded-lg text-sm text-primary-400 hover:bg-primary-500/20 transition-colors flex items-center gap-2"
+                                        >
+                                          {loadingBookingsFor === event.id ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <Users className="w-4 h-4" />
+                                          )}
+                                          <span>{expandedEventId === event.id ? 'Hide details' : 'View details'}</span>
+                                        </button>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-4 text-right align-top">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => handleEditEvent(event)}
+                                          className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
+                                          title="Edit event"
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteEvent(event.id)}
+                                          className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
+                                          title="Delete event"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  {expandedEventId === event.id && (
+                                    <tr className="bg-dark-900/60">
+                                      <td colSpan={9} className="py-4 px-6">
+                                        <div className="space-y-4">
+                                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                            <div>
+                                              <h4 className="text-lg font-semibold text-white">Attendee Details</h4>
+                                              <p className="text-sm text-gray-400">
+                                                {bookingsForEvent.length} {bookingsForEvent.length === 1 ? 'registration' : 'registrations'} captured
+                                              </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                onClick={() => fetchBookingsForEvent(event.id)}
+                                                className="px-3 py-1.5 bg-dark-700 border border-gray-600 rounded-lg text-sm text-gray-300 hover:bg-dark-600 transition-colors flex items-center gap-2"
+                                              >
+                                                <Loader2 className={`w-4 h-4 ${loadingBookingsFor === event.id ? 'animate-spin' : ''}`} />
+                                                <span>Refresh</span>
+                                              </button>
+                                              <button
+                                                onClick={() => setExpandedEventId(null)}
+                                                className="px-3 py-1.5 bg-dark-700 border border-gray-600 rounded-lg text-sm text-gray-300 hover:bg-dark-600 transition-colors"
+                                              >
+                                                Close
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {loadingBookingsFor === event.id ? (
+                                            <div className="flex items-center gap-2 text-gray-400">
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                              <span>Loading attendee list...</span>
+                                            </div>
+                                          ) : bookingsForEvent.length === 0 ? (
+                                            <div className="bg-dark-800 border border-gray-700 rounded-xl p-4 text-gray-400">
+                                              No confirmed bookings yet for this event.
+                                            </div>
+                                          ) : (
+                                            <div className="grid md:grid-cols-2 gap-4">
+                                              {bookingsForEvent.map((booking) => (
+                                                <div key={booking.id} className="bg-dark-800 border border-gray-700 rounded-xl p-4 space-y-3">
+                                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                                    <div>
+                                                      <div className="text-white font-semibold break-words">{booking.customerName || 'Guest'}</div>
+                                                      {booking.customerEmail && (
+                                                        <div className="text-xs text-gray-400 break-all">{booking.customerEmail}</div>
+                                                      )}
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                                                      {formatBookingTimestamp(booking.createdAt)}
+                                                    </span>
+                                                  </div>
+                                                  <div className="grid sm:grid-cols-2 gap-2 text-sm text-gray-300">
+                                                    <div><span className="text-gray-400">Phone:</span> {booking.customerPhone || '—'}</div>
+                                                    <div><span className="text-gray-400">Gender:</span> {capitalize(booking.ticketGender)}</div>
+                                                    <div><span className="text-gray-400">Age:</span> {booking.age || '—'}</div>
+                                                    <div><span className="text-gray-400">Ticket:</span> {capitalize(booking.ticketGender)} Ticket</div>
+                                                    <div><span className="text-gray-400">Amount:</span> ₹{booking.amountPaid || 0}</div>
+                                                    <div><span className="text-gray-400">Status:</span> {capitalize(booking.status)}</div>
+                                                  </div>
+                                                  {booking.dietaryRestrictions && (
+                                                    <div className="text-xs text-gray-400">
+                                                      <span className="text-gray-500 uppercase tracking-wide mr-1">Dietary:</span>
+                                                      <span>{booking.dietaryRestrictions}</span>
+                                                    </div>
+                                                  )}
+                                                  {booking.experience && (
+                                                    <div className="text-xs text-gray-400">
+                                                      <span className="text-gray-500 uppercase tracking-wide mr-1">Experience:</span>
+                                                      <span>{booking.experience}</span>
+                                                    </div>
+                                                  )}
+                                                  <div className="text-xs text-gray-500 flex flex-wrap gap-3">
+                                                    {booking.bookingId && <span>Booking ID: {booking.bookingId}</span>}
+                                                    {booking.paymentId && <span>Payment: {booking.paymentId}</span>}
+                                                    {booking.orderId && <span>Order: {booking.orderId}</span>}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
                                   )}
-                                </td>
-                                <td className="py-4 px-4">
-                                  <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded text-sm">
-                                    {event.category || 'N/A'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>{event.date || 'N/A'}</div>
-                                  {event.time && (
-                                    <div className="text-sm text-gray-400">{event.time}</div>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>{event.location || 'N/A'}</div>
-                                  {event.address && (
-                                    <div className="text-sm text-gray-400 line-clamp-1">{event.address}</div>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>M: ₹{event.priceMale || 0}</div>
-                                  <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div className="text-sm text-gray-400">
-                                    {event.difficulty || 'Easy'}
-                                  </div>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="flex items-center justify-end space-x-2">
-                                    <button
-                                      onClick={() => handleEditEvent(event)}
-                                      className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
-                                      title="Edit event"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteEvent(event.id)}
-                                      className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
-                                      title="Delete event"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                                </React.Fragment>
+                              );
+                            })}
                         </tbody>
                       </table>
                     )}

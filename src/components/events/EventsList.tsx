@@ -256,7 +256,7 @@ const EventsList: React.FC = () => {
                     <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
                       {event.title}
                     </h3>
-                    <p className="text-gray-300 text-sm leading-relaxed">
+                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
                       {event.description}
                     </p>
                   </div>

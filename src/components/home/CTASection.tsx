@@ -261,17 +261,8 @@ const CTASection: React.FC = () => {
                       {isLoading ? 'Loading...' : event.title}
                     </h4>
                     
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-gray-300 text-sm">
-                        <Users className="w-4 h-4 mr-1" />
-                        {isLoading ? '.../...' : `${totalParticipants(event)}/${capacity(event)} joined`}
-                      </div>
-                      <div className="w-16 h-2 bg-dark-600 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500"
-                          style={{ width: `${isLoading ? 0 : capacityPct(event)}%` }}
-                        ></div>
-                      </div>
+                    <div className="text-gray-300 text-sm">
+                      {isLoading ? 'Loading details...' : event.location || 'New experiences await'}
                     </div>
                   </div>
                   </Link>
