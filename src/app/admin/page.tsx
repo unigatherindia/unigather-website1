@@ -174,7 +174,7 @@ export default function AdminPage() {
       }
 
       const result = await response.json();
-      const { data } = result;
+      const { data } = result
 
       // Save to Firestore
       if (!db) {
@@ -650,6 +650,11 @@ export default function AdminPage() {
       return;
     }
 
+    if (!eventId) {
+      toast.error('Invalid event ID. Please try again.');
+      return;
+    }
+
     setLoadingBookingsFor(eventId);
     try {
       const bookingsCollection = collection(db, 'eventBookings');
@@ -683,10 +688,33 @@ export default function AdminPage() {
 
       if (eventBookings.length > 0) {
         toast.success(`Loaded ${eventBookings.length} booking${eventBookings.length === 1 ? '' : 's'}`);
+      } else {
+        // Don't show error if there are simply no bookings
+        console.log(`No bookings found for event ${eventId}`);
       }
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
-      toast.error('Failed to load bookings for this event.');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to load bookings for this event.';
+      
+      if (error?.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please check Firestore security rules.';
+      } else if (error?.code === 'unavailable') {
+        errorMessage = 'Firestore is unavailable. Please check your connection.';
+      } else if (error?.code === 'failed-precondition') {
+        errorMessage = 'Query requires an index. Please check the console for index creation link.';
+      } else if (error?.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast.error(errorMessage);
+      
+      // Set empty array to prevent retry loops
+      setBookingsByEvent((prev) => ({
+        ...prev,
+        [eventId]: [],
+      }));
     } finally {
       setLoadingBookingsFor(null);
     }
@@ -1546,7 +1574,7 @@ export default function AdminPage() {
                     <p className="text-gray-400">Loading events...</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
                     {events.filter(event => {
                       const search = eventSearchQuery.toLowerCase();
                       return !search || 
@@ -1560,113 +1588,115 @@ export default function AdminPage() {
                         <p className="text-gray-400">Create your first event to get started!</p>
                       </div>
                     ) : (
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-gray-700">
-                            <th className="text-left py-4 px-4">
-                              <input type="checkbox" className="rounded border-gray-600" />
-                            </th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Title</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Category</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Date</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Location</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Price</th>
-                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Difficulty</th>
-                            <th className="text-right py-4 px-4 text-gray-300 font-medium">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {events
-                            .filter(event => {
-                              const search = eventSearchQuery.toLowerCase();
-                              return !search || 
-                                event.title?.toLowerCase().includes(search) ||
-                                event.category?.toLowerCase().includes(search) ||
-                                event.location?.toLowerCase().includes(search);
-                            })
-                            .map((event) => (
-                              <React.Fragment key={event.id}>
-                              <tr className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
-                                <td className="py-4 px-4">
-                                  <input type="checkbox" className="rounded border-gray-600" />
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="font-medium text-white flex items-center space-x-2">
-                                    <span>{event.title || 'Untitled Event'}</span>
-                                    {bookingCounts[event.id] !== undefined && bookingCounts[event.id] > 0 && (
-                                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs font-medium flex items-center space-x-1">
-                                        <Users className="w-3 h-3" />
-                                        <span>{bookingCounts[event.id]}</span>
-                                      </span>
+                      <div className="min-w-full">
+                        {/* Desktop Table View */}
+                        <table className="w-full hidden md:table">
+                          <thead>
+                            <tr className="border-b border-gray-700">
+                              <th className="text-left py-4 px-4">
+                                <input type="checkbox" className="rounded border-gray-600" />
+                              </th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Title</th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Category</th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Date</th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Location</th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Price</th>
+                              <th className="text-left py-4 px-4 text-gray-300 font-medium">Difficulty</th>
+                              <th className="text-right py-4 px-4 text-gray-300 font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {events
+                              .filter(event => {
+                                const search = eventSearchQuery.toLowerCase();
+                                return !search || 
+                                  event.title?.toLowerCase().includes(search) ||
+                                  event.category?.toLowerCase().includes(search) ||
+                                  event.location?.toLowerCase().includes(search);
+                              })
+                              .map((event) => (
+                                <React.Fragment key={event.id}>
+                                <tr className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
+                                  <td className="py-4 px-4">
+                                    <input type="checkbox" className="rounded border-gray-600" />
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="font-medium text-white flex items-center space-x-2">
+                                      <span className="break-words">{event.title || 'Untitled Event'}</span>
+                                      {bookingCounts[event.id] !== undefined && bookingCounts[event.id] > 0 && (
+                                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs font-medium flex items-center space-x-1 flex-shrink-0">
+                                          <Users className="w-3 h-3" />
+                                          <span>{bookingCounts[event.id]}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    {event.description && (
+                                      <div className="text-sm text-gray-400 mt-1 line-clamp-1 break-words">{event.description}</div>
                                     )}
-                                  </div>
-                                  {event.description && (
-                                    <div className="text-sm text-gray-400 mt-1 line-clamp-1">{event.description}</div>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4">
-                                  <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded text-sm">
-                                    {event.category || 'N/A'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>{event.date || 'N/A'}</div>
-                                  {event.time && (
-                                    <div className="text-sm text-gray-400">{event.time}</div>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>{event.location || 'N/A'}</div>
-                                  {event.address && (
-                                    <div className="text-sm text-gray-400 line-clamp-1">{event.address}</div>
-                                  )}
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div>M: ₹{event.priceMale || 0}</div>
-                                  <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
-                                </td>
-                                <td className="py-4 px-4 text-gray-300">
-                                  <div className="text-sm text-gray-400">
-                                    {event.difficulty || 'Easy'}
-                                  </div>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="flex items-center justify-end space-x-2">
-                                    <button
-                                      onClick={() => handleToggleBookings(event.id)}
-                                      className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors"
-                                      title="View bookings"
-                                    >
-                                      <Users className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEditEvent(event)}
-                                      className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
-                                      title="Edit event"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteEvent(event.id)}
-                                      className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
-                                      title="Delete event"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                              {/* Bookings Section */}
-                              {expandedEventId === event.id && (
-                                <tr>
-                                  <td colSpan={8} className="px-4 py-6 bg-dark-700/30">
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded text-sm whitespace-nowrap">
+                                      {event.category || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
+                                    <div>{event.date || 'N/A'}</div>
+                                    {event.time && (
+                                      <div className="text-sm text-gray-400">{event.time}</div>
+                                    )}
+                                  </td>
+                                  <td className="py-4 px-4 text-gray-300">
+                                    <div className="break-words">{event.location || 'N/A'}</div>
+                                    {event.address && (
+                                      <div className="text-sm text-gray-400 line-clamp-1 break-words">{event.address}</div>
+                                    )}
+                                  </td>
+                                  <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
+                                    <div>M: ₹{event.priceMale || 0}</div>
+                                    <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
+                                  </td>
+                                  <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
+                                    <div className="text-sm text-gray-400">
+                                      {event.difficulty || 'Easy'}
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex items-center justify-end space-x-2">
+                                      <button
+                                        onClick={() => handleToggleBookings(event.id)}
+                                        className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                        title="View bookings"
+                                      >
+                                        <Users className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleEditEvent(event)}
+                                        className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
+                                        title="Edit event"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteEvent(event.id)}
+                                        className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
+                                        title="Delete event"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                                {/* Bookings Section */}
+                                {expandedEventId === event.id && (
+                                  <tr>
+                                    <td colSpan={8} className="px-4 py-6 bg-dark-700/30">
                                     <div className="space-y-4">
                                       <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
-                                          <Users className="w-5 h-5 text-blue-400" />
-                                          <span>Bookings for {event.title}</span>
+                                        <h3 className="text-lg font-semibold text-white flex items-center space-x-2 flex-wrap">
+                                          <Users className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                                          <span className="break-words">Bookings for {event.title}</span>
                                           {bookingsByEvent[event.id] && (
-                                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">
+                                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm flex-shrink-0">
                                               {bookingsByEvent[event.id].length} {bookingsByEvent[event.id].length === 1 ? 'booking' : 'bookings'}
                                             </span>
                                           )}
@@ -1705,22 +1735,22 @@ export default function AdminPage() {
                                                   </h4>
                                                   <div className="space-y-1.5 text-sm">
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Name:</span>
-                                                      <span className="text-white font-medium">{booking.customerName || '—'}</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Name:</span>
+                                                      <span className="text-white font-medium break-words">{booking.customerName || '—'}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <Mail className="w-4 h-4 text-gray-400 mt-0.5" />
-                                                      <span className="text-gray-400 min-w-[100px]">Email:</span>
+                                                      <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Email:</span>
                                                       <span className="text-white break-all">{booking.customerEmail || '—'}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <Phone className="w-4 h-4 text-gray-400 mt-0.5" />
-                                                      <span className="text-gray-400 min-w-[100px]">Phone:</span>
-                                                      <span className="text-white">{booking.customerPhone || '—'}</span>
+                                                      <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Phone:</span>
+                                                      <span className="text-white break-words">{booking.customerPhone || '—'}</span>
                                                     </div>
                                                     {booking.age && (
                                                       <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px]">Age:</span>
+                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Age:</span>
                                                         <span className="text-white">{booking.age}</span>
                                                       </div>
                                                     )}
@@ -1735,30 +1765,30 @@ export default function AdminPage() {
                                                   </h4>
                                                   <div className="space-y-1.5 text-sm">
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Booking ID:</span>
-                                                      <span className="text-white font-mono text-xs">{booking.bookingId || '—'}</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booking ID:</span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.bookingId || '—'}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Payment ID:</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Payment ID:</span>
                                                       <span className="text-white font-mono text-xs break-all">{booking.paymentId || '—'}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Order ID:</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Order ID:</span>
                                                       <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <IndianRupee className="w-4 h-4 text-green-400 mt-0.5" />
-                                                      <span className="text-gray-400 min-w-[100px]">Amount:</span>
+                                                      <IndianRupee className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Amount:</span>
                                                       <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Ticket Type:</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Ticket Type:</span>
                                                       <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded text-xs">
                                                         {capitalize(booking.ticketGender || '—')}
                                                       </span>
                                                     </div>
                                                     <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px]">Status:</span>
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Status:</span>
                                                       <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs font-medium">
                                                         {booking.status || 'confirmed'}
                                                       </span>
@@ -1775,20 +1805,20 @@ export default function AdminPage() {
                                                   <div className="space-y-1.5 text-sm">
                                                     {booking.dietaryRestrictions && (
                                                       <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px]">Dietary:</span>
-                                                        <span className="text-white">{booking.dietaryRestrictions}</span>
+                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Dietary:</span>
+                                                        <span className="text-white break-words">{booking.dietaryRestrictions}</span>
                                                       </div>
                                                     )}
                                                     {booking.experience && (
                                                       <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px]">Experience:</span>
-                                                        <span className="text-white">{booking.experience}</span>
+                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Experience:</span>
+                                                        <span className="text-white break-words">{booking.experience}</span>
                                                       </div>
                                                     )}
                                                     <div className="flex items-start space-x-2">
-                                                      <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
-                                                      <span className="text-gray-400 min-w-[100px]">Booked At:</span>
-                                                      <span className="text-white text-xs">
+                                                      <Clock className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booked At:</span>
+                                                      <span className="text-white text-xs break-words">
                                                         {formatBookingTimestamp(booking.createdAt)}
                                                       </span>
                                                     </div>
@@ -1802,11 +1832,249 @@ export default function AdminPage() {
                                     </div>
                                   </td>
                                 </tr>
-                              )}
-                              </React.Fragment>
+                                )}
+                                </React.Fragment>
+                              ))}
+                          </tbody>
+                        </table>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden space-y-4">
+                          {events
+                            .filter(event => {
+                              const search = eventSearchQuery.toLowerCase();
+                              return !search || 
+                                event.title?.toLowerCase().includes(search) ||
+                                event.category?.toLowerCase().includes(search) ||
+                                event.location?.toLowerCase().includes(search);
+                            })
+                            .map((event) => (
+                              <div key={event.id} className="bg-dark-700 rounded-lg border border-gray-600 p-4 space-y-4">
+                                {/* Header */}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <h3 className="text-white font-semibold text-lg break-words">{event.title || 'Untitled Event'}</h3>
+                                      {bookingCounts[event.id] !== undefined && bookingCounts[event.id] > 0 && (
+                                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs font-medium flex items-center space-x-1 flex-shrink-0">
+                                          <Users className="w-3 h-3" />
+                                          <span>{bookingCounts[event.id]}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    {event.description && (
+                                      <p className="text-sm text-gray-400 line-clamp-2 break-words">{event.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Details Grid */}
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <span className="text-gray-400">Category:</span>
+                                    <div className="mt-1">
+                                      <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded text-xs">
+                                        {event.category || 'N/A'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Difficulty:</span>
+                                    <div className="text-white mt-1">{event.difficulty || 'Easy'}</div>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Date:</span>
+                                    <div className="text-white mt-1 break-words">{event.date || 'N/A'}</div>
+                                    {event.time && (
+                                      <div className="text-gray-400 text-xs mt-0.5">{event.time}</div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Price:</span>
+                                    <div className="text-white mt-1">
+                                      <div>M: ₹{event.priceMale || 0}</div>
+                                      <div className="text-xs">F: ₹{event.priceFemale || 0}</div>
+                                    </div>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="text-gray-400">Location:</span>
+                                    <div className="text-white mt-1 break-words">{event.location || 'N/A'}</div>
+                                    {event.address && (
+                                      <div className="text-gray-400 text-xs mt-1 break-words">{event.address}</div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-gray-600">
+                                  <button
+                                    onClick={() => handleToggleBookings(event.id)}
+                                    className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                    title="View bookings"
+                                  >
+                                    <Users className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleEditEvent(event)}
+                                    className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
+                                    title="Edit event"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEvent(event.id)}
+                                    className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors"
+                                    title="Delete event"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                {/* Bookings Section for Mobile */}
+                                {expandedEventId === event.id && (
+                                  <div className="pt-4 border-t border-gray-600 mt-4">
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-base font-semibold text-white flex items-center space-x-2">
+                                          <Users className="w-4 h-4 text-blue-400" />
+                                          <span className="break-words">Bookings for {event.title}</span>
+                                          {bookingsByEvent[event.id] && (
+                                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs flex-shrink-0">
+                                              {bookingsByEvent[event.id].length}
+                                            </span>
+                                          )}
+                                        </h3>
+                                        <button
+                                          onClick={() => setExpandedEventId(null)}
+                                          className="p-1 hover:bg-dark-600 rounded transition-colors"
+                                        >
+                                          <X className="w-4 h-4 text-gray-400" />
+                                        </button>
+                                      </div>
+                                      
+                                      {loadingBookingsFor === event.id ? (
+                                        <div className="text-center py-8">
+                                          <Loader2 className="w-6 h-6 text-primary-400 animate-spin mx-auto mb-2" />
+                                          <p className="text-gray-400 text-sm">Loading bookings...</p>
+                                        </div>
+                                      ) : !bookingsByEvent[event.id] || bookingsByEvent[event.id].length === 0 ? (
+                                        <div className="text-center py-8 bg-dark-800/50 rounded-lg border border-gray-700">
+                                          <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                                          <p className="text-gray-400">No bookings yet for this event</p>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-3">
+                                          {bookingsByEvent[event.id].map((booking: any) => (
+                                            <div
+                                              key={booking.id}
+                                              className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors"
+                                            >
+                                              <div className="space-y-4">
+                                                {/* Customer Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-2 flex items-center space-x-2">
+                                                    <UserCircle className="w-4 h-4" />
+                                                    <span>Customer Details</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    <div>
+                                                      <span className="text-gray-400">Name: </span>
+                                                      <span className="text-white font-medium break-words">{booking.customerName || '—'}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Email: </span>
+                                                      <span className="text-white break-all">{booking.customerEmail || '—'}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Phone: </span>
+                                                      <span className="text-white break-words">{booking.customerPhone || '—'}</span>
+                                                    </div>
+                                                    {booking.age && (
+                                                      <div>
+                                                        <span className="text-gray-400">Age: </span>
+                                                        <span className="text-white">{booking.age}</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Booking & Payment Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-2 flex items-center space-x-2">
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    <span>Booking & Payment</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    <div>
+                                                      <span className="text-gray-400">Booking ID: </span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.bookingId || '—'}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Payment ID: </span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.paymentId || '—'}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Order ID: </span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Amount: </span>
+                                                      <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Ticket Type: </span>
+                                                      <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded text-xs">
+                                                        {capitalize(booking.ticketGender || '—')}
+                                                      </span>
+                                                    </div>
+                                                    <div>
+                                                      <span className="text-gray-400">Status: </span>
+                                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs font-medium">
+                                                        {booking.status || 'confirmed'}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Additional Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-2 flex items-center space-x-2">
+                                                    <FileText className="w-4 h-4" />
+                                                    <span>Additional Info</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    {booking.dietaryRestrictions && (
+                                                      <div>
+                                                        <span className="text-gray-400">Dietary: </span>
+                                                        <span className="text-white break-words">{booking.dietaryRestrictions}</span>
+                                                      </div>
+                                                    )}
+                                                    {booking.experience && (
+                                                      <div>
+                                                        <span className="text-gray-400">Experience: </span>
+                                                        <span className="text-white break-words">{booking.experience}</span>
+                                                      </div>
+                                                    )}
+                                                    <div>
+                                                      <span className="text-gray-400">Booked At: </span>
+                                                      <span className="text-white text-xs break-words">
+                                                        {formatBookingTimestamp(booking.createdAt)}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             ))}
-                        </tbody>
-                      </table>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
