@@ -29,6 +29,13 @@ service cloud.firestore {
       allow write: if true; // Allow writes for now (restrict in production)
     }
     
+    // Event Bookings collection - allow read/write for now (update for production)
+    // In production, restrict read to admin only and write to authenticated users
+    match /eventBookings/{bookingId} {
+      allow read: if true;  // Allow read for admin dashboard (restrict in production)
+      allow write: if true; // Allow writes for booking creation (restrict in production)
+    }
+    
     // Deny everything else
     match /{document=**} {
       allow read, write: if false;

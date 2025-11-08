@@ -865,6 +865,17 @@ export default function AdminPage() {
       setBookingCounts(counts);
     } catch (error: any) {
       console.error('Error fetching booking counts:', error);
+      
+      // Handle permission errors gracefully - don't show toast for permission errors
+      // as it's expected if rules aren't set up yet
+      if (error?.code === 'permission-denied') {
+        console.warn('Permission denied for eventBookings. Please update Firestore security rules to allow read access.');
+        // Set empty counts to prevent UI issues
+        setBookingCounts({});
+      } else {
+        // Only show toast for unexpected errors
+        toast.error('Failed to load booking counts. Please check your connection.');
+      }
     }
   };
 
