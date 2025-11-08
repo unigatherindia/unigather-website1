@@ -8,7 +8,8 @@ import {
   Upload, Plus, LogOut, 
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
-  Save, Camera, Loader2, UserCircle, X
+  Save, Camera, Loader2, UserCircle, X,
+  Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '@/lib/firebase';
@@ -88,6 +89,7 @@ export default function AdminPage() {
   const [bookingsByEvent, setBookingsByEvent] = useState<Record<string, any[]>>({});
   const [loadingBookingsFor, setLoadingBookingsFor] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -672,6 +674,16 @@ export default function AdminPage() {
         ...prev,
         [eventId]: eventBookings,
       }));
+
+      // Update booking count
+      setBookingCounts((prev) => ({
+        ...prev,
+        [eventId]: eventBookings.length,
+      }));
+
+      if (eventBookings.length > 0) {
+        toast.success(`Loaded ${eventBookings.length} booking${eventBookings.length === 1 ? '' : 's'}`);
+      }
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings for this event.');
@@ -805,10 +817,34 @@ export default function AdminPage() {
   };
 
 
+  // Fetch booking counts for all events
+  const fetchAllBookingCounts = async () => {
+    if (!db) return;
+
+    try {
+      const bookingsCollection = collection(db, 'eventBookings');
+      const snapshot = await getDocs(bookingsCollection);
+
+      const counts: Record<string, number> = {};
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const eventId = data.eventId;
+        if (eventId) {
+          counts[eventId] = (counts[eventId] || 0) + 1;
+        }
+      });
+
+      setBookingCounts(counts);
+    } catch (error: any) {
+      console.error('Error fetching booking counts:', error);
+    }
+  };
+
   // Fetch events when events tab is active
   useEffect(() => {
     if (activeTab === 'events') {
       fetchEvents();
+      fetchAllBookingCounts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -1485,10 +1521,13 @@ export default function AdminPage() {
                       />
                     </div>
                     <button 
-                      onClick={fetchEvents}
+                      onClick={() => {
+                        fetchEvents();
+                        fetchAllBookingCounts();
+                      }}
                       disabled={isLoadingEvents}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
-                      title="Refresh events list"
+                      title="Refresh events list and booking counts"
                     >
                       {isLoadingEvents ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1532,6 +1571,7 @@ export default function AdminPage() {
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Date</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Location</th>
                             <th className="text-left py-4 px-4 text-gray-300 font-medium">Price</th>
+                            <th className="text-left py-4 px-4 text-gray-300 font-medium">Difficulty</th>
                             <th className="text-right py-4 px-4 text-gray-300 font-medium">Actions</th>
                           </tr>
                         </thead>
@@ -1545,12 +1585,21 @@ export default function AdminPage() {
                                 event.location?.toLowerCase().includes(search);
                             })
                             .map((event) => (
-                              <tr key={event.id} className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
+                              <React.Fragment key={event.id}>
+                              <tr className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
                                 <td className="py-4 px-4">
                                   <input type="checkbox" className="rounded border-gray-600" />
                                 </td>
                                 <td className="py-4 px-4">
-                                  <div className="font-medium text-white">{event.title || 'Untitled Event'}</div>
+                                  <div className="font-medium text-white flex items-center space-x-2">
+                                    <span>{event.title || 'Untitled Event'}</span>
+                                    {bookingCounts[event.id] !== undefined && bookingCounts[event.id] > 0 && (
+                                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs font-medium flex items-center space-x-1">
+                                        <Users className="w-3 h-3" />
+                                        <span>{bookingCounts[event.id]}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                   {event.description && (
                                     <div className="text-sm text-gray-400 mt-1 line-clamp-1">{event.description}</div>
                                   )}
@@ -1584,6 +1633,13 @@ export default function AdminPage() {
                                 <td className="py-4 px-4">
                                   <div className="flex items-center justify-end space-x-2">
                                     <button
+                                      onClick={() => handleToggleBookings(event.id)}
+                                      className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                      title="View bookings"
+                                    >
+                                      <Users className="w-4 h-4" />
+                                    </button>
+                                    <button
                                       onClick={() => handleEditEvent(event)}
                                       className="p-2 bg-primary-500/20 border border-primary-500/30 rounded-lg text-primary-400 hover:bg-primary-500/30 transition-colors"
                                       title="Edit event"
@@ -1600,6 +1656,154 @@ export default function AdminPage() {
                                   </div>
                                 </td>
                               </tr>
+                              {/* Bookings Section */}
+                              {expandedEventId === event.id && (
+                                <tr>
+                                  <td colSpan={8} className="px-4 py-6 bg-dark-700/30">
+                                    <div className="space-y-4">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                                          <Users className="w-5 h-5 text-blue-400" />
+                                          <span>Bookings for {event.title}</span>
+                                          {bookingsByEvent[event.id] && (
+                                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">
+                                              {bookingsByEvent[event.id].length} {bookingsByEvent[event.id].length === 1 ? 'booking' : 'bookings'}
+                                            </span>
+                                          )}
+                                        </h3>
+                                        <button
+                                          onClick={() => setExpandedEventId(null)}
+                                          className="p-1 hover:bg-dark-600 rounded transition-colors"
+                                        >
+                                          <X className="w-4 h-4 text-gray-400" />
+                                        </button>
+                                      </div>
+                                      
+                                      {loadingBookingsFor === event.id ? (
+                                        <div className="text-center py-8">
+                                          <Loader2 className="w-6 h-6 text-primary-400 animate-spin mx-auto mb-2" />
+                                          <p className="text-gray-400 text-sm">Loading bookings...</p>
+                                        </div>
+                                      ) : !bookingsByEvent[event.id] || bookingsByEvent[event.id].length === 0 ? (
+                                        <div className="text-center py-8 bg-dark-800/50 rounded-lg border border-gray-700">
+                                          <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                                          <p className="text-gray-400">No bookings yet for this event</p>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-3">
+                                          {bookingsByEvent[event.id].map((booking: any) => (
+                                            <div
+                                              key={booking.id}
+                                              className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors"
+                                            >
+                                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {/* Customer Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+                                                    <UserCircle className="w-4 h-4" />
+                                                    <span>Customer Details</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Name:</span>
+                                                      <span className="text-white font-medium">{booking.customerName || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <Mail className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                      <span className="text-gray-400 min-w-[100px]">Email:</span>
+                                                      <span className="text-white break-all">{booking.customerEmail || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <Phone className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                      <span className="text-gray-400 min-w-[100px]">Phone:</span>
+                                                      <span className="text-white">{booking.customerPhone || '—'}</span>
+                                                    </div>
+                                                    {booking.age && (
+                                                      <div className="flex items-start space-x-2">
+                                                        <span className="text-gray-400 min-w-[100px]">Age:</span>
+                                                        <span className="text-white">{booking.age}</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Booking & Payment Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    <span>Booking & Payment</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Booking ID:</span>
+                                                      <span className="text-white font-mono text-xs">{booking.bookingId || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Payment ID:</span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.paymentId || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Order ID:</span>
+                                                      <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <IndianRupee className="w-4 h-4 text-green-400 mt-0.5" />
+                                                      <span className="text-gray-400 min-w-[100px]">Amount:</span>
+                                                      <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Ticket Type:</span>
+                                                      <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded text-xs">
+                                                        {capitalize(booking.ticketGender || '—')}
+                                                      </span>
+                                                    </div>
+                                                    <div className="flex items-start space-x-2">
+                                                      <span className="text-gray-400 min-w-[100px]">Status:</span>
+                                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs font-medium">
+                                                        {booking.status || 'confirmed'}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Additional Information */}
+                                                <div className="space-y-2">
+                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+                                                    <FileText className="w-4 h-4" />
+                                                    <span>Additional Info</span>
+                                                  </h4>
+                                                  <div className="space-y-1.5 text-sm">
+                                                    {booking.dietaryRestrictions && (
+                                                      <div className="flex items-start space-x-2">
+                                                        <span className="text-gray-400 min-w-[100px]">Dietary:</span>
+                                                        <span className="text-white">{booking.dietaryRestrictions}</span>
+                                                      </div>
+                                                    )}
+                                                    {booking.experience && (
+                                                      <div className="flex items-start space-x-2">
+                                                        <span className="text-gray-400 min-w-[100px]">Experience:</span>
+                                                        <span className="text-white">{booking.experience}</span>
+                                                      </div>
+                                                    )}
+                                                    <div className="flex items-start space-x-2">
+                                                      <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                      <span className="text-gray-400 min-w-[100px]">Booked At:</span>
+                                                      <span className="text-white text-xs">
+                                                        {formatBookingTimestamp(booking.createdAt)}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                              </React.Fragment>
                             ))}
                         </tbody>
                       </table>
