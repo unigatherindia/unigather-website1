@@ -1,3 +1,4 @@
+// this us the hero section of the home page
 'use client';
 
 import React from 'react';

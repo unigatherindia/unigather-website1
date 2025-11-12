@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
 declare global {
@@ -232,6 +234,45 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 paymentId: response.razorpay_payment_id,
                 bookingId: bookingId,
               });
+
+              // Persist booking record for admin visibility
+              try {
+                if (db) {
+                  const bookingPayload = {
+                    bookingId,
+                    eventId: event.id,
+                    eventTitle: event.title,
+                    eventDate: event.date,
+                    eventTime: event.time,
+                    eventLocation: event.location,
+                    ticketGender: bookingForm.gender,
+                    amountPaid: selectedPrice,
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    customerName: bookingForm.name,
+                    customerEmail: bookingForm.email,
+                    customerPhone: bookingForm.phone,
+                    age: bookingForm.age,
+                    dietaryRestrictions: bookingForm.dietaryRestrictions,
+                    experience: bookingForm.experience,
+                    createdAt: Timestamp.now(),
+                    status: 'confirmed',
+                  };
+
+                  await addDoc(collection(db, 'eventBookings'), bookingPayload);
+
+                  const eventRef = doc(db, 'events', event.id);
+                  const genderField = `currentParticipants.${bookingForm.gender}`;
+
+                  await updateDoc(eventRef, {
+                    [genderField]: increment(1),
+                    updatedAt: Timestamp.now(),
+                  });
+                }
+              } catch (firestoreError) {
+                console.error('Error saving booking details:', firestoreError);
+                toast.error('Booking saved, but failed to sync with admin dashboard. Please contact support.');
+              }
 
               // Generate WhatsApp confirmation URL for customer
               const whatsappDetails: WhatsAppBookingDetails = {
