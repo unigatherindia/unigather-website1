@@ -152,36 +152,6 @@ const AboutSection: React.FC = () => {
             className="relative"
           >
             <div className="relative bg-gradient-to-br from-dark-700 to-dark-800 p-8 rounded-3xl border border-gray-700">
-              {/* Connection Visualization */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((item, index) => (
-                  <motion.div
-                    key={item}
-                    initial={{ opacity: 0, scale: 0 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                      index === 4 
-                        ? 'bg-gradient-to-r from-primary-500 to-primary-400 text-white text-2xl' 
-                        : 'bg-dark-600 text-gray-400'
-                    }`}
-                  >
-                    {index === 4 ? <Users className="w-8 h-8" /> : <Users className="w-6 h-6" />}
-                  </motion.div>
-                ))}
-              </div>
-              
-              <div className="text-center">
-                <h4 className="text-xl font-semibold text-white mb-2">
-                  The Unigather Effect
-                </h4>
-                <p className="text-gray-300 text-sm">
-                  One person connects with eight others, creating a ripple effect of friendship 
-                  that extends far beyond our events.
-                </p>
-              </div>
-
               {/* Floating Stats */}
               <motion.div
                 animate={{ y: [-5, 5, -5] }}
