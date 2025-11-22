@@ -12,8 +12,12 @@ export const metadata: Metadata = {
   keywords: ['social events', 'networking', 'friendship', 'community', 'strangers', 'meetup'],
   authors: [{ name: 'Unigather Team' }],
   icons: {
-    icon: '/favicon.png',
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.png', sizes: '16x16', type: 'image/png' },
+    ],
     apple: '/favicon.png',
+    shortcut: '/favicon.png',
   },
   openGraph: {
     title: 'Unigather - Gathering Minds, Uniting Hearts',
@@ -39,9 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#f97316" />
       </head>
       <body className={`${inter.className} bg-dark-900 text-white antialiased`}>
         <AuthProvider>

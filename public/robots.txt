@@ -1,0 +1,11 @@
+# Allow all search engines to index
+User-agent: *
+Allow: /
+
+# Disallow admin pages
+Disallow: /admin
+Disallow: /admin-login
+
+# Sitemap location
+Sitemap: https://www.unigather.in/sitemap.xml
+

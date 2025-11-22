@@ -151,25 +151,8 @@ const AboutSection: React.FC = () => {
             viewport={{ once: true }}
             className="relative"
           >
-            <div className="relative bg-gradient-to-br from-dark-700 to-dark-800 p-8 rounded-3xl border border-gray-700">
-              {/* Floating Stats */}
-              <motion.div
-                animate={{ y: [-5, 5, -5] }}
-                transition={{ duration: 4, repeat: Infinity }}
-                className="absolute -top-4 -right-4 bg-dark-900 border border-primary-500/30 p-3 rounded-xl"
-              >
-                <div className="text-2xl font-bold gradient-text">98%</div>
-                <div className="text-xs text-gray-400">Happy Rate</div>
-              </motion.div>
-
-              <motion.div
-                animate={{ y: [5, -5, 5] }}
-                transition={{ duration: 4, repeat: Infinity, delay: 2 }}
-                className="absolute -bottom-4 -left-4 bg-dark-900 border border-primary-500/30 p-3 rounded-xl"
-              >
-                <div className="text-2xl font-bold gradient-text">24/7</div>
-                <div className="text-xs text-gray-400">Community</div>
-              </motion.div>
+            <div className="bg-gradient-to-br from-dark-700 to-dark-800 p-8 rounded-3xl border border-gray-700">
+              {/* Stats removed for better mobile scrolling */}
             </div>
           </motion.div>
         </div>
