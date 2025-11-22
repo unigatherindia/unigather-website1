@@ -22,6 +22,11 @@ const GallerySection: React.FC = () => {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Minimum swipe distance (in px)
+  const minSwipeDistance = 50;
 
   // Fetch gallery images from Firestore
   useEffect(() => {
@@ -65,6 +70,24 @@ const GallerySection: React.FC = () => {
     fetchGalleryImages();
   }, []);
 
+  // Keyboard navigation for desktop
+  useEffect(() => {
+    if (!selectedImage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        prevImage();
+      } else if (e.key === 'ArrowRight') {
+        nextImage();
+      } else if (e.key === 'Escape') {
+        setSelectedImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage, filteredImages]);
+
   // Extract unique categories from images
   const categories = Array.from(
     new Set(
@@ -91,6 +114,30 @@ const GallerySection: React.FC = () => {
       const currentIndex = filteredImages.findIndex(img => img.id === selectedImage);
       const prevIndex = (currentIndex - 1 + filteredImages.length) % filteredImages.length;
       setSelectedImage(filteredImages[prevIndex].id);
+    }
+  };
+
+  // Touch handlers for swipe functionality
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      nextImage(); // Swipe left = next image
+    } else if (isRightSwipe) {
+      prevImage(); // Swipe right = previous image
     }
   };
 
@@ -265,6 +312,9 @@ const GallerySection: React.FC = () => {
               exit={{ scale: 0.8, opacity: 0 }}
               className="relative max-w-4xl w-full"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
             >
               {(() => {
                 const currentImage = filteredImages.find(img => img.id === selectedImage);
@@ -302,19 +352,30 @@ const GallerySection: React.FC = () => {
                 ) : null;
               })()}
 
-              {/* Navigation */}
+              {/* Navigation Buttons */}
               <button
                 onClick={prevImage}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-dark-800/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-dark-700 transition-colors"
+                className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-dark-800/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-dark-700 transition-colors z-10"
+                aria-label="Previous image"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <button
                 onClick={nextImage}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-dark-800/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-dark-700 transition-colors"
+                className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-dark-800/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-dark-700 transition-colors z-10"
+                aria-label="Next image"
               >
-                <ArrowRight className="w-6 h-6" />
+                <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
+
+              {/* Swipe hint for mobile (shows only on first view) */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 sm:hidden">
+                <div className="bg-dark-800/80 backdrop-blur-sm px-4 py-2 rounded-full text-white text-xs flex items-center space-x-2 animate-pulse">
+                  <ArrowLeft className="w-3 h-3" />
+                  <span>Swipe to navigate</span>
+                  <ArrowRight className="w-3 h-3" />
+                </div>
+              </div>
 
               {/* Close Button */}
               <button
