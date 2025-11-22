@@ -9,7 +9,8 @@ import {
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
-  Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock
+  Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
+  Archive, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '@/lib/firebase';
@@ -90,6 +91,9 @@ export default function AdminPage() {
   const [loadingBookingsFor, setLoadingBookingsFor] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
+  const [showArchivedBookings, setShowArchivedBookings] = useState(false);
+  const [archivedBookingData, setArchivedBookingData] = useState<Array<{ event: any; bookings: any[] }>>([]);
+  const [isLoadingArchivedBookings, setIsLoadingArchivedBookings] = useState(false);
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -550,6 +554,7 @@ export default function AdminPage() {
         },
         image: imageUrl,
         featured: false,
+        status: 'active',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       };
@@ -618,7 +623,7 @@ export default function AdminPage() {
         ...doc.data()
       }));
 
-      setEvents(eventsData);
+      setEvents(eventsData.filter((event: any) => event.status !== 'archived'));
     } catch (error: any) {
       console.error('Error fetching events:', error);
       toast.error('Failed to load events. Please check if Firestore is enabled.');
@@ -643,6 +648,107 @@ export default function AdminPage() {
     if (!value) return '';
     return value.charAt(0).toUpperCase() + value.slice(1);
   };
+
+  const BookingCard = ({ booking }: { booking: any }) => (
+    <div className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+            <UserCircle className="w-4 h-4" />
+            <span>Customer Details</span>
+          </h4>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Name:</span>
+              <span className="text-white font-medium break-words">{booking.customerName || '—'}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Email:</span>
+              <span className="text-white break-all">{booking.customerEmail || '—'}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Phone:</span>
+              <span className="text-white break-words">{booking.customerPhone || '—'}</span>
+            </div>
+            {booking.age && (
+              <div className="flex items-start space-x-2">
+                <span className="text-gray-400 min-w-[100px] flex-shrink-0">Age:</span>
+                <span className="text-white">{booking.age}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4" />
+            <span>Booking & Payment</span>
+          </h4>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booking ID:</span>
+              <span className="text-white font-mono text-xs break-all">{booking.bookingId || '—'}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Payment ID:</span>
+              <span className="text-white font-mono text-xs break-all">{booking.paymentId || '—'}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Order ID:</span>
+              <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <IndianRupee className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Amount:</span>
+              <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Ticket Type:</span>
+              <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded text-xs">
+                {capitalize(booking.ticketGender || '—')}
+              </span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Status:</span>
+              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs font-medium">
+                {booking.status || 'confirmed'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
+            <FileText className="w-4 h-4" />
+            <span>Additional Info</span>
+          </h4>
+          <div className="space-y-1.5 text-sm">
+            {booking.dietaryRestrictions && (
+              <div className="flex items-start space-x-2">
+                <span className="text-gray-400 min-w-[100px] flex-shrink-0">Dietary:</span>
+                <span className="text-white break-words">{booking.dietaryRestrictions}</span>
+              </div>
+            )}
+            {booking.experience && (
+              <div className="flex items-start space-x-2">
+                <span className="text-gray-400 min-w-[100px] flex-shrink-0">Experience:</span>
+                <span className="text-white break-words">{booking.experience}</span>
+              </div>
+            )}
+            <div className="flex items-start space-x-2">
+              <Clock className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booked At:</span>
+              <span className="text-white text-xs break-words">
+                {formatBookingTimestamp(booking.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const fetchBookingsForEvent = async (eventId: string) => {
     if (!db) {
@@ -733,6 +839,71 @@ export default function AdminPage() {
     setExpandedEventId(eventId);
   };
 
+  const fetchArchivedBookings = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    setIsLoadingArchivedBookings(true);
+    try {
+      const eventsCollection = collection(db, 'events');
+      const archivedEventsSnapshot = await getDocs(query(eventsCollection, where('status', '==', 'archived')));
+
+      const archivedEvents = archivedEventsSnapshot.docs.map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      }));
+
+      if (archivedEvents.length === 0) {
+        setArchivedBookingData([]);
+        return;
+      }
+
+      const bookingsCollection = collection(db, 'eventBookings');
+      const archivedData = await Promise.all(
+        archivedEvents.map(async (event) => {
+          const bookingsQuery = query(bookingsCollection, where('eventId', '==', event.id));
+          const snapshot = await getDocs(bookingsQuery);
+          const bookings = snapshot.docs
+            .map((docSnapshot) => {
+              const data = docSnapshot.data();
+              const createdAt =
+                data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+              return {
+                id: docSnapshot.id,
+                ...data,
+                createdAt,
+              };
+            })
+            .sort((a, b) => {
+              const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+              const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+              return bTime - aTime;
+            });
+
+          return { event, bookings };
+        })
+      );
+
+      setArchivedBookingData(archivedData);
+    } catch (error: any) {
+      console.error('Error fetching archived bookings:', error);
+      toast.error('Failed to load archived user data. Please try again.');
+    } finally {
+      setIsLoadingArchivedBookings(false);
+    }
+  };
+
+  const handleToggleArchivedBookings = async () => {
+    const nextState = !showArchivedBookings;
+    setShowArchivedBookings(nextState);
+
+    if (nextState && archivedBookingData.length === 0) {
+      await fetchArchivedBookings();
+    }
+  };
+
   // Delete event
   const handleDeleteEvent = async (eventId: string) => {
     if (!window.confirm('Are you sure you want to delete this event?')) {
@@ -745,8 +916,11 @@ export default function AdminPage() {
     }
 
     try {
-      await deleteDoc(doc(db, 'events', eventId));
-      toast.success('Event deleted successfully!');
+      await updateDoc(doc(db, 'events', eventId), {
+        status: 'archived',
+        deletedAt: Timestamp.now()
+      });
+      toast.success('Event archived successfully! Existing registrations remain stored.');
       fetchEvents();
     } catch (error: any) {
       console.error('Error deleting event:', error);
@@ -1575,6 +1749,21 @@ export default function AdminPage() {
                       )}
                       <span>Refresh</span>
                     </button>
+                    <button
+                      onClick={handleToggleArchivedBookings}
+                      className={`px-4 py-2 rounded-lg border flex items-center space-x-2 transition-colors ${
+                        showArchivedBookings
+                          ? 'bg-primary-500/20 border-primary-500/40 text-primary-300 hover:bg-primary-500/30'
+                          : 'bg-dark-700 border-gray-600 text-gray-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      {isLoadingArchivedBookings ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Archive className="w-4 h-4" />
+                      )}
+                      <span>{showArchivedBookings ? 'Hide Archived Data' : 'Archived User Data'}</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1733,110 +1922,7 @@ export default function AdminPage() {
                                       ) : (
                                         <div className="space-y-3">
                                           {bookingsByEvent[event.id].map((booking: any) => (
-                                            <div
-                                              key={booking.id}
-                                              className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors"
-                                            >
-                                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {/* Customer Information */}
-                                                <div className="space-y-2">
-                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
-                                                    <UserCircle className="w-4 h-4" />
-                                                    <span>Customer Details</span>
-                                                  </h4>
-                                                  <div className="space-y-1.5 text-sm">
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Name:</span>
-                                                      <span className="text-white font-medium break-words">{booking.customerName || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Email:</span>
-                                                      <span className="text-white break-all">{booking.customerEmail || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Phone:</span>
-                                                      <span className="text-white break-words">{booking.customerPhone || '—'}</span>
-                                                    </div>
-                                                    {booking.age && (
-                                                      <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Age:</span>
-                                                        <span className="text-white">{booking.age}</span>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-
-                                                {/* Booking & Payment Information */}
-                                                <div className="space-y-2">
-                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    <span>Booking & Payment</span>
-                                                  </h4>
-                                                  <div className="space-y-1.5 text-sm">
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booking ID:</span>
-                                                      <span className="text-white font-mono text-xs break-all">{booking.bookingId || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Payment ID:</span>
-                                                      <span className="text-white font-mono text-xs break-all">{booking.paymentId || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Order ID:</span>
-                                                      <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <IndianRupee className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Amount:</span>
-                                                      <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Ticket Type:</span>
-                                                      <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 rounded text-xs">
-                                                        {capitalize(booking.ticketGender || '—')}
-                                                      </span>
-                                                    </div>
-                                                    <div className="flex items-start space-x-2">
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Status:</span>
-                                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs font-medium">
-                                                        {booking.status || 'confirmed'}
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Additional Information */}
-                                                <div className="space-y-2">
-                                                  <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
-                                                    <FileText className="w-4 h-4" />
-                                                    <span>Additional Info</span>
-                                                  </h4>
-                                                  <div className="space-y-1.5 text-sm">
-                                                    {booking.dietaryRestrictions && (
-                                                      <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Dietary:</span>
-                                                        <span className="text-white break-words">{booking.dietaryRestrictions}</span>
-                                                      </div>
-                                                    )}
-                                                    {booking.experience && (
-                                                      <div className="flex items-start space-x-2">
-                                                        <span className="text-gray-400 min-w-[100px] flex-shrink-0">Experience:</span>
-                                                        <span className="text-white break-words">{booking.experience}</span>
-                                                      </div>
-                                                    )}
-                                                    <div className="flex items-start space-x-2">
-                                                      <Clock className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                      <span className="text-gray-400 min-w-[100px] flex-shrink-0">Booked At:</span>
-                                                      <span className="text-white text-xs break-words">
-                                                        {formatBookingTimestamp(booking.createdAt)}
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </div>
+                                            <BookingCard key={booking.id} booking={booking} />
                                           ))}
                                         </div>
                                       )}
@@ -2085,6 +2171,99 @@ export default function AdminPage() {
                               </div>
                             ))}
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {showArchivedBookings && (
+                  <div className="mt-6 bg-dark-900/40 border border-gray-700 rounded-2xl p-6 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-semibold text-white">Archived Event User Data</h3>
+                        <p className="text-gray-400 text-sm">
+                          View every stored registration even after its event has been deleted.
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={fetchArchivedBookings}
+                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                          disabled={isLoadingArchivedBookings}
+                        >
+                          {isLoadingArchivedBookings ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4" />
+                          )}
+                          <span>Refresh Data</span>
+                        </button>
+                        <button
+                          onClick={() => setShowArchivedBookings(false)}
+                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+
+                    {isLoadingArchivedBookings ? (
+                      <div className="text-center py-12">
+                        <Loader2 className="w-6 h-6 text-primary-400 animate-spin mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm">Loading archived registrations...</p>
+                      </div>
+                    ) : archivedBookingData.length === 0 ? (
+                      <div className="text-center py-10 bg-dark-800/40 rounded-xl border border-gray-700">
+                        <Archive className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                        <h4 className="text-white font-semibold mb-1">No archived records yet</h4>
+                        <p className="text-gray-400 text-sm">
+                          Once an event is deleted, its registrations will show up here automatically.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {archivedBookingData.map(({ event, bookings }) => {
+                          const archivedAt =
+                            event.deletedAt?.toDate?.() || (event.deletedAt ? new Date(event.deletedAt) : null);
+
+                          return (
+                            <div key={event.id} className="bg-dark-800/60 border border-gray-700 rounded-xl p-5 space-y-4">
+                              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center space-x-2 text-sm text-gray-400 mb-1">
+                                    <Archive className="w-4 h-4" />
+                                    <span>Archived Event</span>
+                                  </div>
+                                  <h4 className="text-lg font-semibold text-white">{event.title || 'Untitled Event'}</h4>
+                                  <p className="text-gray-400 text-sm">
+                                    {event.location || 'Location N/A'} •{' '}
+                                    {archivedAt ? formatBookingTimestamp(archivedAt) : 'Archived recently'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm flex items-center space-x-2">
+                                    <Users className="w-4 h-4" />
+                                    <span>
+                                      {bookings.length} {bookings.length === 1 ? 'booking' : 'bookings'}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {bookings.length === 0 ? (
+                                <div className="text-center py-6 bg-dark-900/40 rounded-lg border border-dashed border-gray-700 text-gray-400">
+                                  No user data was captured for this event.
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {bookings.map((booking: any) => (
+                                    <BookingCard key={booking.id} booking={booking} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
