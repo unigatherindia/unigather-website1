@@ -10,7 +10,8 @@ import {
   Facebook, 
   Twitter, 
   Linkedin,
-  Heart
+  Heart,
+  Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -171,6 +172,11 @@ const Footer: React.FC = () => {
             <span className="text-gray-600">•</span>
             <Link href="/refund" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
               Refund Policy
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link href="/admin-login" className="text-gray-400 hover:text-orange-400 transition-colors text-xs flex items-center space-x-1">
+              <Settings className="w-3 h-3" />
+              <span>Admin Login</span>
             </Link>
           </div>
           

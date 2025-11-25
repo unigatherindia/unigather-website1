@@ -70,24 +70,6 @@ const GallerySection: React.FC = () => {
     fetchGalleryImages();
   }, []);
 
-  // Keyboard navigation for desktop
-  useEffect(() => {
-    if (!selectedImage) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        prevImage();
-      } else if (e.key === 'ArrowRight') {
-        nextImage();
-      } else if (e.key === 'Escape') {
-        setSelectedImage(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedImage, filteredImages]);
-
   // Extract unique categories from images
   const categories = Array.from(
     new Set(
@@ -116,6 +98,24 @@ const GallerySection: React.FC = () => {
       setSelectedImage(filteredImages[prevIndex].id);
     }
   };
+
+  // Keyboard navigation for desktop
+  useEffect(() => {
+    if (!selectedImage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        prevImage();
+      } else if (e.key === 'ArrowRight') {
+        nextImage();
+      } else if (e.key === 'Escape') {
+        setSelectedImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage, filteredImages]);
 
   // Touch handlers for swipe functionality
   const onTouchStart = (e: React.TouchEvent) => {

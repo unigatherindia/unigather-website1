@@ -41,6 +41,7 @@ interface Event {
   };
   image: string;
   featured: boolean;
+  status?: string;
 }
 
 const EventsList: React.FC = () => {
@@ -112,11 +113,14 @@ const EventsList: React.FC = () => {
               rating: 0
             },
             image: data.image || '/api/placeholder/600/400',
-            featured: data.featured || false
+            featured: data.featured || false,
+            status: data.status // Include status for filtering
           };
         });
 
-        setEvents(eventsData);
+        // Filter out archived events
+        const activeEvents = eventsData.filter((event: any) => event.status !== 'archived');
+        setEvents(activeEvents);
       } catch (error: any) {
         console.error('Error fetching events:', error);
         toast.error('Failed to load events. Please try again.');
