@@ -196,6 +196,21 @@ const Footer: React.FC = () => {
               <span>for bringing people together</span>
             </div>
           </div>
+          
+          {/* Powered By */}
+          <div className="text-center mt-4">
+            <p className="text-gray-500 text-xs">
+              Powered By -{' '}
+              <a 
+                href="https://akshbahl.vercel.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:text-primary-300 transition-colors duration-300"
+              >
+                Aksh Bahl
+              </a>
+            </p>
+          </div>
         </motion.div>
       </div>
     </footer>
