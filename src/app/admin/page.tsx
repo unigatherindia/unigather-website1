@@ -455,6 +455,33 @@ export default function AdminPage() {
     }
   };
 
+  // Normalize prices: allow any text or numeric
+  // This function preserves text values and only converts pure numbers to integers
+  const normalizePrice = (val: string): any => {
+    // Handle null/undefined
+    if (val == null) return 0;
+    
+    const originalVal = String(val);
+    const v = originalVal.trim();
+    
+    // Empty string defaults to 0
+    if (!v) return 0;
+    
+    // Check if the entire string is ONLY digits (pure number)
+    // This regex matches: optional whitespace, one or more digits, optional whitespace, end of string
+    const isPureNumber = /^\s*\d+\s*$/.test(originalVal);
+    
+    if (isPureNumber) {
+      // It's a pure number, convert to integer
+      const n = parseInt(v, 10);
+      // Safety check: if parseInt somehow fails, return the text
+      return isNaN(n) ? v : n;
+    }
+    
+    // It contains non-digit characters, preserve as text
+    return v;
+  };
+
   const handleApplicableGenderToggle = (gender: 'male' | 'female') => {
     setApplicableGenders(prev => {
       const next = { ...prev, [gender]: !prev[gender] };
@@ -516,19 +543,6 @@ export default function AdminPage() {
           toast.error('Failed to upload image. Using default image.');
         }
       }
-
-      // Normalize prices: allow any text or numeric
-      const normalizePrice = (val: string): any => {
-        const v = (val || '').trim();
-        if (!v) return 0; // Empty string defaults to 0
-        // If it's a valid number, return as number
-        const n = parseInt(v);
-        if (!isNaN(n) && v === n.toString()) {
-          return n;
-        }
-        // Otherwise, preserve the text as-is
-        return v;
-      };
 
       // Prepare event data for Firestore
       const eventData = {
@@ -944,8 +958,8 @@ export default function AdminPage() {
       time: event.time || '',
       location: event.location || '',
       address: event.address || '',
-      priceMale: event.priceMale?.toString() || '',
-      priceFemale: event.priceFemale?.toString() || '',
+      priceMale: event.priceMale != null ? String(event.priceMale) : '',
+      priceFemale: event.priceFemale != null ? String(event.priceFemale) : '',
       maxCapacity: event.maxCapacity?.toString() || '',
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
@@ -985,20 +999,8 @@ export default function AdminPage() {
         location: eventForm.location,
         address: eventForm.address,
         // Normalize prices on update as well - allow any text or numeric
-        priceMale: (() => { 
-          const v = (eventForm.priceMale || '').trim();
-          if (!v) return 0;
-          const n = parseInt(v);
-          if (!isNaN(n) && v === n.toString()) return n;
-          return v;
-        })(),
-        priceFemale: (() => { 
-          const v = (eventForm.priceFemale || '').trim();
-          if (!v) return 0;
-          const n = parseInt(v);
-          if (!isNaN(n) && v === n.toString()) return n;
-          return v;
-        })(),
+        priceMale: normalizePrice(eventForm.priceMale),
+        priceFemale: normalizePrice(eventForm.priceFemale),
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,

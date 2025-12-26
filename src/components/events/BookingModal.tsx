@@ -848,7 +848,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      <span>Pay ₹{selectedPrice}</span>
+                      <span>Pay {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}</span>
                     </>
                   )}
                 </button>

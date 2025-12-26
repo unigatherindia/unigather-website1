@@ -97,8 +97,8 @@ const EventsList: React.FC = () => {
             location: data.location || '',
             address: data.address || '',
             price: {
-              male: data.priceMale || 0,
-              female: data.priceFemale || 0
+              male: data.priceMale != null ? data.priceMale : 0,
+              female: data.priceFemale != null ? data.priceFemale : 0
             },
             maxCapacity: data.maxCapacity || 0,
             currentParticipants: data.currentParticipants || { male: 0, female: 0 },
@@ -298,7 +298,9 @@ const EventsList: React.FC = () => {
                 <div className="bg-dark-800 rounded-2xl p-4 mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-300 font-medium">Ticket Prices</span>
-                    <IndianRupee className="w-4 h-4 text-primary-400" />
+                    {(typeof event.price.male === 'number' || typeof event.price.female === 'number') && (
+                      <IndianRupee className="w-4 h-4 text-primary-400" />
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
