@@ -237,6 +237,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }
 
       // Generate WhatsApp confirmation URL for customer
+      const priceValue = event.price[bookingForm.gender];
       const whatsappDetails: WhatsAppBookingDetails = {
         bookingId: bookingId,
         paymentId: 'N/A',
@@ -245,9 +246,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         eventDate: formatDate(event.date),
         eventTime: event.time,
         eventLocation: event.location,
-        amount: typeof event.price[bookingForm.gender] === 'number' 
-          ? event.price[bookingForm.gender] 
-          : 0,
+        amount: typeof priceValue === 'number' ? priceValue : 0,
         ticketType: `${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket`,
       };
       
