@@ -21,8 +21,8 @@ interface Event {
   location: string;
   address: string;
   price: {
-    male: number;
-    female: number;
+    male: number | string;
+    female: number | string;
   };
   maxCapacity: number;
   currentParticipants: {
@@ -303,11 +303,15 @@ const EventsList: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
                       <div className="text-blue-400 text-sm mb-1">Male</div>
-                      <div className="text-white font-bold">₹{event.price.male}</div>
+                      <div className="text-white font-bold">
+                        {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-pink-400 text-sm mb-1">Female</div>
-                      <div className="text-white font-bold">₹{event.price.female}</div>
+                      <div className="text-white font-bold">
+                        {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
+                      </div>
                     </div>
                   </div>
                 </div>
