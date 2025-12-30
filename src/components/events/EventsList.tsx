@@ -161,6 +161,13 @@ const EventsList: React.FC = () => {
     });
   };
 
+  // Check if price indicates sold out
+  const isSoldOut = (price: number | string): boolean => {
+    if (typeof price === 'number') return false;
+    const priceText = String(price).toLowerCase().trim();
+    return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -191,6 +198,9 @@ const EventsList: React.FC = () => {
         {events.map((event, index) => {
           const totalParticipants = event.currentParticipants.male + event.currentParticipants.female;
           const occupancyPercentage = (totalParticipants / event.maxCapacity) * 100;
+          const isMaleSoldOut = isSoldOut(event.price.male);
+          const isFemaleSoldOut = isSoldOut(event.price.female);
+          const isEventSoldOut = isMaleSoldOut && isFemaleSoldOut;
           
           return (
             <motion.div
@@ -321,10 +331,15 @@ const EventsList: React.FC = () => {
                 {/* Book Button */}
                 <button
                   onClick={() => setSelectedEvent(event)}
-                  className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 group"
-                  disabled={totalParticipants >= event.maxCapacity}
+                  className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={totalParticipants >= event.maxCapacity || isEventSoldOut}
                 >
-                  {totalParticipants >= event.maxCapacity ? (
+                  {isEventSoldOut ? (
+                    <>
+                      <Ticket className="w-5 h-5" />
+                      <span>Sold Out</span>
+                    </>
+                  ) : totalParticipants >= event.maxCapacity ? (
                     <>
                       <Ticket className="w-5 h-5" />
                       <span>Event Full</span>

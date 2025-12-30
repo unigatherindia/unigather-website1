@@ -81,6 +81,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     terms: false
   });
 
+  // Check if price indicates sold out
+  const isSoldOut = (price: number | string): boolean => {
+    if (typeof price === 'number') return false;
+    const priceText = String(price).toLowerCase().trim();
+    return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
+  };
+
   // Pre-fill form with user data if logged in
   useEffect(() => {
     if (user) {
@@ -91,6 +98,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }));
     }
   }, [user]);
+
+  // Check if selected gender is sold out when gender changes
+  useEffect(() => {
+    const price = event.price[bookingForm.gender];
+    if (isSoldOut(price)) {
+      toast.error(`${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} tickets are sold out. Please select the other option.`, {
+        duration: 4000,
+      });
+    }
+  }, [bookingForm.gender, event.price]);
 
   // Load Razorpay script
   useEffect(() => {
@@ -146,6 +163,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     e.preventDefault();
     
     if (!validateForm()) {
+      return;
+    }
+
+    // Check if the selected price is sold out
+    if (isSelectedPriceSoldOut) {
+      toast.error('This ticket type is sold out. Please select another option or contact support.');
       return;
     }
 
@@ -497,6 +520,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   };
 
   const selectedPrice = event.price[bookingForm.gender];
+  const isSelectedPriceSoldOut = isSoldOut(selectedPrice);
   const totalParticipants = event.currentParticipants.male + event.currentParticipants.female;
 
   return (
@@ -749,16 +773,36 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </label>
               </div>
 
+              {/* Sold Out Warning */}
+              {isSelectedPriceSoldOut && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                    <div>
+                      <div className="text-red-400 font-medium mb-1">Sold Out</div>
+                      <div className="text-sm text-gray-300">
+                        This ticket type is currently sold out. Please select a different ticket type or contact support for availability.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2"
-                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-600"
+                disabled={isLoading || isSelectedPriceSoldOut}
               >
                 {isLoading ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span>Processing...</span>
+                  </>
+                ) : isSelectedPriceSoldOut ? (
+                  <>
+                    <AlertCircle className="w-5 h-5" />
+                    <span>Sold Out</span>
                   </>
                 ) : (
                   <>
