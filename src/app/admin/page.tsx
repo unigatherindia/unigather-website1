@@ -73,13 +73,14 @@ export default function AdminPage() {
     address: '',
     priceMale: '',
     priceFemale: '',
+    priceCouple: '',
     maxCapacity: '',
     duration: '',
     difficulty: 'Easy',
     imageFile: null as File | null,
     imageUrl: '',
   });
-  const [applicableGenders, setApplicableGenders] = useState<{ male: boolean; female: boolean }>({ male: true, female: true });
+  const [applicableGenders, setApplicableGenders] = useState<{ male: boolean; female: boolean; couple: boolean }>({ male: true, female: true, couple: true });
   const [uploadingEventImage, setUploadingEventImage] = useState(false);
 
   // Events State
@@ -455,14 +456,15 @@ export default function AdminPage() {
     }
   };
 
-  const handleApplicableGenderToggle = (gender: 'male' | 'female') => {
+  const handleApplicableGenderToggle = (gender: 'male' | 'female' | 'couple') => {
     setApplicableGenders(prev => {
       const next = { ...prev, [gender]: !prev[gender] };
       // Auto-set N/A if turned off, clear if turned on and currently N/A
+      const priceKey = gender === 'male' ? 'priceMale' : gender === 'female' ? 'priceFemale' : 'priceCouple';
       if (!next[gender]) {
-        setEventForm(prevForm => ({ ...prevForm, [gender === 'male' ? 'priceMale' : 'priceFemale']: 'N/A' }));
+        setEventForm(prevForm => ({ ...prevForm, [priceKey]: 'N/A' }));
       } else {
-        setEventForm(prevForm => ({ ...prevForm, [gender === 'male' ? 'priceMale' : 'priceFemale']: prevForm[gender === 'male' ? 'priceMale' : 'priceFemale'] === 'N/A' ? '' : prevForm[gender === 'male' ? 'priceMale' : 'priceFemale'] }));
+        setEventForm(prevForm => ({ ...prevForm, [priceKey]: prevForm[priceKey as keyof typeof prevForm] === 'N/A' ? '' : prevForm[priceKey as keyof typeof prevForm] }));
       }
       return next;
     });
@@ -536,13 +538,15 @@ export default function AdminPage() {
         address: formData.address,
         priceMale: normalizePrice(formData.priceMale),
         priceFemale: normalizePrice(formData.priceFemale),
+        priceCouple: normalizePrice(formData.priceCouple),
         maxCapacity: parseInt(formData.maxCapacity) || 0,
         duration: formData.duration,
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
         // Default values for new events
         currentParticipants: {
           male: 0,
-          female: 0
+          female: 0,
+          couple: 0
         },
         rating: 0,
         reviews: 0,
@@ -577,12 +581,14 @@ export default function AdminPage() {
         address: '',
         priceMale: '',
         priceFemale: '',
+        priceCouple: '',
         maxCapacity: '',
         duration: '',
         difficulty: 'Easy',
         imageFile: null,
         imageUrl: '',
       });
+      setApplicableGenders({ male: true, female: true, couple: true });
       
       // Refresh events list if on events tab
       if (activeTab === 'events') {
@@ -941,11 +947,18 @@ export default function AdminPage() {
       address: event.address || '',
       priceMale: event.priceMale?.toString() || '',
       priceFemale: event.priceFemale?.toString() || '',
+      priceCouple: event.priceCouple?.toString() || '',
       maxCapacity: event.maxCapacity?.toString() || '',
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
       imageFile: null,
       imageUrl: event.image || '',
+    });
+    // Set applicable genders based on prices
+    setApplicableGenders({
+      male: event.priceMale !== 'N/A',
+      female: event.priceFemale !== 'N/A',
+      couple: event.priceCouple !== 'N/A'
     });
     setActiveTab('create');
   };
@@ -982,6 +995,7 @@ export default function AdminPage() {
         // Normalize prices on update as well
         priceMale: (() => { const v=(eventForm.priceMale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
         priceFemale: (() => { const v=(eventForm.priceFemale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
+        priceCouple: (() => { const v=(eventForm.priceCouple||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
@@ -1003,12 +1017,14 @@ export default function AdminPage() {
         address: '',
         priceMale: '',
         priceFemale: '',
+        priceCouple: '',
         maxCapacity: '',
         duration: '',
         difficulty: 'Easy',
         imageFile: null,
         imageUrl: '',
       });
+      setApplicableGenders({ male: true, female: true, couple: true });
       
       setActiveTab('events');
       fetchEvents();
@@ -1609,7 +1625,7 @@ export default function AdminPage() {
                     {/* Applicable Genders */}
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Applicable Genders
+                        Applicable Ticket Types
                       </label>
                       <div className="flex items-center space-x-6 text-sm text-gray-300">
                         <label className="inline-flex items-center space-x-2">
@@ -1629,6 +1645,15 @@ export default function AdminPage() {
                             className="rounded border-gray-600 bg-dark-700"
                           />
                           <span>Female</span>
+                        </label>
+                        <label className="inline-flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={applicableGenders.couple}
+                            onChange={() => handleApplicableGenderToggle('couple')}
+                            className="rounded border-gray-600 bg-dark-700"
+                          />
+                          <span>Couple</span>
                         </label>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">Uncheck to mark as N/A automatically.</p>
@@ -1665,6 +1690,22 @@ export default function AdminPage() {
                       />
                       <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Price (Couple) (₹ or N/A) *
+                      </label>
+                      <input
+                        type="text"
+                        value={eventForm.priceCouple}
+                        onChange={(e) => handleEventFormChange('priceCouple', e.target.value)}
+                        className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        placeholder="1499 or N/A"
+                        disabled={!applicableGenders.couple}
+                        required
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-700">
@@ -1683,12 +1724,14 @@ export default function AdminPage() {
                             address: '',
                             priceMale: '',
                             priceFemale: '',
+                            priceCouple: '',
                             maxCapacity: '',
                             duration: '',
                             difficulty: 'Easy',
                             imageFile: null,
                             imageUrl: '',
                           });
+                          setApplicableGenders({ male: true, female: true, couple: true });
                         }}
                         className="px-6 py-3 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors"
                       >
@@ -1854,6 +1897,9 @@ export default function AdminPage() {
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
                                     <div>M: ₹{event.priceMale || 0}</div>
                                     <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
+                                    {event.priceCouple && event.priceCouple !== 'N/A' && (
+                                      <div className="text-sm">C: ₹{event.priceCouple}</div>
+                                    )}
                                   </td>
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
                                     <div className="text-sm text-gray-400">
@@ -1991,6 +2037,9 @@ export default function AdminPage() {
                                     <div className="text-white mt-1">
                                       <div>M: ₹{event.priceMale || 0}</div>
                                       <div className="text-xs">F: ₹{event.priceFemale || 0}</div>
+                                      {event.priceCouple && event.priceCouple !== 'N/A' && (
+                                        <div className="text-xs">C: ₹{event.priceCouple}</div>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="col-span-2">

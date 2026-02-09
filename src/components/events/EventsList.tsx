@@ -23,6 +23,7 @@ interface Event {
   price: {
     male: number;
     female: number;
+    couple?: number;
   };
   maxCapacity: number;
   currentParticipants: {
@@ -97,10 +98,11 @@ const EventsList: React.FC = () => {
             address: data.address || '',
             price: {
               male: data.priceMale || 0,
-              female: data.priceFemale || 0
+              female: data.priceFemale || 0,
+              couple: data.priceCouple || undefined
             },
             maxCapacity: data.maxCapacity || 0,
-            currentParticipants: data.currentParticipants || { male: 0, female: 0 },
+            currentParticipants: data.currentParticipants || { male: 0, female: 0, couple: 0 },
             rating: data.rating || 0,
             reviews: data.reviews || 0,
             difficulty: data.difficulty || 'Easy',
@@ -296,7 +298,7 @@ const EventsList: React.FC = () => {
                     <span className="text-gray-300 font-medium">Ticket Prices</span>
                     <IndianRupee className="w-4 h-4 text-primary-400" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className={`grid gap-3 ${event.price.couple && event.price.couple !== 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <div className="text-center">
                       <div className="text-blue-400 text-sm mb-1">Male</div>
                       <div className="text-white font-bold">₹{event.price.male}</div>
@@ -305,6 +307,12 @@ const EventsList: React.FC = () => {
                       <div className="text-pink-400 text-sm mb-1">Female</div>
                       <div className="text-white font-bold">₹{event.price.female}</div>
                     </div>
+                    {event.price.couple && event.price.couple !== 0 && (
+                      <div className="text-center">
+                        <div className="text-purple-400 text-sm mb-1">Couple</div>
+                        <div className="text-white font-bold">₹{event.price.couple}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

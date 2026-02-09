@@ -32,11 +32,13 @@ interface Event {
   price: {
     male: number;
     female: number;
+    couple?: number;
   };
   maxCapacity: number;
   currentParticipants: {
     male: number;
     female: number;
+    couple?: number;
   };
   duration: string;
   highlights: string[];
@@ -51,7 +53,7 @@ interface BookingForm {
   name: string;
   email: string;
   phone: string;
-  gender: 'male' | 'female';
+  gender: 'male' | 'female' | 'couple';
   age: string;
   dietaryRestrictions: string;
   experience: string;
@@ -369,8 +371,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     });
   };
 
-  const selectedPrice = event.price[bookingForm.gender];
-  const totalParticipants = event.currentParticipants.male + event.currentParticipants.female;
+  const selectedPrice = bookingForm.gender === 'couple' 
+    ? (event.price.couple || 0) 
+    : event.price[bookingForm.gender];
+  const totalParticipants = event.currentParticipants.male + event.currentParticipants.female + (event.currentParticipants.couple || 0);
 
   return (
     <>
@@ -496,7 +500,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Gender *
+                    Ticket Type *
                   </label>
                   <select
                     value={bookingForm.gender}
@@ -505,6 +509,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
+                    {event.price.couple && event.price.couple !== 0 && (
+                      <option value="couple">Couple</option>
+                    )}
                   </select>
                 </div>
 
@@ -589,7 +596,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   <div className="flex items-center space-x-2">
                     <IndianRupee className="w-5 h-5 text-primary-400" />
                     <span className="text-white font-medium">
-                      {bookingForm.gender === 'male' ? 'Male' : 'Female'} Ticket
+                      {bookingForm.gender === 'male' ? 'Male' : bookingForm.gender === 'female' ? 'Female' : 'Couple'} Ticket
                     </span>
                   </div>
                   <div className="text-2xl font-bold text-primary-400">
@@ -648,7 +655,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Ticket Type</span>
-                    <span className="text-white">{bookingForm.gender} Ticket</span>
+                    <span className="text-white">{bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Date & Time</span>
