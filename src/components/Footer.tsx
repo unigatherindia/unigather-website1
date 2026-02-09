@@ -10,7 +10,8 @@ import {
   Facebook, 
   Twitter, 
   Linkedin,
-  Heart
+  Heart,
+  Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -172,6 +173,11 @@ const Footer: React.FC = () => {
             <Link href="/refund" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
               Refund Policy
             </Link>
+            <span className="text-gray-600">•</span>
+            <Link href="/admin-login" className="text-gray-400 hover:text-orange-400 transition-colors text-xs flex items-center space-x-1">
+              <Settings className="w-3 h-3" />
+              <span>Admin Login</span>
+            </Link>
           </div>
           
           {/* Copyright Row */}
@@ -189,6 +195,21 @@ const Footer: React.FC = () => {
               </motion.div>
               <span>for bringing people together</span>
             </div>
+          </div>
+          
+          {/* Powered By */}
+          <div className="text-center mt-4">
+            <p className="text-gray-500 text-xs">
+              Powered By -{' '}
+              <a 
+                href="https://akshbahl.vercel.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:text-primary-300 transition-colors duration-300"
+              >
+                Aksh Bahl
+              </a>
+            </p>
           </div>
         </motion.div>
       </div>

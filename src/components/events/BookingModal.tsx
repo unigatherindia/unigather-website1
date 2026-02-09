@@ -30,9 +30,9 @@ interface Event {
   location: string;
   address: string;
   price: {
-    male: number;
-    female: number;
-    couple?: number;
+    male: number | string;
+    female: number | string;
+    couple?: number | string;
   };
   maxCapacity: number;
   currentParticipants: {
@@ -83,6 +83,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     terms: false
   });
 
+  // Check if price indicates sold out
+  const isSoldOut = (price: number | string): boolean => {
+    if (typeof price === 'number') return false;
+    const priceText = String(price).toLowerCase().trim();
+    return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
+  };
+
   // Pre-fill form with user data if logged in
   useEffect(() => {
     if (user) {
@@ -93,6 +100,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }));
     }
   }, [user]);
+
+  // Check if selected gender is sold out when gender changes
+  useEffect(() => {
+    const price = event.price[bookingForm.gender];
+    if (isSoldOut(price)) {
+      toast.error(`${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} tickets are sold out. Please select the other option.`, {
+        duration: 4000,
+      });
+    }
+  }, [bookingForm.gender, event.price]);
 
   // Load Razorpay script
   useEffect(() => {
@@ -151,6 +168,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       return;
     }
 
+    // Check if the selected price is sold out
+    if (isSelectedPriceSoldOut) {
+      toast.error('This ticket type is sold out. Please select another option or contact support.');
+      return;
+    }
+
     // Optional: Suggest sign-in but allow guest booking
     if (!user) {
       toast.success('Proceeding as guest. Sign in for faster bookings next time!', {
@@ -158,20 +181,147 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       });
     }
 
-    setStep(2);
+    // Check if price is text (not numeric) - skip payment if so
+    const price = event.price[bookingForm.gender];
+    if (typeof price === 'string') {
+      // Handle text price booking (skip payment)
+      handleTextPriceBooking();
+    } else {
+      // Proceed to payment for numeric prices
+      setStep(2);
+    }
   };
 
   // Handle successful authentication
   const handleAuthSuccess = () => {
     setShowAuthModal(false);
     toast.success('You can now proceed with your booking!');
-    // After successful login, move to payment step
+    // After successful login, check if payment is needed
     if (validateForm()) {
-      setStep(2);
+      const price = event.price[bookingForm.gender];
+      if (typeof price === 'string') {
+        handleTextPriceBooking();
+      } else {
+        setStep(2);
+      }
+    }
+  };
+
+  // Handle booking for text prices (skip payment)
+  const handleTextPriceBooking = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Generate booking ID
+      const bookingId = `UG${Date.now().toString().slice(-8)}`;
+      
+      // Store booking details (no payment)
+      setPaymentDetails({
+        orderId: 'N/A',
+        paymentId: 'N/A',
+        bookingId: bookingId,
+      });
+
+      // Persist booking record for admin visibility
+      try {
+        if (db) {
+          const bookingPayload = {
+            bookingId,
+            eventId: event.id,
+            eventTitle: event.title,
+            eventDate: event.date,
+            eventTime: event.time,
+            eventLocation: event.location,
+            ticketGender: bookingForm.gender,
+            amountPaid: event.price[bookingForm.gender], // Store text price as-is
+            orderId: 'N/A',
+            paymentId: 'N/A',
+            customerName: bookingForm.name,
+            customerEmail: bookingForm.email,
+            customerPhone: bookingForm.phone,
+            age: bookingForm.age,
+            dietaryRestrictions: bookingForm.dietaryRestrictions,
+            experience: bookingForm.experience,
+            createdAt: Timestamp.now(),
+            status: 'confirmed',
+          };
+
+          await addDoc(collection(db, 'eventBookings'), bookingPayload);
+
+          const eventRef = doc(db, 'events', event.id);
+          const genderField = `currentParticipants.${bookingForm.gender}`;
+
+          await updateDoc(eventRef, {
+            [genderField]: increment(1),
+            updatedAt: Timestamp.now(),
+          });
+        }
+      } catch (firestoreError) {
+        console.error('Error saving booking details:', firestoreError);
+        toast.error('Booking saved, but failed to sync with admin dashboard. Please contact support.');
+      }
+
+      // Generate WhatsApp confirmation URL for customer
+      const priceValue = event.price[bookingForm.gender];
+      const whatsappDetails: WhatsAppBookingDetails = {
+        bookingId: bookingId,
+        paymentId: 'N/A',
+        customerName: bookingForm.name,
+        eventTitle: event.title,
+        eventDate: formatDate(event.date),
+        eventTime: event.time,
+        eventLocation: event.location,
+        amount: typeof priceValue === 'number' ? priceValue : 0,
+        ticketType: `${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket`,
+      };
+      
+      // Create link for customer to save confirmation in their WhatsApp
+      const whatsappUrl = createCustomerBookingConfirmation(whatsappDetails);
+      setWhatsAppUrl(whatsappUrl);
+
+      // Send confirmation email
+      try {
+        await fetch('/api/send-booking-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerEmail: bookingForm.email,
+            customerName: bookingForm.name,
+            eventTitle: event.title,
+            eventDate: formatDate(event.date),
+            eventTime: event.time,
+            eventLocation: event.location,
+            ticketType: `${bookingForm.gender} Ticket`,
+            amount: event.price[bookingForm.gender],
+            bookingId: bookingId,
+            paymentId: 'N/A',
+          }),
+        });
+        
+        toast.success('Booking confirmed! Check your email for details.');
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        toast.success('Booking confirmed! (Email delivery may be delayed)');
+      }
+
+      setStep(3);
+      setIsLoading(false);
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      toast.error(error.message || 'Failed to process booking. Please try again.');
+      setIsLoading(false);
     }
   };
 
   const handlePayment = async () => {
+    // Safety check: if price is text, handle as text price booking
+    if (typeof selectedPrice === 'string') {
+      handleTextPriceBooking();
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -374,6 +524,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   const selectedPrice = bookingForm.gender === 'couple' 
     ? (event.price.couple || 0) 
     : event.price[bookingForm.gender];
+  const isSelectedPriceSoldOut = isSoldOut(selectedPrice);
   const totalParticipants = event.currentParticipants.male + event.currentParticipants.female + (event.currentParticipants.couple || 0);
 
   return (
@@ -594,13 +745,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               <div className="bg-primary-500/10 border border-primary-500/20 rounded-2xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <IndianRupee className="w-5 h-5 text-primary-400" />
+                    {typeof selectedPrice === 'number' && (
+                      <IndianRupee className="w-5 h-5 text-primary-400" />
+                    )}
                     <span className="text-white font-medium">
                       {bookingForm.gender === 'male' ? 'Male' : bookingForm.gender === 'female' ? 'Female' : 'Couple'} Ticket
                     </span>
                   </div>
                   <div className="text-2xl font-bold text-primary-400">
-                    ₹{selectedPrice}
+                    {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
                   </div>
                 </div>
               </div>
@@ -627,13 +780,52 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </label>
               </div>
 
+              {/* Sold Out Warning */}
+              {isSelectedPriceSoldOut && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                    <div>
+                      <div className="text-red-400 font-medium mb-1">Sold Out</div>
+                      <div className="text-sm text-gray-300">
+                        This ticket type is currently sold out. Please select a different ticket type or contact support for availability.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-600"
+                disabled={isLoading || isSelectedPriceSoldOut}
               >
-                <CreditCard className="w-5 h-5" />
-                <span>Proceed to Payment</span>
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : isSelectedPriceSoldOut ? (
+                  <>
+                    <AlertCircle className="w-5 h-5" />
+                    <span>Sold Out</span>
+                  </>
+                ) : (
+                  <>
+                    {typeof selectedPrice === 'number' ? (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        <span>Proceed to Payment</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        <span>Confirm Booking</span>
+                      </>
+                    )}
+                  </>
+                )}
               </button>
             </form>
           )}
@@ -664,7 +856,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   <div className="border-t border-gray-600 pt-3 mt-3">
                     <div className="flex justify-between text-lg font-semibold">
                       <span className="text-white">Total Amount</span>
-                      <span className="text-primary-400">₹{selectedPrice}</span>
+                      <span className="text-primary-400">
+                        {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -704,7 +898,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      <span>Pay ₹{selectedPrice}</span>
+                      <span>Pay {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}</span>
                     </>
                   )}
                 </button>
@@ -729,7 +923,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   Booking Confirmed!
                 </h3>
                 <p className="text-gray-300">
-                  Your payment was successful. A confirmation email has been sent to <span className="text-primary-400">{bookingForm.email}</span>
+                  {typeof selectedPrice === 'number' 
+                    ? `Your payment was successful. A confirmation email has been sent to ${bookingForm.email}`
+                    : `Your booking has been confirmed. A confirmation email has been sent to ${bookingForm.email}`
+                  }
                 </p>
               </div>
 
@@ -740,10 +937,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     <span className="text-gray-400">Booking ID</span>
                     <span className="text-white font-mono">{paymentDetails?.bookingId || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Payment ID</span>
-                    <span className="text-white font-mono text-xs">{paymentDetails?.paymentId || 'N/A'}</span>
-                  </div>
+                  {typeof selectedPrice === 'number' && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Payment ID</span>
+                      <span className="text-white font-mono text-xs">{paymentDetails?.paymentId || 'N/A'}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-400">Event</span>
                     <span className="text-white">{event.title}</span>
@@ -754,7 +953,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Amount Paid</span>
-                    <span className="text-green-400">₹{selectedPrice}</span>
+                    <span className="text-green-400">
+                      {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
+                    </span>
                   </div>
                 </div>
               </div>

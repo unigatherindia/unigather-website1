@@ -21,9 +21,9 @@ interface Event {
   location: string;
   address: string;
   price: {
-    male: number;
-    female: number;
-    couple?: number;
+    male: number | string;
+    female: number | string;
+    couple?: number | string;
   };
   maxCapacity: number;
   currentParticipants: {
@@ -42,6 +42,7 @@ interface Event {
   };
   image: string;
   featured: boolean;
+  status?: string;
 }
 
 const EventsList: React.FC = () => {
@@ -97,9 +98,9 @@ const EventsList: React.FC = () => {
             location: data.location || '',
             address: data.address || '',
             price: {
-              male: data.priceMale || 0,
-              female: data.priceFemale || 0,
-              couple: data.priceCouple || undefined
+              male: data.priceMale != null ? data.priceMale : 0,
+              female: data.priceFemale != null ? data.priceFemale : 0,
+              couple: data.priceCouple != null ? data.priceCouple : undefined
             },
             maxCapacity: data.maxCapacity || 0,
             currentParticipants: data.currentParticipants || { male: 0, female: 0, couple: 0 },
@@ -114,11 +115,14 @@ const EventsList: React.FC = () => {
               rating: 0
             },
             image: data.image || '/api/placeholder/600/400',
-            featured: data.featured || false
+            featured: data.featured || false,
+            status: data.status // Include status for filtering
           };
         });
 
-        setEvents(eventsData);
+        // Filter out archived events
+        const activeEvents = eventsData.filter((event: any) => event.status !== 'archived');
+        setEvents(activeEvents);
       } catch (error: any) {
         console.error('Error fetching events:', error);
         toast.error('Failed to load events. Please try again.');
@@ -159,6 +163,13 @@ const EventsList: React.FC = () => {
     });
   };
 
+  // Check if price indicates sold out
+  const isSoldOut = (price: number | string): boolean => {
+    if (typeof price === 'number') return false;
+    const priceText = String(price).toLowerCase().trim();
+    return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -189,6 +200,9 @@ const EventsList: React.FC = () => {
         {events.map((event, index) => {
           const totalParticipants = event.currentParticipants.male + event.currentParticipants.female;
           const occupancyPercentage = (totalParticipants / event.maxCapacity) * 100;
+          const isMaleSoldOut = isSoldOut(event.price.male);
+          const isFemaleSoldOut = isSoldOut(event.price.female);
+          const isEventSoldOut = isMaleSoldOut && isFemaleSoldOut;
           
           return (
             <motion.div
@@ -296,16 +310,22 @@ const EventsList: React.FC = () => {
                 <div className="bg-dark-800 rounded-2xl p-4 mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-300 font-medium">Ticket Prices</span>
-                    <IndianRupee className="w-4 h-4 text-primary-400" />
+                    {(typeof event.price.male === 'number' || typeof event.price.female === 'number') && (
+                      <IndianRupee className="w-4 h-4 text-primary-400" />
+                    )}
                   </div>
                   <div className={`grid gap-3 ${event.price.couple && event.price.couple !== 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <div className="text-center">
                       <div className="text-blue-400 text-sm mb-1">Male</div>
-                      <div className="text-white font-bold">₹{event.price.male}</div>
+                      <div className="text-white font-bold">
+                        {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-pink-400 text-sm mb-1">Female</div>
-                      <div className="text-white font-bold">₹{event.price.female}</div>
+                      <div className="text-white font-bold">
+                        {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
+                      </div>
                     </div>
                     {event.price.couple && event.price.couple !== 0 && (
                       <div className="text-center">
@@ -319,10 +339,15 @@ const EventsList: React.FC = () => {
                 {/* Book Button */}
                 <button
                   onClick={() => setSelectedEvent(event)}
-                  className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 group"
-                  disabled={totalParticipants >= event.maxCapacity}
+                  className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={totalParticipants >= event.maxCapacity || isEventSoldOut}
                 >
-                  {totalParticipants >= event.maxCapacity ? (
+                  {isEventSoldOut ? (
+                    <>
+                      <Ticket className="w-5 h-5" />
+                      <span>Sold Out</span>
+                    </>
+                  ) : totalParticipants >= event.maxCapacity ? (
                     <>
                       <Ticket className="w-5 h-5" />
                       <span>Event Full</span>

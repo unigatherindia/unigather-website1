@@ -16,6 +16,7 @@ interface EventItem {
   maxCapacity?: number;
   location?: string;
   currentParticipants?: { male: number; female: number };
+  status?: string;
 }
 
 const CTASection: React.FC = () => {
@@ -44,10 +45,11 @@ const CTASection: React.FC = () => {
             maxCapacity: d.maxCapacity || 0,
             location: d.location || '',
             currentParticipants: d.currentParticipants || { male: 0, female: 0 },
+            status: d.status, // Include status for filtering
           };
         });
         const sorted = items
-          .filter((e) => e.date)
+          .filter((e) => e.date && e.status !== 'archived') // Filter out archived events
           .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
         setUpcomingEvents(sorted.slice(0, 3));
       } catch (e) {

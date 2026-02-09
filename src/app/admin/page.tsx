@@ -456,6 +456,33 @@ export default function AdminPage() {
     }
   };
 
+  // Normalize prices: allow any text or numeric
+  // This function preserves text values and only converts pure numbers to integers
+  const normalizePrice = (val: string): any => {
+    // Handle null/undefined
+    if (val == null) return 0;
+    
+    const originalVal = String(val);
+    const v = originalVal.trim();
+    
+    // Empty string defaults to 0
+    if (!v) return 0;
+    
+    // Check if the entire string is ONLY digits (pure number)
+    // This regex matches: optional whitespace, one or more digits, optional whitespace, end of string
+    const isPureNumber = /^\s*\d+\s*$/.test(originalVal);
+    
+    if (isPureNumber) {
+      // It's a pure number, convert to integer
+      const n = parseInt(v, 10);
+      // Safety check: if parseInt somehow fails, return the text
+      return isNaN(n) ? v : n;
+    }
+    
+    // It contains non-digit characters, preserve as text
+    return v;
+  };
+
   const handleApplicableGenderToggle = (gender: 'male' | 'female' | 'couple') => {
     setApplicableGenders(prev => {
       const next = { ...prev, [gender]: !prev[gender] };
@@ -518,14 +545,6 @@ export default function AdminPage() {
           toast.error('Failed to upload image. Using default image.');
         }
       }
-
-      // Normalize prices: allow 'N/A' or numeric
-      const normalizePrice = (val: string): any => {
-        const v = (val || '').trim();
-        if (v.toUpperCase() === 'N/A') return 'N/A';
-        const n = parseInt(v);
-        return isNaN(n) ? 0 : n;
-      };
 
       // Prepare event data for Firestore
       const eventData = {
@@ -945,9 +964,9 @@ export default function AdminPage() {
       time: event.time || '',
       location: event.location || '',
       address: event.address || '',
-      priceMale: event.priceMale?.toString() || '',
-      priceFemale: event.priceFemale?.toString() || '',
-      priceCouple: event.priceCouple?.toString() || '',
+      priceMale: event.priceMale != null ? String(event.priceMale) : '',
+      priceFemale: event.priceFemale != null ? String(event.priceFemale) : '',
+      priceCouple: event.priceCouple != null ? String(event.priceCouple) : '',
       maxCapacity: event.maxCapacity?.toString() || '',
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
@@ -992,10 +1011,10 @@ export default function AdminPage() {
         time: eventForm.time,
         location: eventForm.location,
         address: eventForm.address,
-        // Normalize prices on update as well
-        priceMale: (() => { const v=(eventForm.priceMale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
-        priceFemale: (() => { const v=(eventForm.priceFemale||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
-        priceCouple: (() => { const v=(eventForm.priceCouple||'').trim(); if (v.toUpperCase()==='N/A') return 'N/A'; const n=parseInt(v); return isNaN(n)?0:n; })(),
+        // Normalize prices on update as well - allow any text or numeric
+        priceMale: normalizePrice(eventForm.priceMale),
+        priceFemale: normalizePrice(eventForm.priceFemale),
+        priceCouple: normalizePrice(eventForm.priceCouple),
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
@@ -1661,33 +1680,34 @@ export default function AdminPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Male) (₹ or N/A) *
+                        Price (Male) (₹, N/A, or any text) *
                       </label>
                       <input
                         type="text"
                         value={eventForm.priceMale}
                         onChange={(e) => handleEventFormChange('priceMale', e.target.value)}
                         className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                        placeholder="899 or N/A"
+                        placeholder="899, N/A, or any text"
                         disabled={!applicableGenders.male}
                         required
                       />
-                      <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
+                      <p className="mt-1 text-xs text-gray-500">Enter a number, N/A, or any custom text (e.g., 'Contact for pricing')</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Female) (₹ or N/A) *
+                        Price (Female) (₹, N/A, or any text) *
                       </label>
                       <input
                         type="text"
                         value={eventForm.priceFemale}
                         onChange={(e) => handleEventFormChange('priceFemale', e.target.value)}
                         className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                        placeholder="799 or N/A"
+                        placeholder="799, N/A, or any text"
                         disabled={!applicableGenders.female}
                         required
                       />
+                      <p className="mt-1 text-xs text-gray-500">Enter a number, N/A, or any custom text (e.g., 'Contact for pricing')</p>
                       <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
                     </div>
 
@@ -1895,10 +1915,10 @@ export default function AdminPage() {
                                     )}
                                   </td>
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
-                                    <div>M: ₹{event.priceMale || 0}</div>
-                                    <div className="text-sm">F: ₹{event.priceFemale || 0}</div>
+                                    <div>M: {typeof event.priceMale === 'number' ? `₹${event.priceMale}` : event.priceMale || 0}</div>
+                                    <div className="text-sm">F: {typeof event.priceFemale === 'number' ? `₹${event.priceFemale}` : event.priceFemale || 0}</div>
                                     {event.priceCouple && event.priceCouple !== 'N/A' && (
-                                      <div className="text-sm">C: ₹{event.priceCouple}</div>
+                                      <div className="text-sm">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
                                     )}
                                   </td>
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
@@ -2035,10 +2055,10 @@ export default function AdminPage() {
                                   <div>
                                     <span className="text-gray-400">Price:</span>
                                     <div className="text-white mt-1">
-                                      <div>M: ₹{event.priceMale || 0}</div>
-                                      <div className="text-xs">F: ₹{event.priceFemale || 0}</div>
+                                      <div>M: {typeof event.priceMale === 'number' ? `₹${event.priceMale}` : event.priceMale || 0}</div>
+                                      <div className="text-xs">F: {typeof event.priceFemale === 'number' ? `₹${event.priceFemale}` : event.priceFemale || 0}</div>
                                       {event.priceCouple && event.priceCouple !== 'N/A' && (
-                                        <div className="text-xs">C: ₹{event.priceCouple}</div>
+                                        <div className="text-xs">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
                                       )}
                                     </div>
                                   </div>
