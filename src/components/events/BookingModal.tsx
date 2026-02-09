@@ -103,8 +103,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
   // Check if selected gender is sold out when gender changes
   useEffect(() => {
-    const price = event.price[bookingForm.gender];
-    if (isSoldOut(price)) {
+    const price = bookingForm.gender === 'couple' 
+      ? event.price.couple 
+      : event.price[bookingForm.gender];
+    if (price !== undefined && isSoldOut(price)) {
       toast.error(`${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} tickets are sold out. Please select the other option.`, {
         duration: 4000,
       });
