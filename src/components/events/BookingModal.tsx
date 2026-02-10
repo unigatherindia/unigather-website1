@@ -90,6 +90,37 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
   };
 
+  // Check if a price is available (not N/A, not 0, not undefined)
+  const isPriceAvailable = (price: number | string | undefined): boolean => {
+    if (price === undefined || price === null) return false;
+    if (typeof price === 'number') return price > 0;
+    const priceStr = String(price).toLowerCase().trim();
+    return priceStr !== 'n/a' && priceStr !== '0' && priceStr !== '';
+  };
+
+  // Set default ticket type to first available option
+  useEffect(() => {
+    const maleAvailable = isPriceAvailable(event.price.male);
+    const femaleAvailable = isPriceAvailable(event.price.female);
+    const coupleAvailable = isPriceAvailable(event.price.couple);
+    
+    // If current selection is not available, switch to first available
+    const currentAvailable = 
+      (bookingForm.gender === 'male' && maleAvailable) ||
+      (bookingForm.gender === 'female' && femaleAvailable) ||
+      (bookingForm.gender === 'couple' && coupleAvailable);
+    
+    if (!currentAvailable) {
+      if (maleAvailable) {
+        setBookingForm(prev => ({ ...prev, gender: 'male' }));
+      } else if (femaleAvailable) {
+        setBookingForm(prev => ({ ...prev, gender: 'female' }));
+      } else if (coupleAvailable) {
+        setBookingForm(prev => ({ ...prev, gender: 'couple' }));
+      }
+    }
+  }, [event.price]);
+
   // Pre-fill form with user data if logged in
   useEffect(() => {
     if (user) {
@@ -660,9 +691,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     onChange={(e) => handleInputChange('gender', e.target.value)}
                     className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                   >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    {event.price.couple && event.price.couple !== 0 && (
+                    {isPriceAvailable(event.price.male) && (
+                      <option value="male">Male</option>
+                    )}
+                    {isPriceAvailable(event.price.female) && (
+                      <option value="female">Female</option>
+                    )}
+                    {isPriceAvailable(event.price.couple) && (
                       <option value="couple">Couple</option>
                     )}
                   </select>
