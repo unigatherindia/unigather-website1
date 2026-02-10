@@ -29,6 +29,7 @@ interface Event {
   currentParticipants: {
     male: number;
     female: number;
+    couple?: number;
   };
   rating: number;
   reviews: number;
@@ -198,11 +199,26 @@ const EventsList: React.FC = () => {
         className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8"
       >
         {events.map((event, index) => {
-          const totalParticipants = event.currentParticipants.male + event.currentParticipants.female;
+          const totalParticipants = event.currentParticipants.male + event.currentParticipants.female + (event.currentParticipants.couple || 0);
           const occupancyPercentage = (totalParticipants / event.maxCapacity) * 100;
-          const isMaleSoldOut = isSoldOut(event.price.male);
-          const isFemaleSoldOut = isSoldOut(event.price.female);
-          const isEventSoldOut = isMaleSoldOut && isFemaleSoldOut;
+          
+          // Helper to check if a price is available (not N/A, not 0, not undefined)
+          const isPriceAvailable = (price: number | string | undefined): boolean => {
+            if (price === undefined || price === null) return false;
+            if (typeof price === 'number') return price > 0;
+            const priceStr = String(price).toLowerCase().trim();
+            return priceStr !== 'n/a' && priceStr !== '0' && priceStr !== '';
+          };
+          
+          const maleAvailable = isPriceAvailable(event.price.male);
+          const femaleAvailable = isPriceAvailable(event.price.female);
+          const coupleAvailable = isPriceAvailable(event.price.couple);
+          
+          // Check if all available ticket types are sold out
+          const isMaleSoldOut = !maleAvailable || isSoldOut(event.price.male);
+          const isFemaleSoldOut = !femaleAvailable || isSoldOut(event.price.female);
+          const isCoupleSoldOut = !coupleAvailable || (event.price.couple !== undefined && isSoldOut(event.price.couple));
+          const isEventSoldOut = isMaleSoldOut && isFemaleSoldOut && isCoupleSoldOut;
           
           return (
             <motion.div
@@ -307,34 +323,59 @@ const EventsList: React.FC = () => {
                 {/* Organizer removed per design */}
 
                 {/* Pricing */}
-                <div className="bg-dark-800 rounded-2xl p-4 mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-300 font-medium">Ticket Prices</span>
-                    {(typeof event.price.male === 'number' || typeof event.price.female === 'number') && (
-                      <IndianRupee className="w-4 h-4 text-primary-400" />
-                    )}
-                  </div>
-                  <div className={`grid gap-3 ${event.price.couple && event.price.couple !== 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <div className="text-center">
-                      <div className="text-blue-400 text-sm mb-1">Male</div>
-                      <div className="text-white font-bold">
-                        {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
+                {(() => {
+                  // Check which prices are available (not N/A, not 0, not undefined)
+                  const isValidPrice = (price: number | string | undefined): boolean => {
+                    if (price === undefined || price === null) return false;
+                    if (typeof price === 'number') return price > 0;
+                    const priceStr = String(price).toLowerCase().trim();
+                    return priceStr !== 'n/a' && priceStr !== '0' && priceStr !== '';
+                  };
+                  
+                  const showMale = isValidPrice(event.price.male);
+                  const showFemale = isValidPrice(event.price.female);
+                  const showCouple = isValidPrice(event.price.couple);
+                  const visibleCount = [showMale, showFemale, showCouple].filter(Boolean).length;
+                  
+                  if (visibleCount === 0) return null;
+                  
+                  const gridCols = visibleCount === 1 ? 'grid-cols-1' : visibleCount === 2 ? 'grid-cols-2' : 'grid-cols-3';
+                  
+                  return (
+                    <div className="bg-dark-800 rounded-2xl p-4 mb-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-300 font-medium">Ticket Prices</span>
+                        <IndianRupee className="w-4 h-4 text-primary-400" />
+                      </div>
+                      <div className={`grid gap-3 ${gridCols}`}>
+                        {showMale && (
+                          <div className="text-center">
+                            <div className="text-blue-400 text-sm mb-1">Male</div>
+                            <div className="text-white font-bold">
+                              {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
+                            </div>
+                          </div>
+                        )}
+                        {showFemale && (
+                          <div className="text-center">
+                            <div className="text-pink-400 text-sm mb-1">Female</div>
+                            <div className="text-white font-bold">
+                              {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
+                            </div>
+                          </div>
+                        )}
+                        {showCouple && (
+                          <div className="text-center">
+                            <div className="text-purple-400 text-sm mb-1">Couple</div>
+                            <div className="text-white font-bold">
+                              {typeof event.price.couple === 'number' ? `₹${event.price.couple}` : event.price.couple}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-pink-400 text-sm mb-1">Female</div>
-                      <div className="text-white font-bold">
-                        {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
-                      </div>
-                    </div>
-                    {event.price.couple && event.price.couple !== 0 && (
-                      <div className="text-center">
-                        <div className="text-purple-400 text-sm mb-1">Couple</div>
-                        <div className="text-white font-bold">₹{event.price.couple}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Book Button */}
                 <button
