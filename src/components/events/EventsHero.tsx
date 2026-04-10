@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Users, Clock, Search } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 
 const EventsHero: React.FC = () => {
   return (
@@ -38,36 +38,12 @@ const EventsHero: React.FC = () => {
             </p>
           </motion.div>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="max-w-2xl mx-auto mb-12"
-          >
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="w-5 h-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search events by name, location, or category..."
-                className="w-full pl-12 pr-4 py-4 bg-dark-700/50 backdrop-blur-sm border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all duration-300"
-              />
-              <button className="absolute inset-y-0 right-0 pr-2 flex items-center">
-                <div className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-6 py-2 rounded-xl font-medium hover:from-primary-600 hover:to-primary-500 transition-all duration-300">
-                  Search
-                </div>
-              </button>
-            </div>
-          </motion.div>
-
           {/* Quick Stats */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6"
+            className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8"
           >
             {[
               { icon: Calendar, number: '15+', label: 'This Month' },

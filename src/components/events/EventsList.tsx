@@ -339,35 +339,33 @@ const EventsList: React.FC = () => {
                   
                   if (visibleCount === 0) return null;
                   
-                  const gridCols = visibleCount === 1 ? 'grid-cols-1' : visibleCount === 2 ? 'grid-cols-2' : 'grid-cols-3';
-                  
                   return (
-                    <div className="bg-dark-800 rounded-2xl p-4 mb-6">
+                    <div className="bg-dark-800 rounded-2xl p-3 sm:p-4 mb-6">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-300 font-medium">Ticket Prices</span>
-                        <IndianRupee className="w-4 h-4 text-primary-400" />
+                        <span className="text-gray-300 text-sm sm:text-base font-medium">Ticket Prices</span>
+                        <IndianRupee className="w-4 h-4 text-primary-400 shrink-0" />
                       </div>
-                      <div className={`grid gap-3 ${gridCols}`}>
+                      <div className="flex flex-wrap justify-center sm:justify-between gap-x-3 gap-y-2 sm:gap-x-4">
                         {showMale && (
-                          <div className="text-center">
-                            <div className="text-blue-400 text-sm mb-1">Male</div>
-                            <div className="text-white font-bold">
+                          <div className="text-center min-w-[4.5rem] sm:flex-1 sm:min-w-0">
+                            <div className="text-blue-400 text-xs sm:text-sm mb-0.5">Male</div>
+                            <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
                               {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
                             </div>
                           </div>
                         )}
                         {showFemale && (
-                          <div className="text-center">
-                            <div className="text-pink-400 text-sm mb-1">Female</div>
-                            <div className="text-white font-bold">
+                          <div className="text-center min-w-[4.5rem] sm:flex-1 sm:min-w-0">
+                            <div className="text-pink-400 text-xs sm:text-sm mb-0.5">Female</div>
+                            <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
                               {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
                             </div>
                           </div>
                         )}
                         {showCouple && (
-                          <div className="text-center">
-                            <div className="text-purple-400 text-sm mb-1">Couple</div>
-                            <div className="text-white font-bold">
+                          <div className="text-center min-w-[4.5rem] sm:flex-1 sm:min-w-0">
+                            <div className="text-purple-400 text-xs sm:text-sm mb-0.5">Couple</div>
+                            <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
                               {typeof event.price.couple === 'number' ? `₹${event.price.couple}` : event.price.couple}
                             </div>
                           </div>
