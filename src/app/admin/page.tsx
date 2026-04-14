@@ -81,7 +81,26 @@ export default function AdminPage() {
     imageUrl: '',
   });
   const [applicableGenders, setApplicableGenders] = useState<{ male: boolean; female: boolean; couple: boolean }>({ male: true, female: true, couple: true });
+  type CustomTicketFormRow = { id: string; label: string; price: string };
+  const [customTicketRows, setCustomTicketRows] = useState<CustomTicketFormRow[]>([]);
   const [uploadingEventImage, setUploadingEventImage] = useState(false);
+
+  const newCustomTicketId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `ct_${crypto.randomUUID()}`
+      : `ct_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+
+  const addCustomTicketRow = () => {
+    setCustomTicketRows((prev) => [...prev, { id: newCustomTicketId(), label: '', price: '' }]);
+  };
+
+  const updateCustomTicketRow = (id: string, field: 'label' | 'price', value: string) => {
+    setCustomTicketRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  };
+
+  const removeCustomTicketRow = (id: string) => {
+    setCustomTicketRows((prev) => prev.filter((r) => r.id !== id));
+  };
 
   // Events State
   const [events, setEvents] = useState<any[]>([]);
@@ -483,6 +502,27 @@ export default function AdminPage() {
     return v;
   };
 
+  const buildCustomTicketPayload = () =>
+    customTicketRows
+      .filter((r) => r.label.trim() !== '' && String(r.price).trim() !== '')
+      .map((r) => ({
+        id: r.id,
+        label: r.label.trim(),
+        price: normalizePrice(r.price),
+      }));
+
+  const mergeCustomParticipantCounts = (
+    options: { id: string }[],
+    previous: Record<string, number> | undefined
+  ): Record<string, number> => {
+    const next: Record<string, number> = {};
+    for (const o of options) {
+      const prev = previous && typeof previous[o.id] === 'number' ? previous[o.id] : 0;
+      next[o.id] = prev;
+    }
+    return next;
+  };
+
   const handleApplicableGenderToggle = (gender: 'male' | 'female' | 'couple') => {
     setApplicableGenders(prev => {
       const next = { ...prev, [gender]: !prev[gender] };
@@ -546,6 +586,9 @@ export default function AdminPage() {
         }
       }
 
+      const customOpts = buildCustomTicketPayload();
+      const customCounts = mergeCustomParticipantCounts(customOpts, undefined);
+
       // Prepare event data for Firestore
       const eventData = {
         title: formData.title,
@@ -558,6 +601,8 @@ export default function AdminPage() {
         priceMale: normalizePrice(formData.priceMale),
         priceFemale: normalizePrice(formData.priceFemale),
         priceCouple: normalizePrice(formData.priceCouple),
+        customTicketOptions: customOpts,
+        customParticipantCounts: customCounts,
         maxCapacity: parseInt(formData.maxCapacity) || 0,
         duration: formData.duration,
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
@@ -608,6 +653,7 @@ export default function AdminPage() {
         imageUrl: '',
       });
       setApplicableGenders({ male: true, female: true, couple: true });
+      setCustomTicketRows([]);
       
       // Refresh events list if on events tab
       if (activeTab === 'events') {
@@ -979,6 +1025,17 @@ export default function AdminPage() {
       female: event.priceFemale !== 'N/A',
       couple: event.priceCouple !== 'N/A'
     });
+    if (Array.isArray(event.customTicketOptions) && event.customTicketOptions.length > 0) {
+      setCustomTicketRows(
+        event.customTicketOptions.map((o: any) => ({
+          id: typeof o.id === 'string' && o.id ? o.id : newCustomTicketId(),
+          label: o.label != null ? String(o.label) : '',
+          price: o.price != null ? String(o.price) : '',
+        }))
+      );
+    } else {
+      setCustomTicketRows([]);
+    }
     setActiveTab('create');
   };
 
@@ -1003,6 +1060,14 @@ export default function AdminPage() {
         }
       }
 
+      const customOpts = buildCustomTicketPayload();
+      const prevEvent = events.find((ev) => ev.id === editingEvent);
+      const prevCustomCounts =
+        prevEvent?.customParticipantCounts && typeof prevEvent.customParticipantCounts === 'object'
+          ? (prevEvent.customParticipantCounts as Record<string, number>)
+          : undefined;
+      const customCounts = mergeCustomParticipantCounts(customOpts, prevCustomCounts);
+
       const eventData = {
         title: eventForm.title,
         description: eventForm.description,
@@ -1015,6 +1080,8 @@ export default function AdminPage() {
         priceMale: normalizePrice(eventForm.priceMale),
         priceFemale: normalizePrice(eventForm.priceFemale),
         priceCouple: normalizePrice(eventForm.priceCouple),
+        customTicketOptions: customOpts,
+        customParticipantCounts: customCounts,
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
@@ -1044,6 +1111,7 @@ export default function AdminPage() {
         imageUrl: '',
       });
       setApplicableGenders({ male: true, female: true, couple: true });
+      setCustomTicketRows([]);
       
       setActiveTab('events');
       fetchEvents();
@@ -1726,6 +1794,63 @@ export default function AdminPage() {
                       />
                       <p className="mt-1 text-xs text-gray-500">Enter a number or type N/A if not applicable</p>
                     </div>
+
+                    <div className="md:col-span-2 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <label className="block text-sm font-medium text-gray-300">
+                          Custom ticket types (optional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={addCustomTicketRow}
+                          className="inline-flex items-center justify-center gap-1 text-sm text-primary-400 hover:text-primary-300 border border-primary-500/40 rounded-lg px-3 py-1.5"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add custom option
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Add a display name and price for each extra ticket type (e.g. Student, VIP). You can add multiple rows. Leave rows empty or remove them before saving; only filled rows are stored.
+                      </p>
+                      <div className="space-y-3">
+                        {customTicketRows.map((row) => (
+                          <div
+                            key={row.id}
+                            className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 bg-dark-700/50 border border-gray-600 rounded-lg"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <span className="block text-xs text-gray-400 mb-1">Label</span>
+                              <input
+                                type="text"
+                                value={row.label}
+                                onChange={(e) => updateCustomTicketRow(row.id, 'label', e.target.value)}
+                                className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                                placeholder="e.g. Student, Non-binary, VIP"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0 sm:max-w-[220px]">
+                              <span className="block text-xs text-gray-400 mb-1">Price (₹, N/A, or text)</span>
+                              <input
+                                type="text"
+                                value={row.price}
+                                onChange={(e) => updateCustomTicketRow(row.id, 'price', e.target.value)}
+                                className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                                placeholder="699, N/A, Sold out…"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeCustomTicketRow(row.id)}
+                              className="p-2 text-red-400 hover:bg-dark-600 rounded-lg shrink-0"
+                              title="Remove this option"
+                              aria-label="Remove custom ticket row"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-700">
@@ -1752,6 +1877,7 @@ export default function AdminPage() {
                             imageUrl: '',
                           });
                           setApplicableGenders({ male: true, female: true, couple: true });
+                          setCustomTicketRows([]);
                         }}
                         className="px-6 py-3 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors"
                       >
@@ -1920,6 +2046,13 @@ export default function AdminPage() {
                                     {event.priceCouple && event.priceCouple !== 'N/A' && (
                                       <div className="text-sm">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
                                     )}
+                                    {Array.isArray(event.customTicketOptions) &&
+                                      event.customTicketOptions.map((o: { id: string; label: string; price: unknown }) => (
+                                        <div key={o.id} className="text-sm text-amber-300/90">
+                                          {o.label}:{' '}
+                                          {typeof o.price === 'number' ? `₹${o.price}` : String(o.price ?? '')}
+                                        </div>
+                                      ))}
                                   </td>
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
                                     <div className="text-sm text-gray-400">
@@ -2060,6 +2193,13 @@ export default function AdminPage() {
                                       {event.priceCouple && event.priceCouple !== 'N/A' && (
                                         <div className="text-xs">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
                                       )}
+                                      {Array.isArray(event.customTicketOptions) &&
+                                        event.customTicketOptions.map((o: { id: string; label: string; price: unknown }) => (
+                                          <div key={o.id} className="text-xs text-amber-300/90">
+                                            {o.label}:{' '}
+                                            {typeof o.price === 'number' ? `₹${o.price}` : String(o.price ?? '')}
+                                          </div>
+                                        ))}
                                     </div>
                                   </div>
                                   <div className="col-span-2">

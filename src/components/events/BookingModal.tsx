@@ -34,6 +34,8 @@ interface Event {
     female: number | string;
     couple?: number | string;
   };
+  customTicketOptions?: { id: string; label: string; price: number | string }[];
+  customParticipantCounts?: Record<string, number>;
   maxCapacity: number;
   currentParticipants: {
     male: number;
@@ -53,7 +55,8 @@ interface BookingForm {
   name: string;
   email: string;
   phone: string;
-  gender: 'male' | 'female' | 'couple';
+  /** 'male' | 'female' | 'couple' or custom option id from event.customTicketOptions */
+  ticketType: string;
   age: string;
   dietaryRestrictions: string;
   experience: string;
@@ -76,12 +79,42 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     name: '',
     email: '',
     phone: '',
-    gender: 'male',
+    ticketType: 'male',
     age: '',
     dietaryRestrictions: '',
     experience: '',
     terms: false
   });
+
+  const getPriceForTicketType = (ticketType: string): number | string | undefined => {
+    if (ticketType === 'male') return event.price.male;
+    if (ticketType === 'female') return event.price.female;
+    if (ticketType === 'couple') return event.price.couple;
+    return event.customTicketOptions?.find((o) => o.id === ticketType)?.price;
+  };
+
+  const getTicketLabel = (ticketType: string): string => {
+    if (ticketType === 'male') return 'Male';
+    if (ticketType === 'female') return 'Female';
+    if (ticketType === 'couple') return 'Couple';
+    return event.customTicketOptions?.find((o) => o.id === ticketType)?.label || 'Ticket';
+  };
+
+  const incrementParticipantForTicket = async (ticketType: string) => {
+    if (!db) return;
+    const eventRef = doc(db, 'events', event.id);
+    if (ticketType === 'male' || ticketType === 'female' || ticketType === 'couple') {
+      await updateDoc(eventRef, {
+        [`currentParticipants.${ticketType}`]: increment(1),
+        updatedAt: Timestamp.now(),
+      });
+    } else {
+      await updateDoc(eventRef, {
+        [`customParticipantCounts.${ticketType}`]: increment(1),
+        updatedAt: Timestamp.now(),
+      });
+    }
+  };
 
   // Check if price indicates sold out
   const isSoldOut = (price: number | string): boolean => {
@@ -100,26 +133,20 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
   // Set default ticket type to first available option
   useEffect(() => {
-    const maleAvailable = isPriceAvailable(event.price.male);
-    const femaleAvailable = isPriceAvailable(event.price.female);
-    const coupleAvailable = isPriceAvailable(event.price.couple);
-    
-    // If current selection is not available, switch to first available
-    const currentAvailable = 
-      (bookingForm.gender === 'male' && maleAvailable) ||
-      (bookingForm.gender === 'female' && femaleAvailable) ||
-      (bookingForm.gender === 'couple' && coupleAvailable);
-    
-    if (!currentAvailable) {
-      if (maleAvailable) {
-        setBookingForm(prev => ({ ...prev, gender: 'male' }));
-      } else if (femaleAvailable) {
-        setBookingForm(prev => ({ ...prev, gender: 'female' }));
-      } else if (coupleAvailable) {
-        setBookingForm(prev => ({ ...prev, gender: 'couple' }));
-      }
+    const availableTypes: string[] = [];
+    if (isPriceAvailable(event.price.male)) availableTypes.push('male');
+    if (isPriceAvailable(event.price.female)) availableTypes.push('female');
+    if (isPriceAvailable(event.price.couple)) availableTypes.push('couple');
+    (event.customTicketOptions || []).forEach((o) => {
+      if (isPriceAvailable(o.price)) availableTypes.push(o.id);
+    });
+
+    if (availableTypes.length === 0) return;
+
+    if (!availableTypes.includes(bookingForm.ticketType)) {
+      setBookingForm((prev) => ({ ...prev, ticketType: availableTypes[0] }));
     }
-  }, [event.price]);
+  }, [event.price, event.customTicketOptions]);
 
   // Pre-fill form with user data if logged in
   useEffect(() => {
@@ -132,17 +159,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     }
   }, [user]);
 
-  // Check if selected gender is sold out when gender changes
+  // Check if selected ticket type is sold out when it changes
   useEffect(() => {
-    const price = bookingForm.gender === 'couple' 
-      ? event.price.couple 
-      : event.price[bookingForm.gender];
-    if (price !== undefined && isSoldOut(price)) {
-      toast.error(`${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} tickets are sold out. Please select the other option.`, {
+    const price = getPriceForTicketType(bookingForm.ticketType);
+    if (price !== undefined && isSoldOut(price as number | string)) {
+      toast.error(`${getTicketLabel(bookingForm.ticketType)} tickets are sold out. Please select another option.`, {
         duration: 4000,
       });
     }
-  }, [bookingForm.gender, event.price]);
+  }, [bookingForm.ticketType, event.price, event.customTicketOptions]);
 
   // Load Razorpay script
   useEffect(() => {
@@ -215,7 +240,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     }
 
     // Check if price is text (not numeric) - skip payment if so
-    const price = event.price[bookingForm.gender];
+    const price = getPriceForTicketType(bookingForm.ticketType);
     if (typeof price === 'string') {
       // Handle text price booking (skip payment)
       handleTextPriceBooking();
@@ -231,7 +256,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     toast.success('You can now proceed with your booking!');
     // After successful login, check if payment is needed
     if (validateForm()) {
-      const price = event.price[bookingForm.gender];
+      const price = getPriceForTicketType(bookingForm.ticketType);
       if (typeof price === 'string') {
         handleTextPriceBooking();
       } else {
@@ -265,8 +290,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             eventDate: event.date,
             eventTime: event.time,
             eventLocation: event.location,
-            ticketGender: bookingForm.gender,
-            amountPaid: event.price[bookingForm.gender], // Store text price as-is
+            ticketGender: bookingForm.ticketType,
+            ticketLabel: getTicketLabel(bookingForm.ticketType),
+            amountPaid: getPriceForTicketType(bookingForm.ticketType) as string | number,
             orderId: 'N/A',
             paymentId: 'N/A',
             customerName: bookingForm.name,
@@ -281,13 +307,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
           await addDoc(collection(db, 'eventBookings'), bookingPayload);
 
-          const eventRef = doc(db, 'events', event.id);
-          const genderField = `currentParticipants.${bookingForm.gender}`;
-
-          await updateDoc(eventRef, {
-            [genderField]: increment(1),
-            updatedAt: Timestamp.now(),
-          });
+          await incrementParticipantForTicket(bookingForm.ticketType);
         }
       } catch (firestoreError) {
         console.error('Error saving booking details:', firestoreError);
@@ -295,7 +315,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }
 
       // Generate WhatsApp confirmation URL for customer
-      const priceValue = event.price[bookingForm.gender];
+      const priceValue = getPriceForTicketType(bookingForm.ticketType);
       const whatsappDetails: WhatsAppBookingDetails = {
         bookingId: bookingId,
         paymentId: 'N/A',
@@ -305,7 +325,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         eventTime: event.time,
         eventLocation: event.location,
         amount: typeof priceValue === 'number' ? priceValue : 0,
-        ticketType: `${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket`,
+        ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
       };
       
       // Create link for customer to save confirmation in their WhatsApp
@@ -326,8 +346,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             eventDate: formatDate(event.date),
             eventTime: event.time,
             eventLocation: event.location,
-            ticketType: `${bookingForm.gender} Ticket`,
-            amount: event.price[bookingForm.gender],
+            ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
+            amount: getPriceForTicketType(bookingForm.ticketType),
             bookingId: bookingId,
             paymentId: 'N/A',
           }),
@@ -373,7 +393,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             eventTitle: event.title,
             customerName: bookingForm.name,
             customerEmail: bookingForm.email,
-            gender: bookingForm.gender,
+            ticketType: bookingForm.ticketType,
+            ticketLabel: getTicketLabel(bookingForm.ticketType),
           },
         }),
       });
@@ -430,7 +451,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     eventDate: event.date,
                     eventTime: event.time,
                     eventLocation: event.location,
-                    ticketGender: bookingForm.gender,
+                    ticketGender: bookingForm.ticketType,
+                    ticketLabel: getTicketLabel(bookingForm.ticketType),
                     amountPaid: selectedPrice,
                     orderId: response.razorpay_order_id,
                     paymentId: response.razorpay_payment_id,
@@ -446,13 +468,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
                   await addDoc(collection(db, 'eventBookings'), bookingPayload);
 
-                  const eventRef = doc(db, 'events', event.id);
-                  const genderField = `currentParticipants.${bookingForm.gender}`;
-
-                  await updateDoc(eventRef, {
-                    [genderField]: increment(1),
-                    updatedAt: Timestamp.now(),
-                  });
+                  await incrementParticipantForTicket(bookingForm.ticketType);
                 }
               } catch (firestoreError) {
                 console.error('Error saving booking details:', firestoreError);
@@ -469,7 +485,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 eventTime: event.time,
                 eventLocation: event.location,
                 amount: selectedPrice,
-                ticketType: `${bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket`,
+                ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
               };
               
               // Create link for customer to save confirmation in their WhatsApp
@@ -490,7 +506,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     eventDate: formatDate(event.date),
                     eventTime: event.time,
                     eventLocation: event.location,
-                    ticketType: `${bookingForm.gender} Ticket`,
+                    ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
                     amount: selectedPrice,
                     bookingId: bookingId,
                     paymentId: response.razorpay_payment_id,
@@ -522,7 +538,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         notes: {
           eventId: event.id,
           eventTitle: event.title,
-          gender: bookingForm.gender,
+          ticketType: bookingForm.ticketType,
+          ticketLabel: getTicketLabel(bookingForm.ticketType),
         },
         theme: {
           color: '#f97316',
@@ -554,11 +571,19 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     });
   };
 
-  const selectedPrice = bookingForm.gender === 'couple' 
-    ? (event.price.couple || 0) 
-    : event.price[bookingForm.gender];
-  const isSelectedPriceSoldOut = isSoldOut(selectedPrice);
-  const totalParticipants = event.currentParticipants.male + event.currentParticipants.female + (event.currentParticipants.couple || 0);
+  const rawSelectedPrice = getPriceForTicketType(bookingForm.ticketType);
+  const selectedPrice = rawSelectedPrice === undefined ? 0 : rawSelectedPrice;
+  const isSelectedPriceSoldOut =
+    rawSelectedPrice !== undefined && isSoldOut(rawSelectedPrice as number | string);
+  const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(
+    (a, b) => a + (typeof b === 'number' ? b : 0),
+    0
+  );
+  const totalParticipants =
+    event.currentParticipants.male +
+    event.currentParticipants.female +
+    (event.currentParticipants.couple || 0) +
+    customPartSum;
 
   return (
     <>
@@ -687,8 +712,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     Ticket Type *
                   </label>
                   <select
-                    value={bookingForm.gender}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                    value={bookingForm.ticketType}
+                    onChange={(e) => handleInputChange('ticketType', e.target.value)}
                     className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                   >
                     {isPriceAvailable(event.price.male) && (
@@ -699,6 +724,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     )}
                     {isPriceAvailable(event.price.couple) && (
                       <option value="couple">Couple</option>
+                    )}
+                    {(event.customTicketOptions || []).map((opt) =>
+                      isPriceAvailable(opt.price) ? (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ) : null
                     )}
                   </select>
                 </div>
@@ -786,7 +818,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                       <IndianRupee className="w-5 h-5 text-primary-400" />
                     )}
                     <span className="text-white font-medium">
-                      {bookingForm.gender === 'male' ? 'Male' : bookingForm.gender === 'female' ? 'Female' : 'Couple'} Ticket
+                      {getTicketLabel(bookingForm.ticketType)} Ticket
                     </span>
                   </div>
                   <div className="text-2xl font-bold text-primary-400">
@@ -884,7 +916,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Ticket Type</span>
-                    <span className="text-white">{bookingForm.gender.charAt(0).toUpperCase() + bookingForm.gender.slice(1)} Ticket</span>
+                    <span className="text-white">{getTicketLabel(bookingForm.ticketType)} Ticket</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Date & Time</span>

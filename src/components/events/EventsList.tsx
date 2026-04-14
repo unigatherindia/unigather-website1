@@ -25,6 +25,8 @@ interface Event {
     female: number | string;
     couple?: number | string;
   };
+  customTicketOptions?: { id: string; label: string; price: number | string }[];
+  customParticipantCounts?: Record<string, number>;
   maxCapacity: number;
   currentParticipants: {
     male: number;
@@ -103,6 +105,11 @@ const EventsList: React.FC = () => {
               female: data.priceFemale != null ? data.priceFemale : 0,
               couple: data.priceCouple != null ? data.priceCouple : undefined
             },
+            customTicketOptions: Array.isArray(data.customTicketOptions) ? data.customTicketOptions : [],
+            customParticipantCounts:
+              data.customParticipantCounts && typeof data.customParticipantCounts === 'object'
+                ? data.customParticipantCounts
+                : {},
             maxCapacity: data.maxCapacity || 0,
             currentParticipants: data.currentParticipants || { male: 0, female: 0, couple: 0 },
             rating: data.rating || 0,
@@ -199,7 +206,15 @@ const EventsList: React.FC = () => {
         className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8"
       >
         {events.map((event, index) => {
-          const totalParticipants = event.currentParticipants.male + event.currentParticipants.female + (event.currentParticipants.couple || 0);
+          const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(
+            (a, b) => a + (typeof b === 'number' ? b : 0),
+            0
+          );
+          const totalParticipants =
+            event.currentParticipants.male +
+            event.currentParticipants.female +
+            (event.currentParticipants.couple || 0) +
+            customPartSum;
           const occupancyPercentage = (totalParticipants / event.maxCapacity) * 100;
           
           // Helper to check if a price is available (not N/A, not 0, not undefined)
@@ -213,12 +228,16 @@ const EventsList: React.FC = () => {
           const maleAvailable = isPriceAvailable(event.price.male);
           const femaleAvailable = isPriceAvailable(event.price.female);
           const coupleAvailable = isPriceAvailable(event.price.couple);
+          const customOpts = event.customTicketOptions || [];
           
-          // Check if all available ticket types are sold out
-          const isMaleSoldOut = !maleAvailable || isSoldOut(event.price.male);
-          const isFemaleSoldOut = !femaleAvailable || isSoldOut(event.price.female);
-          const isCoupleSoldOut = !coupleAvailable || (event.price.couple !== undefined && isSoldOut(event.price.couple));
-          const isEventSoldOut = isMaleSoldOut && isFemaleSoldOut && isCoupleSoldOut;
+          const soldOutChecks: boolean[] = [];
+          if (maleAvailable) soldOutChecks.push(isSoldOut(event.price.male));
+          if (femaleAvailable) soldOutChecks.push(isSoldOut(event.price.female));
+          if (coupleAvailable && event.price.couple !== undefined) soldOutChecks.push(isSoldOut(event.price.couple));
+          for (const o of customOpts) {
+            if (isPriceAvailable(o.price)) soldOutChecks.push(isSoldOut(o.price));
+          }
+          const isEventSoldOut = soldOutChecks.length > 0 && soldOutChecks.every(Boolean);
           
           return (
             <motion.div
@@ -335,7 +354,8 @@ const EventsList: React.FC = () => {
                   const showMale = isValidPrice(event.price.male);
                   const showFemale = isValidPrice(event.price.female);
                   const showCouple = isValidPrice(event.price.couple);
-                  const visibleCount = [showMale, showFemale, showCouple].filter(Boolean).length;
+                  const customShow = (event.customTicketOptions || []).filter((o) => isValidPrice(o.price));
+                  const visibleCount = [showMale, showFemale, showCouple].filter(Boolean).length + customShow.length;
                   
                   if (visibleCount === 0) return null;
                   
@@ -370,6 +390,19 @@ const EventsList: React.FC = () => {
                             </div>
                           </div>
                         )}
+                        {customShow.map((opt) => (
+                          <div
+                            key={opt.id}
+                            className="text-center min-w-0 sm:flex-1 max-w-full overflow-x-hidden px-0.5"
+                          >
+                            <div className="text-amber-400 text-xs sm:text-sm mb-0.5 line-clamp-2 break-words">
+                              {opt.label}
+                            </div>
+                            <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
+                              {typeof opt.price === 'number' ? `₹${opt.price}` : opt.price}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
