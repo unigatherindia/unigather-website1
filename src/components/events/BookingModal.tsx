@@ -118,7 +118,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   };
 
   // Check if price indicates sold out
-  const isSoldOut = (price: number | string): boolean => {
+  const isSoldOut = (price: number | string | undefined): boolean => {
+    if (price === undefined || price === null) return false;
     if (typeof price === 'number') return false;
     const priceText = String(price).toLowerCase().trim();
     return priceText === 'sold out' || priceText === 'soldout' || priceText === 'sold-out';
@@ -180,7 +181,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   // Check if selected ticket type is sold out when it changes
   useEffect(() => {
     const price = getPriceForTicketType(bookingForm.ticketType);
-    if (price !== undefined && isSoldOut(price as number | string)) {
+    if (isSoldOut(price)) {
       toast.error(`${getTicketLabel(bookingForm.ticketType)} tickets are sold out. Please select another option.`, {
         duration: 4000,
       });
@@ -610,7 +611,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         ? 0
         : rawSelectedPrice;
   const isSelectedPriceSoldOut =
-    rawSelectedPrice !== undefined && isSoldOut(rawSelectedPrice as number | string);
+    rawSelectedPrice !== undefined && isSoldOut(rawSelectedPrice);
   const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(
     (a, b) => a + (typeof b === 'number' ? b : 0),
     0
