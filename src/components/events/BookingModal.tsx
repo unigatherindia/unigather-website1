@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
 import { db } from '@/lib/firebase';
+import { sanitizeRazorpayNotesObject, stripForRazorpayText } from '@/lib/razorpayUtf8';
 import { collection, addDoc, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
@@ -416,14 +417,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           amount: selectedPrice,
           currency: 'INR',
           receipt: `receipt_${Date.now()}`,
-          notes: {
+          notes: sanitizeRazorpayNotesObject({
             eventId: event.id,
             eventTitle: event.title,
             customerName: bookingForm.name,
             customerEmail: bookingForm.email,
             ticketType: bookingForm.ticketType,
             ticketLabel: getTicketLabel(bookingForm.ticketType),
-          },
+          }),
         }),
       });
 
@@ -454,7 +455,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Unigather',
-        description: event.title,
+        description: stripForRazorpayText(event.title, 250),
         order_id: orderData.orderId,
         handler: async function (response: any) {
           try {
@@ -574,16 +575,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           }
         },
         prefill: {
-          name: bookingForm.name,
-          email: bookingForm.email,
-          contact: bookingForm.phone,
+          name: stripForRazorpayText(bookingForm.name, 120),
+          email: stripForRazorpayText(bookingForm.email, 120),
+          contact: stripForRazorpayText(bookingForm.phone, 20),
         },
-        notes: {
+        notes: sanitizeRazorpayNotesObject({
           eventId: event.id,
           eventTitle: event.title,
           ticketType: bookingForm.ticketType,
           ticketLabel: getTicketLabel(bookingForm.ticketType),
-        },
+        }),
         theme: {
           color: '#f97316',
         },

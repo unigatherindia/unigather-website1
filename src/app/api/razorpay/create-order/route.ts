@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
+import { sanitizeRazorpayNotesObject } from '@/lib/razorpayUtf8';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,12 +64,17 @@ export async function POST(request: NextRequest) {
       key_secret: keySecret,
     });
 
+    const safeNotes =
+      notes && typeof notes === 'object' && !Array.isArray(notes)
+        ? sanitizeRazorpayNotesObject(notes as Record<string, unknown>)
+        : {};
+
     // Create order (amount in smallest currency unit — paise for INR)
     const order = await razorpay.orders.create({
       amount: amountPaise,
       currency: currency || 'INR',
       receipt: (receipt || `receipt_${Date.now()}`).toString().slice(0, 40),
-      notes: notes || {},
+      ...(Object.keys(safeNotes).length > 0 ? { notes: safeNotes } : {}),
     });
 
     return NextResponse.json({
