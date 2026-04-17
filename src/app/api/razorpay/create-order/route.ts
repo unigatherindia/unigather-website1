@@ -3,11 +3,23 @@ import Razorpay from 'razorpay';
 
 export async function POST(request: NextRequest) {
   try {
-    const { amount, currency, receipt, notes } = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { success: false, message: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
 
-    // Check if environment variables are set
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_RcOdmWvLEj5q5L';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'nAbTPxhMBsg2i5Cd8dT1DuBs';
+    const { amount, currency, receipt, notes } = body as {
+      amount?: unknown;
+      currency?: string;
+      receipt?: string;
+      notes?: Record<string, string>;
+    };
+
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
     if (!keyId || !keySecret) {
       console.error('Razorpay credentials not configured!');
@@ -21,17 +33,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const amountRupees = Number(amount);
+    if (!Number.isFinite(amountRupees) || amountRupees < 1) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid ticket amount. Please refresh and try again.',
+          error: 'Amount must be at least ₹1',
+        },
+        { status: 400 }
+      );
+    }
+
+    const amountPaise = Math.round(amountRupees * 100);
+    if (amountPaise < 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid ticket amount. Please refresh and try again.',
+          error: 'Amount too small after conversion',
+        },
+        { status: 400 }
+      );
+    }
+
     // Initialize Razorpay instance
     const razorpay = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
     });
 
-    // Create order
+    // Create order (amount in smallest currency unit — paise for INR)
     const order = await razorpay.orders.create({
-      amount: amount * 100, // Amount in paise (multiply by 100)
+      amount: amountPaise,
       currency: currency || 'INR',
-      receipt: receipt || `receipt_${Date.now()}`,
+      receipt: (receipt || `receipt_${Date.now()}`).toString().slice(0, 40),
       notes: notes || {},
     });
 
@@ -43,11 +79,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Razorpay order creation error:', error);
+    const razorpayDesc =
+      error?.error?.description ||
+      error?.description ||
+      (typeof error?.message === 'string' ? error.message : undefined);
     return NextResponse.json(
       {
         success: false,
         message: 'Failed to create order',
-        error: error.message,
+        error: razorpayDesc || 'Unknown Razorpay error',
       },
       { status: 500 }
     );

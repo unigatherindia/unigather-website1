@@ -131,6 +131,23 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     return priceStr !== 'n/a' && priceStr !== '0' && priceStr !== '';
   };
 
+  /** Treats Firestore string amounts like "1499" as rupees for online payment. */
+  const parseNumericPriceRupee = (
+    price: number | string | undefined
+  ): number | undefined => {
+    if (price === undefined || price === null) return undefined;
+    if (typeof price === 'number') {
+      return Number.isFinite(price) && price > 0 ? price : undefined;
+    }
+    if (isSoldOut(price)) return undefined;
+    const s = String(price).trim();
+    if (!s || s.toLowerCase() === 'n/a') return undefined;
+    const cleaned = s.replace(/[₹,\s]/g, '');
+    const n = Number(cleaned);
+    if (Number.isFinite(n) && n > 0) return n;
+    return undefined;
+  };
+
   // Set default ticket type to first available option
   useEffect(() => {
     const availableTypes: string[] = [];
@@ -239,14 +256,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       });
     }
 
-    // Check if price is text (not numeric) - skip payment if so
     const price = getPriceForTicketType(bookingForm.ticketType);
-    if (typeof price === 'string') {
-      // Handle text price booking (skip payment)
+    const rupees = parseNumericPriceRupee(price);
+    if (rupees !== undefined) {
+      setStep(2);
+    } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
       handleTextPriceBooking();
     } else {
-      // Proceed to payment for numeric prices
-      setStep(2);
+      toast.error('No valid ticket price for this option.');
     }
   };
 
@@ -257,10 +274,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     // After successful login, check if payment is needed
     if (validateForm()) {
       const price = getPriceForTicketType(bookingForm.ticketType);
-      if (typeof price === 'string') {
-        handleTextPriceBooking();
-      } else {
+      const rupees = parseNumericPriceRupee(price);
+      if (rupees !== undefined) {
         setStep(2);
+      } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
+        handleTextPriceBooking();
       }
     }
   };
@@ -316,6 +334,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
       // Generate WhatsApp confirmation URL for customer
       const priceValue = getPriceForTicketType(bookingForm.ticketType);
+      const whatsappAmount =
+        parseNumericPriceRupee(priceValue) ??
+        (typeof priceValue === 'number' ? priceValue : 0);
       const whatsappDetails: WhatsAppBookingDetails = {
         bookingId: bookingId,
         paymentId: 'N/A',
@@ -324,7 +345,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         eventDate: formatDate(event.date),
         eventTime: event.time,
         eventLocation: event.location,
-        amount: typeof priceValue === 'number' ? priceValue : 0,
+        amount: whatsappAmount,
         ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
       };
       
@@ -379,6 +400,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     
     try {
       // Create Razorpay order
+      const checkoutKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
+      if (!checkoutKey) {
+        throw new Error(
+          'Payment checkout is not configured (missing Razorpay key). Please contact support.'
+        );
+      }
+
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: {
@@ -399,15 +427,30 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         }),
       });
 
-      const orderData = await orderResponse.json();
+      let orderData: {
+        success?: boolean;
+        message?: string;
+        error?: string;
+        orderId?: string;
+        amount?: number;
+        currency?: string;
+      };
+      try {
+        orderData = await orderResponse.json();
+      } catch {
+        throw new Error(
+          'Payment server returned an invalid response. Please try again or contact support.'
+        );
+      }
 
-      if (!orderData.success) {
-        throw new Error(orderData.message || 'Failed to create order');
+      if (!orderResponse.ok || !orderData.success) {
+        const detail = [orderData.message, orderData.error].filter(Boolean).join(' — ');
+        throw new Error(detail || 'Failed to create order');
       }
 
       // Initialize Razorpay
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: checkoutKey,
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Unigather',
@@ -572,7 +615,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   };
 
   const rawSelectedPrice = getPriceForTicketType(bookingForm.ticketType);
-  const selectedPrice = rawSelectedPrice === undefined ? 0 : rawSelectedPrice;
+  const numericRupees = parseNumericPriceRupee(rawSelectedPrice);
+  const selectedPrice: number | string =
+    numericRupees !== undefined
+      ? numericRupees
+      : rawSelectedPrice === undefined
+        ? 0
+        : rawSelectedPrice;
   const isSelectedPriceSoldOut =
     rawSelectedPrice !== undefined && isSoldOut(rawSelectedPrice as number | string);
   const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(

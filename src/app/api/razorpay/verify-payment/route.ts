@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     // Check if secret is configured
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'nAbTPxhMBsg2i5Cd8dT1DuBs';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
     if (!keySecret) {
       console.error('Razorpay secret not configured!');

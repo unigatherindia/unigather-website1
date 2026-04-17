@@ -75,7 +75,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       toast.success('Successfully signed in with Google!');
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      toast.error('Failed to sign in with Google');
+      const code = error?.code as string | undefined;
+      let msg = 'Failed to sign in with Google';
+      if (code === 'auth/unauthorized-domain') {
+        msg =
+          'This site domain is not allowed for Google sign-in. In Firebase Console → Authentication → Settings, add your domain under Authorized domains.';
+      } else if (code === 'auth/popup-blocked') {
+        msg = 'Sign-in popup was blocked. Allow popups for this site and try again.';
+      } else if (code === 'auth/popup-closed-by-user') {
+        msg = 'Sign-in was cancelled.';
+      } else if (code === 'auth/operation-not-allowed') {
+        msg = 'Google sign-in is not enabled. Enable the Google provider in Firebase Authentication.';
+      } else if (code === 'auth/network-request-failed') {
+        msg = 'Network error during sign-in. Check your connection and try again.';
+      }
+      toast.error(msg);
       throw error;
     }
   };
