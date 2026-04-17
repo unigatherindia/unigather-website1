@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
 import { db } from '@/lib/firebase';
-import { sanitizeRazorpayNotesObject, stripForRazorpayText } from '@/lib/razorpayUtf8';
+import { toRazorpayAscii } from '@/lib/razorpayUtf8';
 import { collection, addDoc, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
@@ -417,14 +417,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           amount: selectedPrice,
           currency: 'INR',
           receipt: `receipt_${Date.now()}`,
-          notes: sanitizeRazorpayNotesObject({
-            eventId: event.id,
-            eventTitle: event.title,
-            customerName: bookingForm.name,
-            customerEmail: bookingForm.email,
-            ticketType: bookingForm.ticketType,
-            ticketLabel: getTicketLabel(bookingForm.ticketType),
-          }),
         }),
       });
 
@@ -455,7 +447,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Unigather',
-        description: stripForRazorpayText(event.title, 250),
+        description: toRazorpayAscii(event.title, 250, 'Event booking'),
         order_id: orderData.orderId,
         handler: async function (response: any) {
           try {
@@ -575,16 +567,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           }
         },
         prefill: {
-          name: stripForRazorpayText(bookingForm.name, 120),
-          email: stripForRazorpayText(bookingForm.email, 120),
-          contact: stripForRazorpayText(bookingForm.phone, 20),
+          name: toRazorpayAscii(bookingForm.name, 120, 'Customer'),
+          email: toRazorpayAscii(bookingForm.email, 120, 'customer@example.com'),
+          contact: toRazorpayAscii(bookingForm.phone, 20, '0000000000'),
         },
-        notes: sanitizeRazorpayNotesObject({
-          eventId: event.id,
-          eventTitle: event.title,
-          ticketType: bookingForm.ticketType,
-          ticketLabel: getTicketLabel(bookingForm.ticketType),
-        }),
         theme: {
           color: '#f97316',
         },

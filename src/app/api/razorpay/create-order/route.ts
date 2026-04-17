@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { sanitizeRazorpayNotesObject } from '@/lib/razorpayUtf8';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +11,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, currency, receipt, notes } = body as {
+    const { amount, currency, receipt } = body as {
       amount?: unknown;
       currency?: string;
       receipt?: string;
-      notes?: Record<string, string>;
     };
 
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim();
@@ -64,17 +62,14 @@ export async function POST(request: NextRequest) {
       key_secret: keySecret,
     });
 
-    const safeNotes =
-      notes && typeof notes === 'object' && !Array.isArray(notes)
-        ? sanitizeRazorpayNotesObject(notes as Record<string, unknown>)
-        : {};
+    // Do not send `notes` — Razorpay frequently rejects them with a UTF-8 error
+    // for valid Indic/Latin text. Booking context is stored in Firestore after payment.
 
     // Create order (amount in smallest currency unit — paise for INR)
     const order = await razorpay.orders.create({
       amount: amountPaise,
       currency: currency || 'INR',
       receipt: (receipt || `receipt_${Date.now()}`).toString().slice(0, 40),
-      ...(Object.keys(safeNotes).length > 0 ? { notes: safeNotes } : {}),
     });
 
     return NextResponse.json({
