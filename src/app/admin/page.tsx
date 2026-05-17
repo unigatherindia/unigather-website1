@@ -17,6 +17,15 @@ import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp, doc, getDoc, addDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { logout } from '@/lib/auth';
 import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY_CODE,
+  DEFAULT_CURRENCY,
+  getCountryByCode,
+  resolveCountryCode,
+  resolveEventCurrency,
+} from '@/constants/countries';
+import { formatEventPrice, getCurrencyLabel } from '@/lib/formatPrice';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -71,6 +80,7 @@ export default function AdminPage() {
     time: '',
     location: '',
     address: '',
+    countryCode: DEFAULT_COUNTRY_CODE,
     priceMale: '',
     priceFemale: '',
     priceCouple: '',
@@ -80,6 +90,11 @@ export default function AdminPage() {
     imageFile: null as File | null,
     imageUrl: '',
   });
+
+  const selectedEventCountry =
+    getCountryByCode(eventForm.countryCode) ?? getCountryByCode(DEFAULT_COUNTRY_CODE)!;
+  const eventFormCurrency = selectedEventCountry.currency;
+  const eventFormCurrencyLabel = getCurrencyLabel(eventFormCurrency);
   const [applicableGenders, setApplicableGenders] = useState<{ male: boolean; female: boolean; couple: boolean }>({ male: true, female: true, couple: true });
   type CustomTicketFormRow = { id: string; label: string; price: string };
   const [customTicketRows, setCustomTicketRows] = useState<CustomTicketFormRow[]>([]);
@@ -588,6 +603,8 @@ export default function AdminPage() {
 
       const customOpts = buildCustomTicketPayload();
       const customCounts = mergeCustomParticipantCounts(customOpts, undefined);
+      const country =
+        getCountryByCode(formData.countryCode) ?? getCountryByCode(DEFAULT_COUNTRY_CODE)!;
 
       // Prepare event data for Firestore
       const eventData = {
@@ -598,6 +615,9 @@ export default function AdminPage() {
         time: formData.time,
         location: formData.location,
         address: formData.address,
+        country: country.name,
+        countryCode: country.code,
+        currency: country.currency,
         priceMale: normalizePrice(formData.priceMale),
         priceFemale: normalizePrice(formData.priceFemale),
         priceCouple: normalizePrice(formData.priceCouple),
@@ -643,6 +663,7 @@ export default function AdminPage() {
         time: '',
         location: '',
         address: '',
+        countryCode: DEFAULT_COUNTRY_CODE,
         priceMale: '',
         priceFemale: '',
         priceCouple: '',
@@ -720,7 +741,21 @@ export default function AdminPage() {
     return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
-  const BookingCard = ({ booking }: { booking: any }) => (
+  const formatPriceForEvent = (event: { currency?: string; countryCode?: string }, price: unknown) =>
+    formatEventPrice(
+      price === undefined || price === null ? 0 : (price as number | string),
+      resolveEventCurrency(event)
+    );
+
+  const BookingCard = ({
+    booking,
+    currency = DEFAULT_CURRENCY,
+  }: {
+    booking: any;
+    currency?: string;
+  }) => {
+    const bookingCurrency = currency || DEFAULT_CURRENCY;
+    return (
     <div className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors">
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
@@ -771,9 +806,10 @@ export default function AdminPage() {
               <span className="text-white font-mono text-xs break-all">{booking.orderId || '—'}</span>
             </div>
             <div className="flex items-start space-x-2">
-              <IndianRupee className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
               <span className="text-gray-400 min-w-[100px] flex-shrink-0">Amount:</span>
-              <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
+              <span className="text-green-400 font-semibold">
+                {formatEventPrice(booking.amountPaid ?? 0, bookingCurrency)}
+              </span>
             </div>
             <div className="flex items-start space-x-2">
               <span className="text-gray-400 min-w-[100px] flex-shrink-0">Ticket Type:</span>
@@ -819,7 +855,8 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const fetchBookingsForEvent = async (eventId: string) => {
     if (!db) {
@@ -1010,6 +1047,7 @@ export default function AdminPage() {
       time: event.time || '',
       location: event.location || '',
       address: event.address || '',
+      countryCode: resolveCountryCode(event),
       priceMale: event.priceMale != null ? String(event.priceMale) : '',
       priceFemale: event.priceFemale != null ? String(event.priceFemale) : '',
       priceCouple: event.priceCouple != null ? String(event.priceCouple) : '',
@@ -1067,6 +1105,8 @@ export default function AdminPage() {
           ? (prevEvent.customParticipantCounts as Record<string, number>)
           : undefined;
       const customCounts = mergeCustomParticipantCounts(customOpts, prevCustomCounts);
+      const country =
+        getCountryByCode(eventForm.countryCode) ?? getCountryByCode(DEFAULT_COUNTRY_CODE)!;
 
       const eventData = {
         title: eventForm.title,
@@ -1076,6 +1116,9 @@ export default function AdminPage() {
         time: eventForm.time,
         location: eventForm.location,
         address: eventForm.address,
+        country: country.name,
+        countryCode: country.code,
+        currency: country.currency,
         // Normalize prices on update as well - allow any text or numeric
         priceMale: normalizePrice(eventForm.priceMale),
         priceFemale: normalizePrice(eventForm.priceFemale),
@@ -1101,6 +1144,7 @@ export default function AdminPage() {
         time: '',
         location: '',
         address: '',
+        countryCode: DEFAULT_COUNTRY_CODE,
         priceMale: '',
         priceFemale: '',
         priceCouple: '',
@@ -1709,6 +1753,28 @@ export default function AdminPage() {
                       />
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Country / currency *
+                      </label>
+                      <select
+                        value={eventForm.countryCode}
+                        onChange={(e) => handleEventFormChange('countryCode', e.target.value)}
+                        className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        required
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.name} ({c.currency})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Ticket prices below are in {selectedEventCountry.name} ({eventFormCurrency}).
+                        Example: enter 60 for CA$60 in Canada.
+                      </p>
+                    </div>
+
                     {/* Applicable Genders */}
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1748,7 +1814,7 @@ export default function AdminPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Male) (₹, N/A, or any text) *
+                        Price (Male) ({eventFormCurrencyLabel}, N/A, or any text) *
                       </label>
                       <input
                         type="text"
@@ -1764,7 +1830,7 @@ export default function AdminPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Female) (₹, N/A, or any text) *
+                        Price (Female) ({eventFormCurrencyLabel}, N/A, or any text) *
                       </label>
                       <input
                         type="text"
@@ -1781,7 +1847,7 @@ export default function AdminPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Price (Couple) (₹ or N/A) *
+                        Price (Couple) ({eventFormCurrencyLabel} or N/A) *
                       </label>
                       <input
                         type="text"
@@ -1829,7 +1895,7 @@ export default function AdminPage() {
                               />
                             </div>
                             <div className="flex-1 min-w-0 sm:max-w-[220px]">
-                              <span className="block text-xs text-gray-400 mb-1">Price (₹, N/A, or text)</span>
+                              <span className="block text-xs text-gray-400 mb-1">Price ({eventFormCurrencyLabel}, N/A, or text)</span>
                               <input
                                 type="text"
                                 value={row.price}
@@ -1867,6 +1933,7 @@ export default function AdminPage() {
                             time: '',
                             location: '',
                             address: '',
+                            countryCode: DEFAULT_COUNTRY_CODE,
                             priceMale: '',
                             priceFemale: '',
                             priceCouple: '',
@@ -2041,16 +2108,17 @@ export default function AdminPage() {
                                     )}
                                   </td>
                                   <td className="py-4 px-4 text-gray-300 whitespace-nowrap">
-                                    <div>M: {typeof event.priceMale === 'number' ? `₹${event.priceMale}` : event.priceMale || 0}</div>
-                                    <div className="text-sm">F: {typeof event.priceFemale === 'number' ? `₹${event.priceFemale}` : event.priceFemale || 0}</div>
+                                    <div className="text-xs text-gray-500 mb-1">{event.country || 'India'}</div>
+                                    <div>M: {formatPriceForEvent(event, event.priceMale ?? 0)}</div>
+                                    <div className="text-sm">F: {formatPriceForEvent(event, event.priceFemale ?? 0)}</div>
                                     {event.priceCouple && event.priceCouple !== 'N/A' && (
-                                      <div className="text-sm">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
+                                      <div className="text-sm">C: {formatPriceForEvent(event, event.priceCouple)}</div>
                                     )}
                                     {Array.isArray(event.customTicketOptions) &&
                                       event.customTicketOptions.map((o: { id: string; label: string; price: unknown }) => (
                                         <div key={o.id} className="text-sm text-amber-300/90">
                                           {o.label}:{' '}
-                                          {typeof o.price === 'number' ? `₹${o.price}` : String(o.price ?? '')}
+                                          {formatPriceForEvent(event, o.price ?? '')}
                                         </div>
                                       ))}
                                   </td>
@@ -2121,7 +2189,7 @@ export default function AdminPage() {
                                       ) : (
                                         <div className="space-y-3">
                                           {bookingsByEvent[event.id].map((booking: any) => (
-                                            <BookingCard key={booking.id} booking={booking} />
+                                            <BookingCard key={booking.id} booking={booking} currency={resolveEventCurrency(event)} />
                                           ))}
                                         </div>
                                       )}
@@ -2188,16 +2256,16 @@ export default function AdminPage() {
                                   <div>
                                     <span className="text-gray-400">Price:</span>
                                     <div className="text-white mt-1">
-                                      <div>M: {typeof event.priceMale === 'number' ? `₹${event.priceMale}` : event.priceMale || 0}</div>
-                                      <div className="text-xs">F: {typeof event.priceFemale === 'number' ? `₹${event.priceFemale}` : event.priceFemale || 0}</div>
+                                      <div>M: {formatPriceForEvent(event, event.priceMale ?? 0)}</div>
+                                      <div className="text-xs">F: {formatPriceForEvent(event, event.priceFemale ?? 0)}</div>
                                       {event.priceCouple && event.priceCouple !== 'N/A' && (
-                                        <div className="text-xs">C: {typeof event.priceCouple === 'number' ? `₹${event.priceCouple}` : event.priceCouple}</div>
+                                        <div className="text-xs">C: {formatPriceForEvent(event, event.priceCouple)}</div>
                                       )}
                                       {Array.isArray(event.customTicketOptions) &&
                                         event.customTicketOptions.map((o: { id: string; label: string; price: unknown }) => (
                                           <div key={o.id} className="text-xs text-amber-300/90">
                                             {o.label}:{' '}
-                                            {typeof o.price === 'number' ? `₹${o.price}` : String(o.price ?? '')}
+                                            {formatPriceForEvent(event, o.price ?? '')}
                                           </div>
                                         ))}
                                     </div>
@@ -2325,7 +2393,7 @@ export default function AdminPage() {
                                                     </div>
                                                     <div>
                                                       <span className="text-gray-400">Amount: </span>
-                                                      <span className="text-green-400 font-semibold">₹{booking.amountPaid || 0}</span>
+                                                      <span className="text-green-400 font-semibold">{formatEventPrice(booking.amountPaid ?? 0, resolveEventCurrency(event))}</span>
                                                     </div>
                                                     <div>
                                                       <span className="text-gray-400">Ticket Type: </span>
@@ -2466,7 +2534,7 @@ export default function AdminPage() {
                               ) : (
                                 <div className="space-y-3">
                                   {bookings.map((booking: any) => (
-                                    <BookingCard key={booking.id} booking={booking} />
+                                    <BookingCard key={booking.id} booking={booking} currency={resolveEventCurrency(event)} />
                                   ))}
                                 </div>
                               )}

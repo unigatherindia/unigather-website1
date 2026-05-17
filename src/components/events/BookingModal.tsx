@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  X, User, Mail, Phone, Calendar, MapPin, IndianRupee, 
-  CreditCard, Check, AlertCircle, Users, Clock 
+  X, User, Mail, Phone, Calendar, MapPin,
+  CreditCard, Check, AlertCircle, Users, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,8 @@ import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
+import { DEFAULT_CURRENCY } from '@/constants/countries';
+import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
@@ -45,6 +47,7 @@ interface Event {
   };
   duration: string;
   highlights: string[];
+  currency?: string;
 }
 
 interface BookingModalProps {
@@ -133,7 +136,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     return priceStr !== 'n/a' && priceStr !== '0' && priceStr !== '';
   };
 
-  /** Treats Firestore string amounts like "1499" as rupees for online payment. */
+  const eventCurrency = event.currency || DEFAULT_CURRENCY;
+  const formatPrice = (price: number | string | undefined) =>
+    formatEventPrice(price === undefined || price === null ? '' : price, eventCurrency);
+
+  /** Treats numeric string amounts for online payment (INR only). */
   const parseNumericPriceRupee = (
     price: number | string | undefined
   ): number | undefined => {
@@ -260,8 +267,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
     const price = getPriceForTicketType(bookingForm.ticketType);
     const rupees = parseNumericPriceRupee(price);
-    if (rupees !== undefined) {
+    if (rupees !== undefined && eventCurrency === 'INR') {
       setStep(2);
+    } else if (rupees !== undefined && eventCurrency !== 'INR') {
+      handleTextPriceBooking();
     } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
       handleTextPriceBooking();
     } else {
@@ -277,8 +286,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     if (validateForm()) {
       const price = getPriceForTicketType(bookingForm.ticketType);
       const rupees = parseNumericPriceRupee(price);
-      if (rupees !== undefined) {
+      if (rupees !== undefined && eventCurrency === 'INR') {
         setStep(2);
+      } else if (rupees !== undefined && eventCurrency !== 'INR') {
+        handleTextPriceBooking();
       } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
         handleTextPriceBooking();
       }
@@ -850,16 +861,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               {/* Price Display */}
               <div className="bg-primary-500/10 border border-primary-500/20 rounded-2xl p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {typeof selectedPrice === 'number' && (
-                      <IndianRupee className="w-5 h-5 text-primary-400" />
-                    )}
-                    <span className="text-white font-medium">
-                      {getTicketLabel(bookingForm.ticketType)} Ticket
-                    </span>
-                  </div>
+                  <span className="text-white font-medium">
+                    {getTicketLabel(bookingForm.ticketType)} Ticket
+                  </span>
                   <div className="text-2xl font-bold text-primary-400">
-                    {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
+                    {formatPrice(selectedPrice)}
                   </div>
                 </div>
               </div>
@@ -963,7 +969,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     <div className="flex justify-between text-lg font-semibold">
                       <span className="text-white">Total Amount</span>
                       <span className="text-primary-400">
-                        {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
+                        {formatPrice(selectedPrice)}
                       </span>
                     </div>
                   </div>
@@ -1004,7 +1010,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      <span>Pay {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}</span>
+                      <span>Pay {formatPrice(selectedPrice)}</span>
                     </>
                   )}
                 </button>
@@ -1060,7 +1066,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Amount Paid</span>
                     <span className="text-green-400">
-                      {typeof selectedPrice === 'number' ? `₹${selectedPrice}` : selectedPrice}
+                      {formatPrice(selectedPrice)}
                     </span>
                   </div>
                 </div>

@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Clock, Star, 
-  IndianRupee, ChevronRight, Ticket, Loader2, Users, User, UserCheck
+  ChevronRight, Ticket, Loader2, Users, User, UserCheck
 } from 'lucide-react';
 import BookingModal from './BookingModal';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { resolveEventCurrency } from '@/constants/countries';
+import { formatEventPrice } from '@/lib/formatPrice';
 
 interface Event {
   id: string;
@@ -46,6 +48,9 @@ interface Event {
   image: string;
   featured: boolean;
   status?: string;
+  country?: string;
+  countryCode?: string;
+  currency?: string;
 }
 
 const EventsList: React.FC = () => {
@@ -124,7 +129,10 @@ const EventsList: React.FC = () => {
             },
             image: data.image || '/api/placeholder/600/400',
             featured: data.featured || false,
-            status: data.status // Include status for filtering
+            status: data.status, // Include status for filtering
+            country: data.country,
+            countryCode: data.countryCode,
+            currency: resolveEventCurrency(data),
           };
         });
 
@@ -361,16 +369,15 @@ const EventsList: React.FC = () => {
                   
                   return (
                     <div className="event-ticket-prices bg-dark-800 rounded-2xl p-3 sm:p-4 mb-6 overflow-x-hidden">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2">
                         <span className="text-gray-300 text-sm sm:text-base font-medium">Ticket Prices</span>
-                        <IndianRupee className="w-4 h-4 text-primary-400 shrink-0" aria-hidden />
                       </div>
                       <div className="flex flex-wrap justify-center sm:justify-between gap-x-3 gap-y-2 sm:gap-x-4 overflow-x-hidden">
                         {showMale && (
                           <div className="text-center min-w-0 sm:flex-1 max-w-full overflow-x-hidden px-0.5">
                             <div className="text-blue-400 text-xs sm:text-sm mb-0.5">Male</div>
                             <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
-                              {typeof event.price.male === 'number' ? `₹${event.price.male}` : event.price.male}
+                              {formatEventPrice(event.price.male, event.currency)}
                             </div>
                           </div>
                         )}
@@ -378,7 +385,7 @@ const EventsList: React.FC = () => {
                           <div className="text-center min-w-0 sm:flex-1 max-w-full overflow-x-hidden px-0.5">
                             <div className="text-pink-400 text-xs sm:text-sm mb-0.5">Female</div>
                             <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
-                              {typeof event.price.female === 'number' ? `₹${event.price.female}` : event.price.female}
+                              {formatEventPrice(event.price.female, event.currency)}
                             </div>
                           </div>
                         )}
@@ -386,7 +393,7 @@ const EventsList: React.FC = () => {
                           <div className="text-center min-w-0 sm:flex-1 max-w-full overflow-x-hidden px-0.5">
                             <div className="text-purple-400 text-xs sm:text-sm mb-0.5">Couple</div>
                             <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
-                              {typeof event.price.couple === 'number' ? `₹${event.price.couple}` : event.price.couple}
+                              {formatEventPrice(event.price.couple!, event.currency)}
                             </div>
                           </div>
                         )}
@@ -399,7 +406,7 @@ const EventsList: React.FC = () => {
                               {opt.label}
                             </div>
                             <div className="text-white font-bold text-sm sm:text-base whitespace-nowrap tabular-nums leading-none">
-                              {typeof opt.price === 'number' ? `₹${opt.price}` : opt.price}
+                              {formatEventPrice(opt.price, event.currency)}
                             </div>
                           </div>
                         ))}
