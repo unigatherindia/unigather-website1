@@ -140,7 +140,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   const formatPrice = (price: number | string | undefined) =>
     formatEventPrice(price === undefined || price === null ? '' : price, eventCurrency);
 
-  /** Treats numeric string amounts for online payment (INR only). */
+  /** Numeric ticket amount for Razorpay (INR checkout). */
   const parseNumericPriceRupee = (
     price: number | string | undefined
   ): number | undefined => {
@@ -267,10 +267,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
     const price = getPriceForTicketType(bookingForm.ticketType);
     const rupees = parseNumericPriceRupee(price);
-    if (rupees !== undefined && eventCurrency === 'INR') {
+    if (rupees !== undefined) {
       setStep(2);
-    } else if (rupees !== undefined && eventCurrency !== 'INR') {
-      handleTextPriceBooking();
     } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
       handleTextPriceBooking();
     } else {
@@ -286,10 +284,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     if (validateForm()) {
       const price = getPriceForTicketType(bookingForm.ticketType);
       const rupees = parseNumericPriceRupee(price);
-      if (rupees !== undefined && eventCurrency === 'INR') {
+      if (rupees !== undefined) {
         setStep(2);
-      } else if (rupees !== undefined && eventCurrency !== 'INR') {
-        handleTextPriceBooking();
       } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
         handleTextPriceBooking();
       }
