@@ -423,7 +423,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         },
         body: JSON.stringify({
           amount: selectedPrice,
-          currency: 'INR',
+          currency: eventCurrency,
           receipt: `receipt_${Date.now()}`,
         }),
       });
