@@ -236,9 +236,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     }
 
     // Phone validation
-    const phoneRegex = /^[6-9]\d{9}$/;
+    const phoneRegex = /^\+[1-9]\d{7,14}$/;
     if (!phoneRegex.test(bookingForm.phone)) {
-      toast.error('Please enter a valid 10-digit phone number');
+      toast.error('Please enter a valid phone number with country code without spaces');
       return false;
     }
 
