@@ -380,6 +380,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             amount: getPriceForTicketType(bookingForm.ticketType),
             bookingId: bookingId,
             paymentId: 'N/A',
+            currency: eventCurrency,
           }),
         });
         
@@ -554,6 +555,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     amount: selectedPrice,
                     bookingId: bookingId,
                     paymentId: response.razorpay_payment_id,
+                    currenct: eventCurrency,
                   }),
                 });
                 
