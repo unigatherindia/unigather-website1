@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       amount,
       bookingId,
       paymentId,
+      currency,
     } = await request.json();
 
     // Check if email is configured
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Amount Paid:</span>
-                  <span class="amount">₹${amount}</span>
+                  <span class="amount">${currency}${amount}</span>
                 </div>
               </div>
 
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
               </div>
 
               <div style="text-align: center;">
-                <a href="https://unigather.com/events" class="button">View My Bookings</a>
+                <a href="https://unigather.co.in/events" class="button">View My Bookings</a>
               </div>
 
               <p style="margin-top: 30px;">We're excited to see you at the event! Get ready to make new friends and create unforgettable memories.</p>
@@ -219,9 +220,9 @@ export async function POST(request: NextRequest) {
               <p>This is an automated email. Please do not reply to this message.</p>
               <p>© ${new Date().getFullYear()} Unigather. All rights reserved.</p>
               <p>
-                <a href="https://unigather.com" style="color: #f97316; text-decoration: none;">Website</a> |
-                <a href="https://unigather.com/contact" style="color: #f97316; text-decoration: none;">Contact Us</a> |
-                <a href="https://unigather.com/privacy-policy" style="color: #f97316; text-decoration: none;">Privacy Policy</a>
+                <a href="https://unigather.co.in" style="color: #f97316; text-decoration: none;">Website</a> |
+                <a href="https://unigather.co.in/contact" style="color: #f97316; text-decoration: none;">Contact Us</a> |
+                <a href="https://unigather.co.in/privacy-policy" style="color: #f97316; text-decoration: none;">Privacy Policy</a>
               </p>
             </div>
           </div>
