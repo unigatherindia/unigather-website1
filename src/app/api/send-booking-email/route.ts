@@ -250,7 +250,7 @@ Event Details:
 - Time: ${eventTime}
 - Location: ${eventLocation}
 - Ticket Type: ${ticketType}
-- Amount Paid: ₹${amount}
+- Amount Paid: ${currency}${amount}
 
 Important Information:
 - Please arrive 15 minutes before the event starts
