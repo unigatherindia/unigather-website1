@@ -203,14 +203,11 @@ export async function POST(request: NextRequest) {
                   <li>Please arrive 15 minutes before the event starts</li>
                   <li>Carry a valid ID proof for verification</li>
                   <li>Show this email confirmation at the venue</li>
-                  <li>For any queries, contact our support team</li>
+                  <li>For any queries, contact (+91)7901751593</li>
                 </ul>
               </div>
 
-              <div style="text-align: center;">
-                <a href="https://unigather.co.in/events" class="button">View My Bookings</a>
-              </div>
-
+              
               <p style="margin-top: 30px;">We're excited to see you at the event! Get ready to make new friends and create unforgettable memories.</p>
 
               <p>Best regards,<br><strong>Team Unigather</strong></p>
