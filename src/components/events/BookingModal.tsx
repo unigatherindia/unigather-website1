@@ -830,18 +830,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               </div>
 
               {/* Additional Information */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Dietary Restrictions (Optional)
-                </label>
-                <textarea
-                  value={bookingForm.dietaryRestrictions}
-                  onChange={(e) => handleInputChange('dietaryRestrictions', e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
-                  placeholder="Any dietary restrictions or allergies..."
-                  rows={3}
-                />
-              </div>
+              
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
