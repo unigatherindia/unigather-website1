@@ -461,6 +461,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         handler: async function (response: any) {
           try {
             // Verify payment
+            const bookingId = `UG${Date.now().toString().slice(-8)}`;
             const verifyResponse = await fetch('/api/razorpay/verify-payment', {
               method: 'POST',
               headers: {
@@ -470,6 +471,25 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
+                
+                eventId: event.id,
+                eventTitle: event.title,
+                eventDate: event.date,
+                eventTime: event.time,
+                eventLocation: event.location,
+
+                customerEmail: bookingForm.email,
+                customerName: bookingForm.name,
+                customerPhone: bookingForm.phone,
+                age: bookingForm.age,
+                dietaryRestrictions: bookingForm.dietaryRestrictions,
+                experience: bookingForm.experience,
+
+                ticketType: bookingForm.ticketType,
+                ticketLabel: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
+                amount: selectedPrice,
+                bookingId,
+                currency: eventCurrency,
               }),
             });
 
@@ -477,7 +497,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
             if (verifyData.success) {
               // Generate booking ID
-              const bookingId = `UG${Date.now().toString().slice(-8)}`;
+              
               
               // Store payment details
               setPaymentDetails({
@@ -487,40 +507,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               });
 
               // Persist booking record for admin visibility
-              try {
-                if (db) {
-                  const bookingPayload = {
-                    bookingId,
-                    eventId: event.id,
-                    eventTitle: event.title,
-                    eventDate: event.date,
-                    eventTime: event.time,
-                    eventLocation: event.location,
-                    ticketGender: bookingForm.ticketType,
-                    ticketLabel: getTicketLabel(bookingForm.ticketType),
-                    amountPaid: selectedPrice,
-                    orderId: response.razorpay_order_id,
-                    paymentId: response.razorpay_payment_id,
-                    customerName: bookingForm.name,
-                    customerEmail: bookingForm.email,
-                    customerPhone: bookingForm.phone,
-                    age: bookingForm.age,
-                    dietaryRestrictions: bookingForm.dietaryRestrictions,
-                    experience: bookingForm.experience,
-                    createdAt: Timestamp.now(),
-                    status: 'confirmed',
-                  };
-
-                  await addDoc(collection(db, 'eventBookings'), bookingPayload);
-
-                  await incrementParticipantForTicket(bookingForm.ticketType);
-                }
-              } catch (firestoreError) {
-                console.error('Error saving booking details:', firestoreError);
-                toast.error('Booking saved, but failed to sync with admin dashboard. Please contact support.');
-              }
-
-              // Generate WhatsApp confirmation URL for customer
+                            // Generate WhatsApp confirmation URL for customer
               const whatsappDetails: WhatsAppBookingDetails = {
                 bookingId: bookingId,
                 paymentId: response.razorpay_payment_id,
@@ -538,33 +525,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               setWhatsAppUrl(whatsappUrl);
 
               // Send confirmation email
-              try {
-                await fetch('/api/send-booking-email', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    customerEmail: bookingForm.email,
-                    customerName: bookingForm.name,
-                    eventTitle: event.title,
-                    eventDate: formatDate(event.date),
-                    eventTime: event.time,
-                    eventLocation: event.location,
-                    ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
-                    amount: selectedPrice,
-                    bookingId: bookingId,
-                    paymentId: response.razorpay_payment_id,
-                    currency: eventCurrency,
-                  }),
-                });
-                
-                toast.success('Booking confirmed! Check your email for details.');
-              } catch (emailError) {
-                console.error('Email sending failed:', emailError);
-                toast.success('Booking confirmed! (Email delivery may be delayed)');
-              }
-
+             
               setStep(3);
               setIsLoading(false);
             } else {
