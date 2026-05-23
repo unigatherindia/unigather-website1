@@ -3,7 +3,11 @@ import crypto from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
+  const requestId = `vp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   try {
     const {
       razorpay_order_id,
@@ -30,10 +34,20 @@ export async function POST(request: NextRequest) {
       currency,
     } = await request.json();
 
+    console.log('verify-payment:start', {
+      requestId,
+      bookingId,
+      eventId,
+      ticketType,
+      customerEmail,
+      razorpay_order_id,
+      razorpay_payment_id,
+    });
+
     const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
     if (!keySecret) {
-      console.error('Razorpay secret not configured!');
+      console.error('verify-payment:missing-secret', { requestId });
       return NextResponse.json(
         {
           success: false,
@@ -51,7 +65,20 @@ export async function POST(request: NextRequest) {
 
     const isAuthentic = expectedSignature === razorpay_signature;
 
+    console.log('verify-payment:signature-check', {
+      requestId,
+      bookingId,
+      isAuthentic,
+    });
+
     if (!isAuthentic) {
+      console.error('verify-payment:signature-failed', {
+        requestId,
+        bookingId,
+        razorpay_order_id,
+        razorpay_payment_id,
+      });
+
       return NextResponse.json(
         {
           success: false,
@@ -61,7 +88,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await adminDb.collection('eventBookings').add({
+    const bookingPayload = {
       bookingId,
       eventId,
       eventTitle,
@@ -82,6 +109,14 @@ export async function POST(request: NextRequest) {
       experience,
       createdAt: new Date(),
       status: 'confirmed',
+    };
+
+    const bookingRef = await adminDb.collection('eventBookings').add(bookingPayload);
+
+    console.log('verify-payment:booking-saved', {
+      requestId,
+      bookingId,
+      firestoreDocId: bookingRef.id,
     });
 
     const eventRef = adminDb.collection('events').doc(eventId);
@@ -91,17 +126,34 @@ export async function POST(request: NextRequest) {
         [`currentParticipants.${ticketType}`]: FieldValue.increment(1),
         updatedAt: new Date(),
       });
+
+      console.log('verify-payment:participant-incremented', {
+        requestId,
+        bookingId,
+        eventId,
+        path: `currentParticipants.${ticketType}`,
+      });
     } else {
       await eventRef.update({
         [`customParticipantCounts.${ticketType}`]: FieldValue.increment(1),
         updatedAt: new Date(),
       });
+
+      console.log('verify-payment:participant-incremented', {
+        requestId,
+        bookingId,
+        eventId,
+        path: `customParticipantCounts.${ticketType}`,
+      });
     }
+
+    let emailSent = false;
+    let emailWarning: string | null = null;
 
     try {
       const origin = request.nextUrl.origin;
 
-      await fetch(`${origin}/api/send-booking-email`, {
+      const emailRes = await fetch(`${origin}/api/send-booking-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,12 +169,63 @@ export async function POST(request: NextRequest) {
           amount,
           bookingId,
           paymentId: razorpay_payment_id,
-          currency,
+          currency: currency || 'INR',
         }),
       });
-    } catch (emailError) {
-      console.error('Server-side email trigger failed:', emailError);
+
+      let emailData: any = null;
+      try {
+        emailData = await emailRes.json();
+      } catch (parseError: any) {
+        console.error('verify-payment:email-response-parse-failed', {
+          requestId,
+          bookingId,
+          error: parseError?.message || 'Unknown parse error',
+        });
+      }
+
+      console.log('verify-payment:email-response', {
+        requestId,
+        bookingId,
+        status: emailRes.status,
+        ok: emailRes.ok,
+        emailSuccess: emailData?.success ?? null,
+        emailMessage: emailData?.message ?? null,
+      });
+
+      if (emailRes.ok && emailData?.success) {
+        emailSent = true;
+        console.log('verify-payment:email-sent', {
+          requestId,
+          bookingId,
+        });
+      } else {
+        emailWarning =
+          emailData?.message || 'Booking confirmed, but confirmation email could not be sent';
+
+        console.error('verify-payment:email-failed', {
+          requestId,
+          bookingId,
+          status: emailRes.status,
+          emailData,
+        });
+      }
+    } catch (emailError: any) {
+      emailWarning = emailError?.message || 'Email sending failed unexpectedly';
+
+      console.error('verify-payment:email-exception', {
+        requestId,
+        bookingId,
+        error: emailError?.message || String(emailError),
+      });
     }
+
+    console.log('verify-payment:success', {
+      requestId,
+      bookingId,
+      paymentId: razorpay_payment_id,
+      emailSent,
+    });
 
     return NextResponse.json({
       success: true,
@@ -130,14 +233,21 @@ export async function POST(request: NextRequest) {
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
       bookingId,
+      emailSent,
+      emailWarning,
     });
   } catch (error: any) {
-    console.error('Payment verification error:', error);
+    console.error('verify-payment:error', {
+      requestId,
+      message: error?.message || 'Unknown error',
+      stack: error?.stack || null,
+    });
+
     return NextResponse.json(
       {
         success: false,
         message: 'Payment verification error',
-        error: error.message,
+        error: error?.message,
       },
       { status: 500 }
     );
