@@ -13,9 +13,8 @@ import {
   Archive, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp, doc, getDoc, addDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
-import { logout } from '@/lib/auth';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, Timestamp, doc, addDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
 import {
   COUNTRIES,
@@ -27,10 +26,18 @@ import {
 } from '@/constants/countries';
 import { formatEventPrice, getCurrencyLabel } from '@/lib/formatPrice';
 
+const toAdminDate = (value: any): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'events' | 'about'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'leads' | 'events' | 'about'>('upload');
 
   // Check admin authentication on mount
   useEffect(() => {
@@ -129,6 +136,9 @@ export default function AdminPage() {
   const [showArchivedBookings, setShowArchivedBookings] = useState(false);
   const [archivedBookingData, setArchivedBookingData] = useState<Array<{ event: any; bookings: any[] }>>([]);
   const [isLoadingArchivedBookings, setIsLoadingArchivedBookings] = useState(false);
+  const [bookingLeads, setBookingLeads] = useState<any[]>([]);
+  const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
+  const [leadSearchQuery, setLeadSearchQuery] = useState('');
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,11 +225,6 @@ export default function AdminPage() {
       const result = await response.json();
       const { data } = result
 
-      // Save to Firestore
-      if (!db) {
-        throw new Error('Firestore is not initialized');
-      }
-
       // Get custom title or use filename as fallback
       const customTitle = imageTitles[fileName] || fileName.split('.')[0];
 
@@ -305,7 +310,7 @@ export default function AdminPage() {
     try {
       const galleryCollection = collection(db, 'gallery');
       const querySnapshot = await getDocs(query(galleryCollection, orderBy('uploadedAt', 'desc')));
-      
+
       const images = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -317,7 +322,7 @@ export default function AdminPage() {
         publicId: img.publicId || '',
         fileName: img.fileName || '',
         title: img.title || img.fileName?.split('.')[0] || 'Untitled',
-        uploadedAt: img.uploadedAt?.toDate?.() || new Date(img.uploadedAt),
+        uploadedAt: toAdminDate(img.uploadedAt) || new Date(),
       })));
     } catch (error: any) {
       console.error('Error fetching gallery images:', error);
@@ -326,10 +331,10 @@ export default function AdminPage() {
 
   // Fetch gallery images when upload tab is active
   useEffect(() => {
-    if (activeTab === 'upload') {
+    if (isAuthorized && activeTab === 'upload') {
       fetchGalleryImages();
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthorized]);
 
   // Fetch team members from Firestore
   const fetchTeamMembers = async () => {
@@ -339,7 +344,7 @@ export default function AdminPage() {
       setIsLoadingTeam(true);
       const teamCollection = collection(db, 'teamMembers');
       const querySnapshot = await getDocs(query(teamCollection, orderBy('createdAt', 'desc')));
-      
+
       const members = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -356,10 +361,10 @@ export default function AdminPage() {
 
   // Fetch team members when about tab is active
   useEffect(() => {
-    if (activeTab === 'about') {
+    if (isAuthorized && activeTab === 'about') {
       fetchTeamMembers();
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthorized]);
 
   // Handle team member image upload
   const handleTeamImageUpload = async (file: File): Promise<string> => {
@@ -397,7 +402,7 @@ export default function AdminPage() {
   // Create or update team member
   const handleSaveTeamMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!db) {
       toast.error('Firestore is not initialized');
       return;
@@ -578,8 +583,7 @@ export default function AdminPage() {
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Save to Firestore in background (non-blocking)
+
     if (!db) {
       console.warn('Firestore is not initialized. Event form data saved locally.');
       toast.error('Firebase is not initialized. Please check your configuration.');
@@ -696,7 +700,7 @@ export default function AdminPage() {
     setIsLoadingEvents(true);
     try {
       const eventsCollection = collection(db, 'events');
-      
+
       let querySnapshot;
       try {
         const eventsQuery = query(eventsCollection, orderBy('createdAt', 'desc'));
@@ -855,6 +859,109 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
+    );
+  };
+
+  const getLeadStatusStyles = (status?: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'payment_order_created':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'payment_cancelled':
+      case 'payment_verification_failed':
+      case 'payment_error':
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default:
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    }
+  };
+
+  const formatLeadStatus = (status?: string) =>
+    capitalize((status || 'payment_not_started').replace(/_/g, ' '));
+
+  const BookingLeadCard = ({ lead }: { lead: any }) => {
+    const leadAmount = lead.amountPaid ?? lead.amountQuoted ?? 0;
+    const leadCurrency = lead.currency || DEFAULT_CURRENCY;
+
+    return (
+      <div className="bg-dark-800 rounded-xl border border-gray-700 p-5 hover:border-primary-500/50 transition-colors">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className={`px-2.5 py-1 rounded-full border text-xs font-medium ${getLeadStatusStyles(lead.status)}`}>
+                {formatLeadStatus(lead.status)}
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-dark-700 border border-gray-600 text-gray-300 text-xs">
+                {lead.paymentRequired ? 'Payment required' : 'Manual confirmation'}
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-white break-words">{lead.eventTitle || 'Untitled Event'}</h3>
+            <p className="text-sm text-gray-400 break-words">
+              {lead.eventDate || 'Date N/A'} {lead.eventTime ? `at ${lead.eventTime}` : ''} - {lead.eventLocation || 'Location N/A'}
+            </p>
+          </div>
+          <div className="text-left lg:text-right">
+            <div className="text-sm text-gray-400">Captured</div>
+            <div className="text-white text-sm">{formatBookingTimestamp(lead.createdAt)}</div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4 text-sm">
+          <div className="space-y-2">
+            <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+              <UserCircle className="w-4 h-4" />
+              <span>Customer</span>
+            </h4>
+            <div><span className="text-gray-400">Name: </span><span className="text-white break-words">{lead.customerName || '—'}</span></div>
+            <div className="flex items-start gap-2">
+              <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-white break-all">{lead.customerEmail || '—'}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-white break-words">{lead.customerPhone || '—'}</span>
+            </div>
+            {lead.age && <div><span className="text-gray-400">Age: </span><span className="text-white">{lead.age}</span></div>}
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+              <IndianRupee className="w-4 h-4" />
+              <span>Ticket</span>
+            </h4>
+            <div><span className="text-gray-400">Type: </span><span className="text-white">{lead.ticketLabel || lead.ticketType || '—'}</span></div>
+            <div>
+              <span className="text-gray-400">Amount: </span>
+              <span className="text-green-400 font-semibold">
+                {formatEventPrice(leadAmount as number | string, leadCurrency)}
+              </span>
+            </div>
+            {lead.bookingId && <div><span className="text-gray-400">Booking ID: </span><span className="text-white font-mono text-xs break-all">{lead.bookingId}</span></div>}
+            {lead.orderId && <div><span className="text-gray-400">Order ID: </span><span className="text-white font-mono text-xs break-all">{lead.orderId}</span></div>}
+            {lead.paymentId && <div><span className="text-gray-400">Payment ID: </span><span className="text-white font-mono text-xs break-all">{lead.paymentId}</span></div>}
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+              <FileText className="w-4 h-4" />
+              <span>Notes</span>
+            </h4>
+            {lead.experience ? (
+              <div><span className="text-gray-400">Experience: </span><span className="text-white break-words">{lead.experience}</span></div>
+            ) : (
+              <div className="text-gray-500">No previous experience added.</div>
+            )}
+            {lead.dietaryRestrictions && (
+              <div><span className="text-gray-400">Dietary: </span><span className="text-white break-words">{lead.dietaryRestrictions}</span></div>
+            )}
+            {lead.failureReason && (
+              <div><span className="text-gray-400">Payment note: </span><span className="text-red-300 break-words">{lead.failureReason}</span></div>
+            )}
+            <div><span className="text-gray-400">Last update: </span><span className="text-white">{formatBookingTimestamp(lead.updatedAt)}</span></div>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -1200,21 +1307,84 @@ export default function AdminPage() {
     }
   };
 
+  const fetchBookingLeads = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    setIsLoadingBookingLeads(true);
+    try {
+      const leadsCollection = collection(db, 'bookingLeads');
+      const leadsQuery = query(leadsCollection, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(leadsQuery);
+
+      const leads = snapshot.docs.map((docSnapshot) => {
+        const data = docSnapshot.data();
+        const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+        const updatedAt = data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
+
+        return {
+          id: docSnapshot.id,
+          ...data,
+          createdAt,
+          updatedAt,
+        };
+      });
+
+      setBookingLeads(leads);
+    } catch (error: any) {
+      console.error('Error fetching booking leads:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for bookingLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to load booking leads.');
+      }
+    } finally {
+      setIsLoadingBookingLeads(false);
+    }
+  };
+
   // Fetch events when events tab is active
   useEffect(() => {
-    if (activeTab === 'events') {
+    if (isAuthorized && activeTab === 'events') {
       fetchEvents();
       fetchAllBookingCounts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, isAuthorized]);
+
+  useEffect(() => {
+    if (isAuthorized && activeTab === 'leads') {
+      fetchBookingLeads();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isAuthorized]);
 
   const tabs = [
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'create', label: editingEvent ? 'Edit Event' : 'Create Event', icon: Plus },
+    { id: 'leads', label: 'Booking Leads', icon: FileText },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'about', label: 'About Us', icon: UserCircle },
   ];
+
+  const filteredBookingLeads = bookingLeads.filter((lead) => {
+    const search = leadSearchQuery.trim().toLowerCase();
+    if (!search) return true;
+
+    return [
+      lead.customerName,
+      lead.customerEmail,
+      lead.customerPhone,
+      lead.eventTitle,
+      lead.ticketLabel,
+      lead.status,
+      lead.bookingId,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(search));
+  });
 
   // Show loading or redirect if not authorized
   if (!isAuthorized) {
@@ -1252,7 +1422,7 @@ export default function AdminPage() {
                 <button 
                   onClick={async () => {
                     try {
-                      clearAdminSession();
+                      await clearAdminSession();
                       toast.success('Logged out successfully');
                       router.push('/admin-login');
                     } catch (error: any) {
@@ -1964,6 +2134,94 @@ export default function AdminPage() {
             </motion.div>
           )}
 
+          {/* Booking Leads Section */}
+          {activeTab === 'leads' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="bg-dark-800 rounded-2xl border border-gray-700 p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Booking Leads</h2>
+                    <p className="text-gray-400">
+                      Details captured before payment, including users who cancelled or did not finish checkout.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={leadSearchQuery}
+                        onChange={(e) => setLeadSearchQuery(e.target.value)}
+                        placeholder="Search leads..."
+                        className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full sm:w-72"
+                      />
+                    </div>
+                    <button
+                      onClick={fetchBookingLeads}
+                      disabled={isLoadingBookingLeads}
+                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {isLoadingBookingLeads ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+                    <div className="text-gray-400 text-sm">Total Leads</div>
+                    <div className="text-2xl font-bold text-white">{bookingLeads.length}</div>
+                  </div>
+                  <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+                    <div className="text-gray-400 text-sm">Not Paid Yet</div>
+                    <div className="text-2xl font-bold text-amber-300">
+                      {bookingLeads.filter((lead) => lead.status !== 'confirmed').length}
+                    </div>
+                  </div>
+                  <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+                    <div className="text-gray-400 text-sm">Confirmed</div>
+                    <div className="text-2xl font-bold text-green-400">
+                      {bookingLeads.filter((lead) => lead.status === 'confirmed').length}
+                    </div>
+                  </div>
+                  <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+                    <div className="text-gray-400 text-sm">Showing</div>
+                    <div className="text-2xl font-bold text-primary-400">{filteredBookingLeads.length}</div>
+                  </div>
+                </div>
+
+                {isLoadingBookingLeads ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
+                    <p className="text-gray-400">Loading booking leads...</p>
+                  </div>
+                ) : filteredBookingLeads.length === 0 ? (
+                  <div className="text-center py-12 bg-dark-700/40 rounded-xl border border-gray-700">
+                    <FileText className="w-14 h-14 text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-white mb-2">No booking leads found</h3>
+                    <p className="text-gray-400">
+                      When a user submits the booking details form, their information will appear here before payment.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredBookingLeads.map((lead) => (
+                      <BookingLeadCard key={lead.id} lead={lead} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* Events Section */}
           {activeTab === 'events' && (
             <motion.div
@@ -2500,8 +2758,7 @@ export default function AdminPage() {
                     ) : (
                       <div className="space-y-5">
                         {archivedBookingData.map(({ event, bookings }) => {
-                          const archivedAt =
-                            event.deletedAt?.toDate?.() || (event.deletedAt ? new Date(event.deletedAt) : null);
+                          const archivedAt = toAdminDate(event.deletedAt);
 
                           return (
                             <div key={event.id} className="bg-dark-800/60 border border-gray-700 rounded-xl p-5 space-y-4">

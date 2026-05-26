@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  X, User, Mail, Phone, Calendar, MapPin,
+  User, Mail, Phone, Calendar, MapPin,
   CreditCard, Check, AlertCircle, Users, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,7 +14,7 @@ import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
-import { collection, addDoc, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
 declare global {
@@ -76,7 +76,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     orderId: string;
     paymentId: string;
     bookingId: string;
+    backendConfirmationPending?: boolean;
+    emailSent?: boolean;
   } | null>(null);
+  const [bookingLeadDocId, setBookingLeadDocId] = useState<string | null>(null);
   const [whatsAppUrl, setWhatsAppUrl] = useState<string>('');
   
   const [bookingForm, setBookingForm] = useState<BookingForm>({
@@ -102,22 +105,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     if (ticketType === 'female') return 'Female';
     if (ticketType === 'couple') return 'Couple';
     return event.customTicketOptions?.find((o) => o.id === ticketType)?.label || 'Ticket';
-  };
-
-  const incrementParticipantForTicket = async (ticketType: string) => {
-    if (!db) return;
-    const eventRef = doc(db, 'events', event.id);
-    if (ticketType === 'male' || ticketType === 'female' || ticketType === 'couple') {
-      await updateDoc(eventRef, {
-        [`currentParticipants.${ticketType}`]: increment(1),
-        updatedAt: Timestamp.now(),
-      });
-    } else {
-      await updateDoc(eventRef, {
-        [`customParticipantCounts.${ticketType}`]: increment(1),
-        updatedAt: Timestamp.now(),
-      });
-    }
   };
 
   // Check if price indicates sold out
@@ -214,6 +201,60 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     }));
   };
 
+  const updateBookingLead = async (
+    updates: Record<string, unknown>,
+    leadDocId = bookingLeadDocId
+  ) => {
+    if (!db || !leadDocId) return;
+
+    await updateDoc(doc(db, 'bookingLeads', leadDocId), {
+      ...updates,
+      updatedAt: Timestamp.now(),
+    });
+  };
+
+  const saveBookingLead = async (status = 'payment_not_started') => {
+    if (!db) {
+      throw new Error('Firestore is not initialized');
+    }
+
+    const selectedTicketPrice = getPriceForTicketType(bookingForm.ticketType);
+    const leadPayload = {
+      eventId: event.id,
+      eventTitle: event.title,
+      eventDate: event.date,
+      eventTime: event.time,
+      eventLocation: event.location,
+      ticketType: bookingForm.ticketType,
+      ticketLabel: getTicketLabel(bookingForm.ticketType),
+      amountQuoted: selectedTicketPrice ?? 0,
+      currency: eventCurrency,
+      paymentRequired: parseNumericPriceRupee(selectedTicketPrice) !== undefined,
+      customerName: bookingForm.name,
+      customerEmail: bookingForm.email,
+      customerPhone: bookingForm.phone,
+      age: bookingForm.age,
+      dietaryRestrictions: bookingForm.dietaryRestrictions,
+      experience: bookingForm.experience,
+      status,
+      source: 'booking_popup',
+      userId: user?.uid || null,
+      updatedAt: Timestamp.now(),
+    };
+
+    if (bookingLeadDocId) {
+      await updateDoc(doc(db, 'bookingLeads', bookingLeadDocId), leadPayload);
+      return bookingLeadDocId;
+    }
+
+    const docRef = await addDoc(collection(db, 'bookingLeads'), {
+      ...leadPayload,
+      createdAt: Timestamp.now(),
+    });
+    setBookingLeadDocId(docRef.id);
+    return docRef.id;
+  };
+
   const validateForm = () => {
     const required = ['name', 'email', 'phone', 'age'];
     for (let field of required) {
@@ -245,7 +286,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     return true;
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -258,88 +299,103 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       return;
     }
 
-    // Optional: Suggest sign-in but allow guest booking
-    if (!user) {
-      toast.success('Proceeding as guest. Sign in for faster bookings next time!', {
-        duration: 3000,
-      });
-    }
+    setIsLoading(true);
 
-    const price = getPriceForTicketType(bookingForm.ticketType);
-    const rupees = parseNumericPriceRupee(price);
-    if (rupees !== undefined) {
-      setStep(2);
-    } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
-      handleTextPriceBooking();
-    } else {
-      toast.error('No valid ticket price for this option.');
-    }
-  };
+    try {
+      const leadDocId = await saveBookingLead('payment_not_started');
 
-  // Handle successful authentication
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-    toast.success('You can now proceed with your booking!');
-    // After successful login, check if payment is needed
-    if (validateForm()) {
+      // Optional: Suggest sign-in but allow guest booking
+      if (!user) {
+        toast.success('Proceeding as guest. Sign in for faster bookings next time!', {
+          duration: 3000,
+        });
+      }
+
       const price = getPriceForTicketType(bookingForm.ticketType);
       const rupees = parseNumericPriceRupee(price);
       if (rupees !== undefined) {
         setStep(2);
+        setIsLoading(false);
       } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
-        handleTextPriceBooking();
+        await handleTextPriceBooking(leadDocId);
+      } else {
+        toast.error('No valid ticket price for this option.');
+        setIsLoading(false);
+      }
+    } catch (error: any) {
+      console.error('Error saving booking lead:', error);
+      toast.error(error?.message || 'Could not save your details. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Handle successful authentication
+  const handleAuthSuccess = async () => {
+    setShowAuthModal(false);
+    toast.success('You can now proceed with your booking!');
+    // After successful login, check if payment is needed
+    if (validateForm()) {
+      setIsLoading(true);
+      try {
+        const leadDocId = await saveBookingLead('payment_not_started');
+        const price = getPriceForTicketType(bookingForm.ticketType);
+        const rupees = parseNumericPriceRupee(price);
+        if (rupees !== undefined) {
+          setStep(2);
+          setIsLoading(false);
+        } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
+          await handleTextPriceBooking(leadDocId);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error: any) {
+        console.error('Error saving booking lead after auth:', error);
+        toast.error(error?.message || 'Could not save your details. Please try again.');
+        setIsLoading(false);
       }
     }
   };
 
   // Handle booking for text prices (skip payment)
-  const handleTextPriceBooking = async () => {
+  const handleTextPriceBooking = async (leadDocId = bookingLeadDocId) => {
     setIsLoading(true);
     
     try {
-      // Generate booking ID
-      const bookingId = `UG${Date.now().toString().slice(-8)}`;
-      
-      // Store booking details (no payment)
-      setPaymentDetails({
-        orderId: 'N/A',
-        paymentId: 'N/A',
-        bookingId: bookingId,
-      });
-
-      // Persist booking record for admin visibility
-      try {
-        if (db) {
-          const bookingPayload = {
-            bookingId,
-            eventId: event.id,
-            eventTitle: event.title,
-            eventDate: event.date,
-            eventTime: event.time,
-            eventLocation: event.location,
-            ticketGender: bookingForm.ticketType,
-            ticketLabel: getTicketLabel(bookingForm.ticketType),
-            amountPaid: getPriceForTicketType(bookingForm.ticketType) as string | number,
-            orderId: 'N/A',
-            paymentId: 'N/A',
-            customerName: bookingForm.name,
-            customerEmail: bookingForm.email,
-            customerPhone: bookingForm.phone,
+      const confirmResponse = await fetch('/api/bookings/text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: event.id,
+          ticketType: bookingForm.ticketType,
+          bookingLeadId: leadDocId,
+          customer: {
+            name: bookingForm.name,
+            email: bookingForm.email,
+            phone: bookingForm.phone,
+          },
+          bookingDetails: {
             age: bookingForm.age,
             dietaryRestrictions: bookingForm.dietaryRestrictions,
             experience: bookingForm.experience,
-            createdAt: Timestamp.now(),
-            status: 'confirmed',
-          };
+          },
+        }),
+      });
 
-          await addDoc(collection(db, 'eventBookings'), bookingPayload);
-
-          await incrementParticipantForTicket(bookingForm.ticketType);
-        }
-      } catch (firestoreError) {
-        console.error('Error saving booking details:', firestoreError);
-        toast.error('Booking saved, but failed to sync with admin dashboard. Please contact support.');
+      const confirmation = await confirmResponse.json().catch(() => null);
+      if (!confirmResponse.ok || !confirmation?.success || !confirmation.bookingId) {
+        throw new Error(confirmation?.message || 'Failed to confirm booking');
       }
+
+      const bookingId = confirmation.bookingId as string;
+      setPaymentDetails({
+        orderId: 'N/A',
+        paymentId: 'N/A',
+        bookingId,
+        backendConfirmationPending: false,
+        emailSent: true,
+      });
 
       // Generate WhatsApp confirmation URL for customer
       const priceValue = getPriceForTicketType(bookingForm.ticketType);
@@ -362,31 +418,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       const whatsappUrl = createCustomerBookingConfirmation(whatsappDetails);
       setWhatsAppUrl(whatsappUrl);
 
-      // Send confirmation email
-      try {
-        await fetch('/api/send-booking-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customerEmail: bookingForm.email,
-            customerName: bookingForm.name,
-            eventTitle: event.title,
-            eventDate: formatDate(event.date),
-            eventTime: event.time,
-            eventLocation: event.location,
-            ticketType: `${getTicketLabel(bookingForm.ticketType)} Ticket`,
-            amount: getPriceForTicketType(bookingForm.ticketType),
-            bookingId: bookingId,
-            paymentId: 'N/A',
-            currency: eventCurrency,
-          }),
-        });
-        
+      if (confirmation.emailSent !== false) {
         toast.success('Booking confirmed! Check your email for details.');
-      } catch (emailError) {
-        console.error('Email sending failed:', emailError);
+      } else {
         toast.success('Booking confirmed! (Email delivery may be delayed)');
       }
 
@@ -423,9 +457,19 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: selectedPrice,
-          currency: eventCurrency,
-          receipt: `receipt_${Date.now()}`,
+          eventId: event.id,
+          ticketType: bookingForm.ticketType,
+          bookingLeadId: bookingLeadDocId,
+          customer: {
+            name: bookingForm.name,
+            email: bookingForm.email,
+            phone: bookingForm.phone,
+          },
+          bookingDetails: {
+            age: bookingForm.age,
+            dietaryRestrictions: bookingForm.dietaryRestrictions,
+            experience: bookingForm.experience,
+          },
         }),
       });
 
@@ -433,9 +477,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         success?: boolean;
         message?: string;
         error?: string;
+        internalOrderId?: string;
+        bookingId?: string;
         orderId?: string;
         amount?: number;
         currency?: string;
+        companyName?: string;
+        themeColor?: string;
       };
       try {
         orderData = await orderResponse.json();
@@ -450,18 +498,31 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         throw new Error(detail || 'Failed to create order');
       }
 
+      try {
+        await updateBookingLead({
+          status: 'payment_order_created',
+          internalOrderId: orderData.internalOrderId || null,
+          razorpayOrderId: orderData.orderId || null,
+          bookingId: orderData.bookingId || null,
+          amountQuoted: selectedPrice,
+          currency: orderData.currency || eventCurrency,
+        });
+      } catch (leadError) {
+        console.error('Error updating booking lead for payment order:', leadError);
+      }
+
       // Initialize Razorpay
       const options = {
         key: checkoutKey,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Unigather',
+        name: orderData.companyName,
         description: toRazorpayAscii(event.title, 250, 'Event booking'),
         order_id: orderData.orderId,
         handler: async function (response: any) {
           try {
             // Verify payment
-            const bookingId = `UG${Date.now().toString().slice(-8)}`;
+            const bookingId = orderData.bookingId || `UG${Date.now().toString().slice(-8)}`;
             const verifyResponse = await fetch('/api/razorpay/verify-payment', {
               method: 'POST',
               headers: {
@@ -471,6 +532,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
+                internalOrderId: orderData.internalOrderId,
                 
                 eventId: event.id,
                 eventTitle: event.title,
@@ -496,20 +558,38 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             const verifyData = await verifyResponse.json();
 
             if (verifyData.success) {
-              // Generate booking ID
-              
+              const confirmedBookingId = verifyData.bookingId || bookingId;
+              const backendConfirmationPending =
+                verifyData.webhookConfirmationPending === true;
               
               // Store payment details
               setPaymentDetails({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
-                bookingId: bookingId,
+                bookingId: confirmedBookingId,
+                backendConfirmationPending,
+                emailSent: verifyData.emailSent === true,
               });
 
-              // Persist booking record for admin visibility
-                            // Generate WhatsApp confirmation URL for customer
+              try {
+                await updateBookingLead({
+                  status: backendConfirmationPending ? 'payment_received' : 'confirmed',
+                  bookingId: confirmedBookingId,
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  internalOrderId: orderData.internalOrderId || null,
+                  amountPaid: selectedPrice,
+                  currency: orderData.currency || eventCurrency,
+                  backendConfirmation: verifyData.backendConfirmation || 'verify-payment',
+                  webhookConfirmationPending: backendConfirmationPending,
+                });
+              } catch (leadError) {
+                console.error('Error updating booking lead after payment:', leadError);
+              }
+
+              // Generate WhatsApp confirmation URL for customer
               const whatsappDetails: WhatsAppBookingDetails = {
-                bookingId: bookingId,
+                bookingId: confirmedBookingId,
                 paymentId: response.razorpay_payment_id,
                 customerName: bookingForm.name,
                 eventTitle: event.title,
@@ -524,15 +604,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               const whatsappUrl = createCustomerBookingConfirmation(whatsappDetails);
               setWhatsAppUrl(whatsappUrl);
 
-              // Send confirmation email
-             
               setStep(3);
               setIsLoading(false);
             } else {
-              throw new Error('Payment verification failed');
+              throw new Error(verifyData?.message || 'Payment verification failed');
             }
           } catch (error: any) {
             console.error('Payment verification error:', error);
+            try {
+              await updateBookingLead({
+                status: 'payment_verification_failed',
+                failureReason: error?.message || 'Payment verification failed',
+              });
+            } catch (leadError) {
+              console.error('Error updating booking lead after verification failure:', leadError);
+            }
             toast.error('Payment verification failed. Please contact support.');
             setIsLoading(false);
           }
@@ -543,10 +629,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           contact: toRazorpayAscii(bookingForm.phone, 20, '0000000000'),
         },
         theme: {
-          color: '#f97316',
+          color: orderData.themeColor,
         },
         modal: {
           ondismiss: function() {
+            void updateBookingLead({
+              status: 'payment_cancelled',
+            }).catch((leadError) => {
+              console.error('Error updating booking lead after payment cancellation:', leadError);
+            });
             setIsLoading(false);
             toast.error('Payment cancelled');
           }
@@ -557,6 +648,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       razorpay.open();
     } catch (error: any) {
       console.error('Payment error:', error);
+      try {
+        await updateBookingLead({
+          status: 'payment_error',
+          failureReason: error?.message || 'Failed to process payment',
+        });
+      } catch (leadError) {
+        console.error('Error updating booking lead after payment error:', leadError);
+      }
       toast.error(error.message || 'Failed to process payment. Please try again.');
       setIsLoading(false);
     }
@@ -591,6 +690,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     event.currentParticipants.female +
     (event.currentParticipants.couple || 0) +
     customPartSum;
+  const progressSteps = [
+    { number: 1, label: 'Details' },
+    { number: 2, label: 'Payment' },
+    { number: 3, label: 'Confirm' },
+  ];
 
   return (
     <>
@@ -608,18 +712,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4"
+          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-6 border-b border-gray-700">
           <div className="flex-1 min-w-0">
             <h2 className="text-lg sm:text-2xl font-bold text-white truncate">
               {step === 1 ? 'Book Event' : step === 2 ? 'Payment' : 'Booking Confirmed'}
@@ -627,41 +731,42 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             <p className="text-gray-400 text-xs sm:text-sm truncate">{event.title}</p>
           </div>
           <button
+            aria-label="Close booking modal"
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-dark-700 hover:bg-dark-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+            className="relative w-10 h-10 flex-shrink-0 rounded-full bg-dark-700 hover:bg-dark-600 border border-gray-600 text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-xl leading-none">
+              X
+            </span>
           </button>
         </div>
 
         {/* Progress Steps */}
         <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            {[1, 2, 3].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
+          <div className="grid grid-cols-3 text-center">
+            {progressSteps.map(({ number, label }) => (
+              <div key={number} className="relative flex flex-col items-center">
+                {number < 3 && (
+                  <div
+                    className={`absolute left-1/2 top-3.5 sm:top-4 h-0.5 w-full transition-colors ${
+                      number < step ? 'bg-primary-500' : 'bg-dark-600'
+                    }`}
+                  />
+                )}
                 <div
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-colors ${
-                    stepNumber <= step
+                  className={`relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-colors ${
+                    number <= step
                       ? 'bg-primary-500 text-white'
                       : 'bg-dark-600 text-gray-400'
                   }`}
                 >
-                  {stepNumber < step ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : stepNumber}
+                  {number < step ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : number}
                 </div>
-                {stepNumber < 3 && (
-                  <div
-                    className={`w-8 sm:w-12 h-0.5 mx-1 sm:mx-2 transition-colors ${
-                      stepNumber < step ? 'bg-primary-500' : 'bg-dark-600'
-                    }`}
-                  />
-                )}
+                <span className={`mt-2 text-xs sm:text-sm ${number <= step ? 'text-primary-400' : 'text-gray-500'}`}>
+                  {label}
+                </span>
               </div>
             ))}
-          </div>
-          <div className="flex justify-between mt-2 text-xs sm:text-sm">
-            <span className={step >= 1 ? 'text-primary-400' : 'text-gray-500'}>Details</span>
-            <span className={step >= 2 ? 'text-primary-400' : 'text-gray-500'}>Payment</span>
-            <span className={step >= 3 ? 'text-primary-400' : 'text-gray-500'}>Confirm</span>
           </div>
         </div>
 
@@ -980,10 +1085,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
               <div>
                 <h3 className="text-2xl font-bold text-white mb-2">
-                  Booking Confirmed!
+                  {paymentDetails?.backendConfirmationPending ? 'Payment Received!' : 'Booking Confirmed!'}
                 </h3>
                 <p className="text-gray-300">
-                  {typeof selectedPrice === 'number' 
+                  {paymentDetails?.backendConfirmationPending
+                    ? `Your payment was successful. Our backend is confirming your booking and sending the confirmation email to ${bookingForm.email}.`
+                    : typeof selectedPrice === 'number'
                     ? `Your payment was successful. A confirmation email has been sent to ${bookingForm.email}`
                     : `Your booking has been confirmed. A confirmation email has been sent to ${bookingForm.email}`
                   }
@@ -1024,8 +1131,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 <div className="flex items-start space-x-3">
                   <Mail className="w-5 h-5 text-primary-400 mt-0.5" />
                   <div className="text-sm text-gray-300">
-                    <p className="font-medium text-white mb-1">Check your email</p>
-                    <p>We've sent a detailed confirmation with event information and your ticket details to your email address.</p>
+                    <p className="font-medium text-white mb-1">
+                      {paymentDetails?.backendConfirmationPending ? 'Email handled by backend' : 'Check your email'}
+                    </p>
+                    <p>
+                      {paymentDetails?.backendConfirmationPending
+                        ? 'Razorpay webhook processing sends your confirmation email automatically after payment capture.'
+                        : "We've sent a detailed confirmation with event information and your ticket details to your email address."}
+                    </p>
                   </div>
                 </div>
               </div>

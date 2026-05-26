@@ -4,14 +4,16 @@ import { uploadImageViaFormData } from '@/lib/cloudinary';
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const fileEntry = (formData as unknown as { get(name: string): unknown }).get('file');
 
-    if (!file) {
+    if (!(fileEntry instanceof File)) {
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       );
     }
+
+    const file = fileEntry;
 
     // Validate file type
     if (!file.type.startsWith('image/')) {

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Layout from '@/components/Layout';
+import ChatBot from '@/components/ChatBot';
 import EventsHero from '@/components/events/EventsHero';
 import EventsList from '@/components/events/EventsList';
 
@@ -14,6 +15,7 @@ export default function EventsPage() {
           <EventsList />
         </div>
       </section>
+      <ChatBot />
     </Layout>
   );
 }

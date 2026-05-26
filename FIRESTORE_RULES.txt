@@ -35,6 +35,11 @@ service cloud.firestore {
       allow read: if true;  // Allow read for admin dashboard (restrict in production)
       allow write: if true; // Allow writes for booking creation (restrict in production)
     }
+
+    // Booking Leads collection - allow read/write for admin dashboard (restrict in production)
+    match /bookingLeads/{leadId} {
+      allow read, write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

@@ -20,12 +20,9 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Admin credentials - in production, these should be in environment variables
-  // For now, we'll store them in sessionStorage after first successful login
-  // Default admin credentials (you should change these)
   const ADMIN_CREDENTIALS = {
-    adminId: process.env.NEXT_PUBLIC_ADMIN_ID || 'admin',
-    password: process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123',
+    adminId: 'admin@gmail.com',
+    password: 'photo_admin',
   };
 
   const handleInputChange = (field: string, value: string) => {
