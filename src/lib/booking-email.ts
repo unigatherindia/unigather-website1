@@ -1,5 +1,3 @@
-import nodemailer from 'nodemailer';
-
 export interface BookingConfirmationEmailInput {
   customerEmail: string;
   customerName: string;
@@ -17,7 +15,7 @@ export interface BookingConfirmationEmailInput {
 
 export interface BookingConfirmationEmailResult {
   sent: boolean;
-  provider: 'smtp';
+  provider: 'resend';
   messageId?: string;
   warning?: string;
 }
@@ -262,39 +260,51 @@ Team Unigather`;
 export async function sendBookingConfirmationEmail(
   input: BookingConfirmationEmailInput
 ): Promise<BookingConfirmationEmailResult> {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPassword = process.env.EMAIL_PASSWORD;
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  const emailFrom = process.env.EMAIL_FROM?.trim() || 'Unigather <bookings@unigather.co.in>';
 
-  if (!emailUser || !emailPassword) {
+  if (!resendApiKey || !emailFrom) {
     console.warn('Email service not configured. Skipping email notification.');
     return {
       sent: false,
-      provider: 'smtp',
-      warning: 'Email service not set up. Please configure SMTP credentials.',
+      provider: 'resend',
+      warning: 'Email service not set up. Please configure Resend credentials.',
     };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587'),
-    secure: false,
-    auth: {
-      user: emailUser,
-      pass: emailPassword,
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      from: emailFrom,
+      to: [input.customerEmail],
+      subject: `Booking Confirmed - ${input.eventTitle} | Unigather`,
+      html: createBookingConfirmationHtml(input),
+      text: createBookingConfirmationText(input),
+    }),
   });
 
-  const info = await transporter.sendMail({
-    from: process.env.EMAIL_FROM || '"Unigather" <noreply@unigather.com>',
-    to: input.customerEmail,
-    subject: `Booking Confirmed - ${input.eventTitle} | Unigather`,
-    html: createBookingConfirmationHtml(input),
-    text: createBookingConfirmationText(input),
-  });
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      result?.message ||
+      result?.error ||
+      `Resend email request failed with status ${response.status}`;
+
+    return {
+      sent: false,
+      provider: 'resend',
+      warning: message,
+    };
+  }
 
   return {
     sent: true,
-    provider: 'smtp',
-    messageId: info.messageId,
+    provider: 'resend',
+    messageId: typeof result?.id === 'string' ? result.id : undefined,
   };
 }

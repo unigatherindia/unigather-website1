@@ -47,14 +47,14 @@ type EmailConfirmationResult =
       status: 'sent';
       emailId: string;
       recipient: string;
-      provider: 'smtp';
+      provider: 'resend';
       attempts: number;
     }
   | {
       status: 'failed';
       emailId: string;
       recipient: string;
-      provider: 'smtp';
+      provider: 'resend';
       attempts: number;
       error: string;
     }
@@ -62,7 +62,7 @@ type EmailConfirmationResult =
       status: 'skipped';
       emailId?: string;
       recipient?: string;
-      provider?: 'smtp';
+      provider?: 'resend';
       attempts?: number;
       reason: 'already_sent' | 'send_in_progress' | 'feature_flag_disabled' | 'missing_recipient';
     };
@@ -151,7 +151,7 @@ async function sendEmailForConfirmedBooking(input: {
       status: 'skipped',
       emailId: asString(sentData.emailId, sentDoc.id),
       recipient,
-      provider: 'smtp',
+      provider: 'resend',
       attempts: typeof sentData.attempts === 'number' ? sentData.attempts : undefined,
       reason: 'already_sent',
     };
@@ -189,7 +189,7 @@ async function sendEmailForConfirmedBooking(input: {
         internalOrderId: input.internalOrderId,
         recipient,
         status: 'pending',
-        provider: 'smtp',
+        provider: 'resend',
         attempts,
         sentAt: null,
         error: null,
@@ -208,7 +208,7 @@ async function sendEmailForConfirmedBooking(input: {
       status: 'skipped',
       emailId: emailRef.id,
       recipient,
-      provider: 'smtp',
+      provider: 'resend',
       attempts: emailAttempt.attempts,
       reason: emailAttempt.reason,
     };
@@ -235,7 +235,7 @@ async function sendEmailForConfirmedBooking(input: {
         status: 'failed',
         emailId: emailRef.id,
         recipient,
-        provider: 'smtp',
+        provider: 'resend',
         attempts: emailAttempt.attempts,
         error,
       };
@@ -254,7 +254,7 @@ async function sendEmailForConfirmedBooking(input: {
       status: 'sent',
       emailId: emailRef.id,
       recipient,
-      provider: 'smtp',
+      provider: 'resend',
       attempts: emailAttempt.attempts,
     };
   } catch (error) {
@@ -272,7 +272,7 @@ async function sendEmailForConfirmedBooking(input: {
       status: 'failed',
       emailId: emailRef.id,
       recipient,
-      provider: 'smtp',
+      provider: 'resend',
       attempts: emailAttempt.attempts,
       error: errorMessage,
     };
