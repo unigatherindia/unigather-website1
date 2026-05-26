@@ -304,13 +304,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     try {
       const leadDocId = await saveBookingLead('payment_not_started');
 
-      // Optional: Suggest sign-in but allow guest booking
-      if (!user) {
-        toast.success('Proceeding as guest. Sign in for faster bookings next time!', {
-          duration: 3000,
-        });
-      }
-
       const price = getPriceForTicketType(bookingForm.ticketType);
       const rupees = parseNumericPriceRupee(price);
       if (rupees !== undefined) {
