@@ -445,18 +445,6 @@ const EventsList: React.FC = () => {
         })}
       </motion.div>
 
-      {/* Load More Button */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.5 }}
-        className="text-center mt-12"
-      >
-        <button className="px-8 py-3 bg-dark-700 border border-gray-600 text-white rounded-full font-medium hover:bg-dark-600 hover:border-primary-500 transition-all duration-300">
-          Load More Events
-        </button>
-      </motion.div>
-
       {/* Booking Modal */}
       <AnimatePresence>
         {selectedEvent && (

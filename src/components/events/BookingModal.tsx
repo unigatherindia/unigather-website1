@@ -960,38 +960,48 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-600"
-                disabled={isLoading || isSelectedPriceSoldOut}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : isSelectedPriceSoldOut ? (
-                  <>
-                    <AlertCircle className="w-5 h-5" />
-                    <span>Sold Out</span>
-                  </>
-                ) : (
-                  <>
-                    {typeof selectedPrice === 'number' ? (
-                      <>
-                        <CreditCard className="w-5 h-5" />
-                        <span>Proceed to Payment</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-5 h-5" />
-                        <span>Confirm Booking</span>
-                      </>
-                    )}
-                  </>
-                )}
-              </button>
+              {/* Form Actions */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  className="basis-[30%] py-4 rounded-xl bg-dark-600 text-white font-semibold hover:bg-dark-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  className="basis-[70%] bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-600"
+                  disabled={isLoading || isSelectedPriceSoldOut}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : isSelectedPriceSoldOut ? (
+                    <>
+                      <AlertCircle className="w-5 h-5" />
+                      <span>Sold Out</span>
+                    </>
+                  ) : (
+                    <>
+                      {typeof selectedPrice === 'number' ? (
+                        <>
+                          <CreditCard className="w-5 h-5" />
+                          <span>Proceed to Payment</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span>Confirm Booking</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           )}
 
