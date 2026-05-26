@@ -25,6 +25,7 @@ export function isEmailAfterConfirmationEnabled() {
 }
 
 function createBookingConfirmationHtml(input: BookingConfirmationEmailInput) {
+  const logoUrl = 'https://www.unigather.co.in/media/logo-new.png';
   const confirmationMessage = input.paymentId
     ? 'Thank you for booking with Unigather! Your payment has been successfully processed, and your spot is confirmed.'
     : 'Thank you for booking with Unigather! Your spot is confirmed.';
@@ -67,6 +68,16 @@ function createBookingConfirmationHtml(input: BookingConfirmationEmailInput) {
               text-align: center;
               padding-bottom: 20px;
               border-bottom: 3px solid #f97316;
+            }
+            .brand-logo {
+              width: 76px;
+              height: 76px;
+              border-radius: 50%;
+              object-fit: cover;
+              display: block;
+              margin: 0 auto 12px;
+              background-color: #ffffff;
+              border: 2px solid #f97316;
             }
             .header h1 {
               color: #f97316;
@@ -143,6 +154,7 @@ function createBookingConfirmationHtml(input: BookingConfirmationEmailInput) {
         <body>
           <div class="container">
             <div class="header">
+              <img class="brand-logo" src="${logoUrl}" alt="Unigather logo">
               <h1>🎉 Unigather</h1>
               <p>Gathering Minds - Uniting Hearts</p>
             </div>
