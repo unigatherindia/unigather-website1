@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
 
   const ADMIN_CREDENTIALS = {
     adminId: 'admin@gmail.com',
-    password: 'photo_admin',
+    password: 'hiby',
   };
 
   const handleInputChange = (field: string, value: string) => {

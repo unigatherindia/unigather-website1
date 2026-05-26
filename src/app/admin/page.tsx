@@ -139,6 +139,7 @@ export default function AdminPage() {
   const [bookingLeads, setBookingLeads] = useState<any[]>([]);
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
+  const [deletingBookingLeadId, setDeletingBookingLeadId] = useState<string | null>(null);
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -880,7 +881,35 @@ export default function AdminPage() {
   const formatLeadStatus = (status?: string) =>
     capitalize((status || 'payment_not_started').replace(/_/g, ' '));
 
-  const BookingLeadCard = ({ lead }: { lead: any }) => {
+  const handleDeleteBookingLead = async (lead: any) => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    const leadLabel = lead.customerName || lead.eventTitle || 'this lead';
+    if (!window.confirm(`Delete ${leadLabel} from booking leads? This will only remove the lead record.`)) {
+      return;
+    }
+
+    setDeletingBookingLeadId(lead.id);
+    try {
+      await deleteDoc(doc(db, 'bookingLeads', lead.id));
+      setBookingLeads((prev) => prev.filter((item) => item.id !== lead.id));
+      toast.success('Booking lead deleted successfully.');
+    } catch (error: any) {
+      console.error('Error deleting booking lead:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for bookingLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to delete booking lead.');
+      }
+    } finally {
+      setDeletingBookingLeadId(null);
+    }
+  };
+
+  const BookingLeadCard = ({ lead, isDeleting, onDelete }: { lead: any; isDeleting: boolean; onDelete: () => void }) => {
     const leadAmount = lead.amountPaid ?? lead.amountQuoted ?? 0;
     const leadCurrency = lead.currency || DEFAULT_CURRENCY;
 
@@ -901,9 +930,25 @@ export default function AdminPage() {
               {lead.eventDate || 'Date N/A'} {lead.eventTime ? `at ${lead.eventTime}` : ''} - {lead.eventLocation || 'Location N/A'}
             </p>
           </div>
-          <div className="text-left lg:text-right">
-            <div className="text-sm text-gray-400">Captured</div>
-            <div className="text-white text-sm">{formatBookingTimestamp(lead.createdAt)}</div>
+          <div className="flex flex-col sm:flex-row lg:flex-col sm:items-center lg:items-end gap-3 text-left lg:text-right">
+            <div>
+              <div className="text-sm text-gray-400">Captured</div>
+              <div className="text-white text-sm">{formatBookingTimestamp(lead.createdAt)}</div>
+            </div>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Delete booking lead"
+            >
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+            </button>
           </div>
         </div>
 
@@ -2214,7 +2259,12 @@ export default function AdminPage() {
                 ) : (
                   <div className="space-y-4">
                     {filteredBookingLeads.map((lead) => (
-                      <BookingLeadCard key={lead.id} lead={lead} />
+                      <BookingLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        isDeleting={deletingBookingLeadId === lead.id}
+                        onDelete={() => handleDeleteBookingLead(lead)}
+                      />
                     ))}
                   </div>
                 )}
