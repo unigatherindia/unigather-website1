@@ -994,7 +994,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               )}
 
               {/* Form Actions */}
-              <div className="flex gap-3">
+              <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] bg-dark-800/95 backdrop-blur border-t border-gray-700 flex gap-3">
                 <button
                   type="button"
                   onClick={onClose}
@@ -1086,7 +1086,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               </div>
 
               {/* Payment Buttons */}
-              <div className="flex space-x-4">
+              <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] bg-dark-800/95 backdrop-blur border-t border-gray-700 flex space-x-4">
                 <button
                   onClick={() => setStep(1)}
                   className="flex-1 py-3 px-6 bg-dark-600 text-white rounded-xl font-medium hover:bg-dark-500 transition-colors"
@@ -1208,7 +1208,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
               <button
                 onClick={onClose}
-                className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300"
+                className="sticky bottom-0 z-10 w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 pb-[env(safe-area-inset-bottom)]"
               >
                 Close
               </button>
