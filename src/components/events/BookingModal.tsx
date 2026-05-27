@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { 
   User, Mail, Phone, Calendar, MapPin,
@@ -69,6 +70,7 @@ interface BookingForm {
 
 const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1); // 1: Form, 2: Payment, 3: Confirmation
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -93,6 +95,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     terms: false
   });
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Prevent background scroll when modal is open (iOS-safe).
   useEffect(() => {
     const body = document.body;
@@ -103,6 +109,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     const previousBodyTop = body.style.top;
     const previousBodyWidth = body.style.width;
     const previousHtmlOverflow = html.style.overflow;
+    const previousHtmlOverscroll = html.style.overscrollBehavior;
 
     const scrollY = window.scrollY || window.pageYOffset || 0;
 
@@ -111,10 +118,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     html.dataset.modalOpen = 'true';
 
     html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
     body.style.overflow = 'hidden';
     // iOS Safari needs body fixed to fully stop scrolling behind overlays.
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
     body.style.width = '100%';
 
     return () => {
@@ -125,10 +135,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }
 
       html.style.overflow = previousHtmlOverflow;
+      html.style.overscrollBehavior = previousHtmlOverscroll;
       body.style.overflow = previousBodyOverflow;
       body.style.position = previousBodyPosition;
       body.style.top = previousBodyTop;
       body.style.width = previousBodyWidth;
+      body.style.left = '';
+      body.style.right = '';
       window.scrollTo(0, scrollY);
     };
   }, []);
@@ -729,36 +742,37 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     { number: 3, label: 'Confirm' },
   ];
 
-  return (
-    <>
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={handleAuthSuccess}
-        />
-      )}
+  const formActionsClassName =
+    'shrink-0 flex gap-3 border-t border-gray-700 bg-dark-800 px-4 sm:px-6 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]';
 
-      {/* Booking Modal */}
+  const bookingModal = (
+    <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-modal-title"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md overscroll-none sm:items-center sm:justify-center sm:p-4"
+      onClick={onClose}
+      onTouchMove={(e) => {
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+        }
+      }}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-start sm:items-center justify-center pt-20 pb-4 sm:py-4 px-2 sm:px-4 overscroll-contain"
-        onClick={onClose}
+        initial={{ scale: 0.98, opacity: 0, y: 8 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.98, opacity: 0, y: 8 }}
+        className="relative flex min-h-0 w-full flex-1 flex-col bg-dark-800 sm:mx-auto sm:my-auto sm:max-h-[min(90dvh,900px)] sm:max-w-2xl sm:flex-none sm:rounded-3xl sm:shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-6.5rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
-          onClick={(e) => e.stopPropagation()}
-        >
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 p-4 sm:p-6 border-b border-gray-700">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-700 p-4 sm:p-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg sm:text-2xl font-bold text-white truncate">
+            <h2 id="booking-modal-title" className="text-lg sm:text-2xl font-bold text-white truncate">
               {step === 1 ? 'Book Event' : step === 2 ? 'Payment' : 'Booking Confirmed'}
             </h2>
             <p className="text-gray-400 text-xs sm:text-sm truncate">{event.title}</p>
@@ -775,7 +789,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         </div>
 
         {/* Progress Steps */}
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
+        <div className="shrink-0 border-b border-gray-700 px-4 py-4 sm:px-6">
           <div className="grid grid-cols-3 text-center">
             {progressSteps.map(({ number, label }) => (
               <div key={number} className="relative flex flex-col items-center">
@@ -803,10 +817,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
-          {/* Step 1: Booking Form */}
-          {step === 1 && (
-            <form onSubmit={handleFormSubmit} className="space-y-6">
+        {/* Step 1: Booking Form */}
+        {step === 1 && (
+          <form onSubmit={handleFormSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
+              <div className="space-y-6">
               {/* Event Summary */}
               <div className="bg-dark-700 rounded-2xl p-4 mb-6">
                 <div className="flex items-start justify-between">
@@ -993,54 +1008,56 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </div>
               )}
 
-              {/* Form Actions */}
-              <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] bg-dark-800/95 backdrop-blur border-t border-gray-700 flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isLoading}
-                  className="basis-[30%] py-4 rounded-xl bg-dark-600 text-white font-semibold hover:bg-dark-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className="basis-[70%] bg-gradient-to-r from-primary-500 to-primary-400 text-white py-4 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-600 disabled:to-gray-600"
-                  disabled={isLoading || isSelectedPriceSoldOut}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : isSelectedPriceSoldOut ? (
-                    <>
-                      <AlertCircle className="w-5 h-5" />
-                      <span>Sold Out</span>
-                    </>
-                  ) : (
-                    <>
-                      {typeof selectedPrice === 'number' ? (
-                        <>
-                          <CreditCard className="w-5 h-5" />
-                          <span>Proceed to Payment</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-5 h-5" />
-                          <span>Confirm Booking</span>
-                        </>
-                      )}
-                    </>
-                  )}
-                </button>
               </div>
-            </form>
-          )}
+            </div>
+            <div className={formActionsClassName}>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="basis-[30%] rounded-xl bg-dark-600 py-4 font-semibold text-white transition-colors hover:bg-dark-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="flex basis-[70%] items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 py-4 font-semibold text-white transition-all duration-300 hover:from-primary-600 hover:to-primary-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:from-gray-600 disabled:to-gray-600"
+                disabled={isLoading || isSelectedPriceSoldOut}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Processing...</span>
+                  </>
+                ) : isSelectedPriceSoldOut ? (
+                  <>
+                    <AlertCircle className="h-5 w-5" />
+                    <span>Sold Out</span>
+                  </>
+                ) : (
+                  <>
+                    {typeof selectedPrice === 'number' ? (
+                      <>
+                        <CreditCard className="h-5 w-5" />
+                        <span>Proceed to Payment</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>Confirm Booking</span>
+                      </>
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
 
-          {/* Step 2: Payment */}
-          {step === 2 && (
-            <div className="space-y-6">
+        {/* Step 2: Payment */}
+        {step === 2 && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
               {/* Booking Summary */}
               <div className="bg-dark-700 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Booking Summary</h3>
@@ -1085,38 +1102,41 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </div>
               </div>
 
-              {/* Payment Buttons */}
-              <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] bg-dark-800/95 backdrop-blur border-t border-gray-700 flex space-x-4">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 py-3 px-6 bg-dark-600 text-white rounded-xl font-medium hover:bg-dark-500 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handlePayment}
-                  disabled={isLoading}
-                  className="flex-2 bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 px-6 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-5 h-5" />
-                      <span>Pay {formatPrice(selectedPrice)}</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
-          )}
+            <div className={`${formActionsClassName} space-x-4`}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="flex-1 rounded-xl bg-dark-600 px-6 py-3 font-medium text-white transition-colors hover:bg-dark-500"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handlePayment}
+                disabled={isLoading}
+                className="flex flex-[2] items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 px-6 py-3 font-semibold text-white transition-all duration-300 hover:from-primary-600 hover:to-primary-500 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-5 w-5" />
+                    <span>Pay {formatPrice(selectedPrice)}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
-          {/* Step 3: Confirmation */}
-          {step === 3 && (
-            <div className="text-center space-y-6">
+        {/* Step 3: Confirmation */}
+        {step === 3 && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 text-center sm:p-6 [-webkit-overflow-scrolling:touch]">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -1206,17 +1226,32 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 </p>
               </div>
 
+            </div>
+            <div className={formActionsClassName}>
               <button
+                type="button"
                 onClick={onClose}
-                className="sticky bottom-0 z-10 w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 pb-[env(safe-area-inset-bottom)]"
+                className="w-full rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 py-3 font-semibold text-white transition-all duration-300 hover:from-primary-600 hover:to-primary-500"
               >
                 Close
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
+  );
+
+  return (
+    <>
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
+      {mounted && createPortal(bookingModal, document.body)}
     </>
   );
 };
