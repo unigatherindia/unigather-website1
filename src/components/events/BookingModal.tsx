@@ -745,14 +745,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4 overscroll-contain"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-start sm:items-center justify-center pt-20 pb-4 sm:py-4 px-2 sm:px-4 overscroll-contain"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
+          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-6.5rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}
