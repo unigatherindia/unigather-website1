@@ -93,6 +93,46 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     terms: false
   });
 
+  // Prevent background scroll when modal is open (iOS-safe).
+  useEffect(() => {
+    const body = document.body;
+    const html = document.documentElement;
+
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyWidth = body.style.width;
+    const previousHtmlOverflow = html.style.overflow;
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    // Signal to other floating UI (e.g. chatbot) that a modal is open.
+    const previousModalOpen = html.dataset.modalOpen;
+    html.dataset.modalOpen = 'true';
+
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    // iOS Safari needs body fixed to fully stop scrolling behind overlays.
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+
+    return () => {
+      if (previousModalOpen === undefined) {
+        delete html.dataset.modalOpen;
+      } else {
+        html.dataset.modalOpen = previousModalOpen;
+      }
+
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.width = previousBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const getPriceForTicketType = (ticketType: string): number | string | undefined => {
     if (ticketType === 'male') return event.price.male;
     if (ticketType === 'female') return event.price.female;
@@ -705,14 +745,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overscroll-contain"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-y-auto"
+          className="bg-dark-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}

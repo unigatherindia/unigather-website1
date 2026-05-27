@@ -11,6 +11,7 @@ interface ChatMessage {
 const ChatBot: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -58,6 +59,21 @@ const ChatBot: React.FC = () => {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages, open]);
+
+  useEffect(() => {
+    const html = document.documentElement;
+
+    const readFlag = () => setModalOpen(html.dataset.modalOpen === 'true');
+    readFlag();
+
+    const observer = new MutationObserver(() => readFlag());
+    observer.observe(html, { attributes: true, attributeFilter: ['data-modal-open'] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // If a modal is open (e.g. booking popup), hide chatbot so it can't block CTAs.
+  if (modalOpen) return null;
 
   const processMessage = async (msg: string) => {
     if (!msg.trim() || loading) return;
