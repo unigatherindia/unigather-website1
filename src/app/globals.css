@@ -175,8 +175,8 @@ a {
     max-width: 100vw !important;
   }
   
-  /* Fix main containers (avoid overflow-x on all divs — breaks position:fixed modals) */
-  main, section {
+  /* Fix main containers */
+  main, section, div {
     max-width: 100vw;
     overflow-x: hidden;
   }
