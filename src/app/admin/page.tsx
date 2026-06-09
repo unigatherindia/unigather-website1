@@ -136,6 +136,9 @@ export default function AdminPage() {
   const [showArchivedBookings, setShowArchivedBookings] = useState(false);
   const [archivedBookingData, setArchivedBookingData] = useState<Array<{ event: any; bookings: any[] }>>([]);
   const [isLoadingArchivedBookings, setIsLoadingArchivedBookings] = useState(false);
+  const [archivedBookingSearchQuery, setArchivedBookingSearchQuery] = useState('');
+  const [selectedArchivedBookingIds, setSelectedArchivedBookingIds] = useState<string[]>([]);
+  const [isBulkDeletingArchivedBookings, setIsBulkDeletingArchivedBookings] = useState(false);
   const [bookingLeads, setBookingLeads] = useState<any[]>([]);
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
@@ -757,13 +760,33 @@ export default function AdminPage() {
   const BookingCard = ({
     booking,
     currency = DEFAULT_CURRENCY,
+    isSelected,
+    onToggleSelect,
+    selectionDisabled,
   }: {
     booking: any;
     currency?: string;
+    isSelected?: boolean;
+    onToggleSelect?: () => void;
+    selectionDisabled?: boolean;
   }) => {
     const bookingCurrency = currency || DEFAULT_CURRENCY;
+    const selectable = Boolean(onToggleSelect);
     return (
-    <div className="bg-dark-800 rounded-lg border border-gray-700 p-4 hover:border-primary-500/50 transition-colors">
+    <div className={`bg-dark-800 rounded-lg border p-4 transition-colors ${isSelected ? 'border-primary-500/60 ring-1 ring-primary-500/30' : 'border-gray-700 hover:border-primary-500/50'}`}>
+      {selectable && (
+        <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={Boolean(isSelected)}
+            onChange={onToggleSelect}
+            disabled={selectionDisabled}
+            className="rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+            aria-label={`Select ${booking.customerName || booking.bookingId || 'booking'}`}
+          />
+          <span className="text-sm text-gray-400">Select this registration</span>
+        </label>
+      )}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <h4 className="text-sm font-semibold text-primary-400 mb-3 flex items-center space-x-2">
@@ -1188,8 +1211,146 @@ export default function AdminPage() {
     const nextState = !showArchivedBookings;
     setShowArchivedBookings(nextState);
 
-    if (nextState && archivedBookingData.length === 0) {
+    if (!nextState) {
+      setArchivedBookingSearchQuery('');
+      setSelectedArchivedBookingIds([]);
+      return;
+    }
+
+    if (archivedBookingData.length === 0) {
       await fetchArchivedBookings();
+    }
+  };
+
+  const archivedBookingMatchesSearch = (booking: any, event: any, search: string) =>
+    [
+      booking.customerName,
+      booking.customerEmail,
+      booking.customerPhone,
+      booking.bookingId,
+      booking.paymentId,
+      booking.orderId,
+      booking.status,
+      booking.ticketGender,
+      event.title,
+      event.location,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(search));
+
+  const filteredArchivedBookingData = (() => {
+    const search = archivedBookingSearchQuery.trim().toLowerCase();
+    return archivedBookingData
+      .map(({ event, bookings }) => ({
+        event,
+        bookings: search
+          ? bookings.filter((booking) => archivedBookingMatchesSearch(booking, event, search))
+          : bookings,
+      }))
+      .filter(({ bookings }) => !search || bookings.length > 0);
+  })();
+
+  const filteredArchivedBookingIds = filteredArchivedBookingData.flatMap(({ bookings }) =>
+    bookings.map((booking) => booking.id)
+  );
+
+  const allFilteredArchivedBookingsSelected =
+    filteredArchivedBookingIds.length > 0 &&
+    filteredArchivedBookingIds.every((id) => selectedArchivedBookingIds.includes(id));
+
+  const toggleArchivedBookingSelection = (bookingId: string) => {
+    setSelectedArchivedBookingIds((prev) =>
+      prev.includes(bookingId) ? prev.filter((id) => id !== bookingId) : [...prev, bookingId]
+    );
+  };
+
+  const toggleSelectAllFilteredArchivedBookings = () => {
+    if (allFilteredArchivedBookingsSelected) {
+      setSelectedArchivedBookingIds((prev) =>
+        prev.filter((id) => !filteredArchivedBookingIds.includes(id))
+      );
+      return;
+    }
+    setSelectedArchivedBookingIds((prev) =>
+      Array.from(new Set([...prev, ...filteredArchivedBookingIds]))
+    );
+  };
+
+  const handleDeleteSelectedArchivedBookings = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    if (selectedArchivedBookingIds.length === 0) return;
+
+    const count = selectedArchivedBookingIds.length;
+    if (
+      !window.confirm(
+        `Delete ${count} archived registration${count === 1 ? '' : 's'}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkDeletingArchivedBookings(true);
+    try {
+      await Promise.all(
+        selectedArchivedBookingIds.map((bookingId) =>
+          deleteDoc(doc(db, 'eventBookings', bookingId))
+        )
+      );
+
+      setArchivedBookingData((prev) =>
+        prev
+          .map(({ event, bookings }) => ({
+            event,
+            bookings: bookings.filter((booking) => !selectedArchivedBookingIds.includes(booking.id)),
+          }))
+          .filter(({ bookings }) => bookings.length > 0)
+      );
+
+      const deletedByEvent: Record<string, number> = {};
+      archivedBookingData.forEach(({ event, bookings }) => {
+        const deletedCount = bookings.filter((booking) =>
+          selectedArchivedBookingIds.includes(booking.id)
+        ).length;
+        if (deletedCount > 0) {
+          deletedByEvent[event.id] = deletedCount;
+        }
+      });
+
+      setBookingsByEvent((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((eventId) => {
+          next[eventId] = next[eventId].filter(
+            (booking) => !selectedArchivedBookingIds.includes(booking.id)
+          );
+        });
+        return next;
+      });
+
+      setBookingCounts((prev) => {
+        const next = { ...prev };
+        Object.entries(deletedByEvent).forEach(([eventId, deletedCount]) => {
+          if (next[eventId] !== undefined) {
+            next[eventId] = Math.max(0, next[eventId] - deletedCount);
+          }
+        });
+        return next;
+      });
+
+      setSelectedArchivedBookingIds([]);
+      toast.success(`${count} archived registration${count === 1 ? '' : 's'} deleted successfully.`);
+    } catch (error: any) {
+      console.error('Error deleting archived bookings:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for eventBookings.');
+      } else {
+        toast.error(error?.message || 'Failed to delete selected archived registrations.');
+      }
+    } finally {
+      setIsBulkDeletingArchivedBookings(false);
     }
   };
 
@@ -2898,10 +3059,20 @@ export default function AdminPage() {
                           View every stored registration even after its event has been deleted.
                         </p>
                       </div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="text"
+                            value={archivedBookingSearchQuery}
+                            onChange={(e) => setArchivedBookingSearchQuery(e.target.value)}
+                            placeholder="Search archived registrations..."
+                            className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full sm:w-72"
+                          />
+                        </div>
                         <button
                           onClick={fetchArchivedBookings}
-                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                           disabled={isLoadingArchivedBookings}
                         >
                           {isLoadingArchivedBookings ? (
@@ -2912,7 +3083,11 @@ export default function AdminPage() {
                           <span>Refresh Data</span>
                         </button>
                         <button
-                          onClick={() => setShowArchivedBookings(false)}
+                          onClick={() => {
+                            setShowArchivedBookings(false);
+                            setArchivedBookingSearchQuery('');
+                            setSelectedArchivedBookingIds([]);
+                          }}
                           className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors"
                         >
                           Close
@@ -2933,9 +3108,56 @@ export default function AdminPage() {
                           Once an event is deleted, its registrations will show up here automatically.
                         </p>
                       </div>
+                    ) : filteredArchivedBookingData.length === 0 ? (
+                      <div className="text-center py-10 bg-dark-800/40 rounded-xl border border-gray-700">
+                        <Search className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                        <h4 className="text-white font-semibold mb-1">No matching registrations</h4>
+                        <p className="text-gray-400 text-sm">
+                          Try a different search by name, email, phone, booking ID, or event title.
+                        </p>
+                      </div>
                     ) : (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
+                          <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={allFilteredArchivedBookingsSelected}
+                              onChange={toggleSelectAllFilteredArchivedBookings}
+                              disabled={isBulkDeletingArchivedBookings}
+                              className="rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                            />
+                            <span>
+                              Select all ({filteredArchivedBookingIds.length})
+                              {selectedArchivedBookingIds.length > 0 && (
+                                <span className="text-primary-400 ml-1">
+                                  · {selectedArchivedBookingIds.length} selected
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                          {selectedArchivedBookingIds.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleDeleteSelectedArchivedBookings}
+                              disabled={isBulkDeletingArchivedBookings}
+                              className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isBulkDeletingArchivedBookings ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                              <span>
+                                {isBulkDeletingArchivedBookings
+                                  ? 'Deleting...'
+                                  : `Delete selected (${selectedArchivedBookingIds.length})`}
+                              </span>
+                            </button>
+                          )}
+                        </div>
                       <div className="space-y-5">
-                        {archivedBookingData.map(({ event, bookings }) => {
+                        {filteredArchivedBookingData.map(({ event, bookings }) => {
                           const archivedAt = toAdminDate(event.deletedAt);
 
                           return (
@@ -2969,7 +3191,14 @@ export default function AdminPage() {
                               ) : (
                                 <div className="space-y-3">
                                   {bookings.map((booking: any) => (
-                                    <BookingCard key={booking.id} booking={booking} currency={resolveEventCurrency(event)} />
+                                    <BookingCard
+                                      key={booking.id}
+                                      booking={booking}
+                                      currency={resolveEventCurrency(event)}
+                                      isSelected={selectedArchivedBookingIds.includes(booking.id)}
+                                      onToggleSelect={() => toggleArchivedBookingSelection(booking.id)}
+                                      selectionDisabled={isBulkDeletingArchivedBookings}
+                                    />
                                   ))}
                                 </div>
                               )}
@@ -2977,6 +3206,7 @@ export default function AdminPage() {
                           );
                         })}
                       </div>
+                      </>
                     )}
                   </div>
                 )}

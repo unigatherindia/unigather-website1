@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, LogIn, LogOut, User } from 'lucide-react';
+import { Menu, X, Users, Calendar, Info, Mail, LogIn, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/auth/AuthModal';
@@ -139,6 +139,13 @@ const Header: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="hidden md:flex items-center space-x-3"
             >
+              <Link
+                href="/admin-login"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-primary-400 transition-colors duration-300"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="font-medium">Workspace</span>
+              </Link>
               {user ? (
                 <>
                   <div className="flex items-center space-x-2 px-3 py-2 text-gray-300">
@@ -222,6 +229,14 @@ const Header: React.FC = () => {
                 transition={{ duration: 0.3, delay: navigationItems.length * 0.1 }}
                 className="mt-4 pt-4 border-t border-gray-700 space-y-3"
               >
+                <Link
+                  href="/admin-login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg text-gray-300 hover:text-primary-400 hover:bg-primary-500/5 transition-all duration-300"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  <span className="font-medium">Workspace</span>
+                </Link>
                 {user ? (
                   <>
                     <div className="flex items-center justify-center space-x-2 px-4 py-3 text-gray-300">
