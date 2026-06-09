@@ -140,6 +140,8 @@ export default function AdminPage() {
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
   const [deletingBookingLeadId, setDeletingBookingLeadId] = useState<string | null>(null);
+  const [selectedBookingLeadIds, setSelectedBookingLeadIds] = useState<string[]>([]);
+  const [isBulkDeletingBookingLeads, setIsBulkDeletingBookingLeads] = useState(false);
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -896,6 +898,7 @@ export default function AdminPage() {
     try {
       await deleteDoc(doc(db, 'bookingLeads', lead.id));
       setBookingLeads((prev) => prev.filter((item) => item.id !== lead.id));
+      setSelectedBookingLeadIds((prev) => prev.filter((id) => id !== lead.id));
       toast.success('Booking lead deleted successfully.');
     } catch (error: any) {
       console.error('Error deleting booking lead:', error);
@@ -909,14 +912,39 @@ export default function AdminPage() {
     }
   };
 
-  const BookingLeadCard = ({ lead, isDeleting, onDelete }: { lead: any; isDeleting: boolean; onDelete: () => void }) => {
+  const BookingLeadCard = ({
+    lead,
+    isDeleting,
+    onDelete,
+    isSelected,
+    onToggleSelect,
+    selectionDisabled,
+  }: {
+    lead: any;
+    isDeleting: boolean;
+    onDelete: () => void;
+    isSelected: boolean;
+    onToggleSelect: () => void;
+    selectionDisabled?: boolean;
+  }) => {
     const leadAmount = lead.amountPaid ?? lead.amountQuoted ?? 0;
     const leadCurrency = lead.currency || DEFAULT_CURRENCY;
 
     return (
-      <div className="bg-dark-800 rounded-xl border border-gray-700 p-5 hover:border-primary-500/50 transition-colors">
+      <div className={`bg-dark-800 rounded-xl border p-5 transition-colors ${isSelected ? 'border-primary-500/60 ring-1 ring-primary-500/30' : 'border-gray-700 hover:border-primary-500/50'}`}>
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
-          <div className="min-w-0">
+          <div className="min-w-0 flex gap-3">
+            <label className="flex items-start pt-1 cursor-pointer flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onToggleSelect}
+                disabled={selectionDisabled || isDeleting}
+                className="mt-0.5 rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                aria-label={`Select ${lead.customerName || lead.eventTitle || 'lead'}`}
+              />
+            </label>
+            <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className={`px-2.5 py-1 rounded-full border text-xs font-medium ${getLeadStatusStyles(lead.status)}`}>
                 {formatLeadStatus(lead.status)}
@@ -929,6 +957,7 @@ export default function AdminPage() {
             <p className="text-sm text-gray-400 break-words">
               {lead.eventDate || 'Date N/A'} {lead.eventTime ? `at ${lead.eventTime}` : ''} - {lead.eventLocation || 'Location N/A'}
             </p>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row lg:flex-col sm:items-center lg:items-end gap-3 text-left lg:text-right">
             <div>
@@ -1430,6 +1459,62 @@ export default function AdminPage() {
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(search));
   });
+
+  const filteredBookingLeadIds = filteredBookingLeads.map((lead) => lead.id);
+  const allFilteredBookingLeadsSelected =
+    filteredBookingLeadIds.length > 0 &&
+    filteredBookingLeadIds.every((id) => selectedBookingLeadIds.includes(id));
+
+  const toggleBookingLeadSelection = (leadId: string) => {
+    setSelectedBookingLeadIds((prev) =>
+      prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const toggleSelectAllFilteredBookingLeads = () => {
+    if (allFilteredBookingLeadsSelected) {
+      setSelectedBookingLeadIds((prev) => prev.filter((id) => !filteredBookingLeadIds.includes(id)));
+      return;
+    }
+    setSelectedBookingLeadIds((prev) => [...new Set([...prev, ...filteredBookingLeadIds])]);
+  };
+
+  const handleDeleteSelectedBookingLeads = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    if (selectedBookingLeadIds.length === 0) return;
+
+    const count = selectedBookingLeadIds.length;
+    if (
+      !window.confirm(
+        `Delete ${count} booking lead${count === 1 ? '' : 's'}? This will only remove the lead records.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkDeletingBookingLeads(true);
+    try {
+      await Promise.all(
+        selectedBookingLeadIds.map((leadId) => deleteDoc(doc(db, 'bookingLeads', leadId)))
+      );
+      setBookingLeads((prev) => prev.filter((item) => !selectedBookingLeadIds.includes(item.id)));
+      setSelectedBookingLeadIds([]);
+      toast.success(`${count} booking lead${count === 1 ? '' : 's'} deleted successfully.`);
+    } catch (error: any) {
+      console.error('Error deleting booking leads:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for bookingLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to delete selected booking leads.');
+      }
+    } finally {
+      setIsBulkDeletingBookingLeads(false);
+    }
+  };
 
   // Show loading or redirect if not authorized
   if (!isAuthorized) {
@@ -2257,16 +2342,59 @@ export default function AdminPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {filteredBookingLeads.map((lead) => (
-                      <BookingLeadCard
-                        key={lead.id}
-                        lead={lead}
-                        isDeleting={deletingBookingLeadId === lead.id}
-                        onDelete={() => handleDeleteBookingLead(lead)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
+                      <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredBookingLeadsSelected}
+                          onChange={toggleSelectAllFilteredBookingLeads}
+                          disabled={isBulkDeletingBookingLeads}
+                          className="rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                        />
+                        <span>
+                          Select all ({filteredBookingLeads.length})
+                          {selectedBookingLeadIds.length > 0 && (
+                            <span className="text-primary-400 ml-1">
+                              · {selectedBookingLeadIds.length} selected
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                      {selectedBookingLeadIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteSelectedBookingLeads}
+                          disabled={isBulkDeletingBookingLeads}
+                          className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isBulkDeletingBookingLeads ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                          <span>
+                            {isBulkDeletingBookingLeads
+                              ? 'Deleting...'
+                              : `Delete selected (${selectedBookingLeadIds.length})`}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-4">
+                      {filteredBookingLeads.map((lead) => (
+                        <BookingLeadCard
+                          key={lead.id}
+                          lead={lead}
+                          isDeleting={deletingBookingLeadId === lead.id}
+                          onDelete={() => handleDeleteBookingLead(lead)}
+                          isSelected={selectedBookingLeadIds.includes(lead.id)}
+                          onToggleSelect={() => toggleBookingLeadSelection(lead.id)}
+                          selectionDisabled={isBulkDeletingBookingLeads}
+                        />
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </motion.div>

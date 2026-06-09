@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, Calendar, Users, Heart, Star, Sparkles } from 'lucide-react';
 import { db } from '@/lib/firebase';
+import { formatEventDate } from '@/lib/formatEventDate';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 interface EventItem {
@@ -73,12 +74,6 @@ const CTASection: React.FC = () => {
     const participants = totalParticipants(e);
     if (cap <= 0) return 0;
     return Math.min(100, Math.round((participants / cap) * 100));
-  };
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   return (
@@ -257,7 +252,7 @@ const CTASection: React.FC = () => {
                         </div>
                       )}
                       <div className="text-primary-400 font-bold text-sm">
-                        {isLoading ? '...' : formatDate(event.date)}
+                        {isLoading ? '...' : formatEventDate(event.date, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     </div>
                     

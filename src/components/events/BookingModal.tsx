@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
+import { formatEventDate } from '@/lib/formatEventDate';
 import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
 
 // Extend Window interface for Razorpay
@@ -453,7 +454,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         paymentId: 'N/A',
         customerName: bookingForm.name,
         eventTitle: event.title,
-        eventDate: formatDate(event.date),
+        eventDate: formatEventDate(event.date),
         eventTime: event.time,
         eventLocation: event.location,
         amount: whatsappAmount,
@@ -639,7 +640,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 paymentId: response.razorpay_payment_id,
                 customerName: bookingForm.name,
                 eventTitle: event.title,
-                eventDate: formatDate(event.date),
+                eventDate: formatEventDate(event.date),
                 eventTime: event.time,
                 eventLocation: event.location,
                 amount: selectedPrice,
@@ -705,16 +706,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       toast.error(error.message || 'Failed to process payment. Please try again.');
       setIsLoading(false);
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
   };
 
   const rawSelectedPrice = getPriceForTicketType(bookingForm.ticketType);
@@ -830,7 +821,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                     <div className="space-y-1 text-sm text-gray-300">
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-2 text-primary-400" />
-                        {formatDate(event.date)} at {event.time}
+                        {formatEventDate(event.date)} at {event.time}
                       </div>
                       <div className="flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-primary-400" />
@@ -1076,7 +1067,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Date & Time</span>
-                    <span className="text-white">{formatDate(event.date)} at {event.time}</span>
+                    <span className="text-white">{formatEventDate(event.date)} at {event.time}</span>
                   </div>
                   <div className="border-t border-gray-600 pt-3 mt-3">
                     <div className="flex justify-between text-lg font-semibold">
@@ -1179,7 +1170,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Date</span>
-                    <span className="text-white">{formatDate(event.date)}</span>
+                    <span className="text-white">{formatEventDate(event.date)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Amount Paid</span>

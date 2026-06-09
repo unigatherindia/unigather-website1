@@ -12,6 +12,7 @@ import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firesto
 import toast from 'react-hot-toast';
 import { resolveEventCurrency } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
+import { formatEventDate } from '@/lib/formatEventDate';
 
 interface Event {
   id: string;
@@ -169,16 +170,6 @@ const EventsList: React.FC = () => {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
   // Check if price indicates sold out
   const isSoldOut = (price: number | string): boolean => {
     if (typeof price === 'number') return false;
@@ -325,7 +316,7 @@ const EventsList: React.FC = () => {
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center text-gray-300 text-sm">
                     <Calendar className="w-4 h-4 mr-3 text-primary-400" />
-                    <span>{formatDate(event.date)} at {event.time}</span>
+                    <span>{formatEventDate(event.date)} at {event.time}</span>
                   </div>
                   <div className="flex items-center text-gray-300 text-sm">
                     <MapPin className="w-4 h-4 mr-3 text-primary-400" />
