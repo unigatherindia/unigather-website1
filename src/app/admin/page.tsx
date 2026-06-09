@@ -1476,7 +1476,7 @@ export default function AdminPage() {
       setSelectedBookingLeadIds((prev) => prev.filter((id) => !filteredBookingLeadIds.includes(id)));
       return;
     }
-    setSelectedBookingLeadIds((prev) => [...new Set([...prev, ...filteredBookingLeadIds])]);
+    setSelectedBookingLeadIds((prev) => Array.from(new Set([...prev, ...filteredBookingLeadIds])));
   };
 
   const handleDeleteSelectedBookingLeads = async () => {
