@@ -160,16 +160,14 @@ const Footer: React.FC = () => {
           className="border-t border-gray-700 mt-8 pt-8"
         >
           {/* Policy Links Row */}
-          <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
-            <Link href="/privacy-policy" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
+          <div className="flex flex-nowrap justify-center md:justify-start gap-3 md:gap-4 mb-4 overflow-x-auto">
+            <Link href="/privacy-policy" className="text-gray-400 hover:text-orange-400 transition-colors text-xs whitespace-nowrap">
               Privacy Policy
             </Link>
-            <span className="text-gray-600">•</span>
-            <Link href="/terms" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
+            <Link href="/terms" className="text-gray-400 hover:text-orange-400 transition-colors text-xs whitespace-nowrap">
               Terms & Conditions
             </Link>
-            <span className="text-gray-600">•</span>
-            <Link href="/refund" className="text-gray-400 hover:text-orange-400 transition-colors text-xs">
+            <Link href="/refund" className="text-gray-400 hover:text-orange-400 transition-colors text-xs whitespace-nowrap">
               Refund Policy
             </Link>
           </div>
