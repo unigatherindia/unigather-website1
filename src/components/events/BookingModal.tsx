@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -96,8 +96,52 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     terms: false
   });
 
+  const stepRef = useRef(step);
+  const onCloseRef = useRef(onClose);
+  const showAuthModalRef = useRef(showAuthModal);
+  const closedFromPopstateRef = useRef(false);
+
+  stepRef.current = step;
+  onCloseRef.current = onClose;
+  showAuthModalRef.current = showAuthModal;
+
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Android/iOS hardware back: close modal (or previous step) instead of leaving /events.
+  useEffect(() => {
+    const pushModalState = () => {
+      window.history.pushState({ bookingModal: true }, '');
+    };
+
+    pushModalState();
+
+    const handlePopState = () => {
+      if (showAuthModalRef.current) {
+        setShowAuthModal(false);
+        pushModalState();
+        return;
+      }
+
+      if (stepRef.current > 1) {
+        setStep((current) => current - 1);
+        pushModalState();
+        return;
+      }
+
+      closedFromPopstateRef.current = true;
+      onCloseRef.current();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (!closedFromPopstateRef.current) {
+        window.history.back();
+      }
+    };
   }, []);
 
   // Prevent background scroll when modal is open (iOS-safe).
