@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { motion } from 'framer-motion';
@@ -9,12 +9,27 @@ import {
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
-  Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
+  Users, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Mail, Phone, IndianRupee, CheckCircle, Clock,
   Archive, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, Timestamp, doc, addDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  Timestamp,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  where,
+  type QueryDocumentSnapshot,
+} from 'firebase/firestore';
+import { deriveParticipantCountsFromEvents } from '@/lib/event-participants';
 import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
 import {
   COUNTRIES,
@@ -129,17 +144,32 @@ export default function AdminPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsHasMore, setEventsHasMore] = useState(false);
+  const eventsPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
+  const ADMIN_EVENTS_PAGE_SIZE = 10;
+  const MAX_EVENT_BATCHES_PER_PAGE = 4;
   const [bookingsByEvent, setBookingsByEvent] = useState<Record<string, any[]>>({});
   const [loadingBookingsFor, setLoadingBookingsFor] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
   const [showArchivedBookings, setShowArchivedBookings] = useState(false);
   const [archivedBookingData, setArchivedBookingData] = useState<Array<{ event: any; bookings: any[] }>>([]);
+  const [archivedPage, setArchivedPage] = useState(1);
+  const [archivedHasMore, setArchivedHasMore] = useState(false);
+  const archivedPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
+  const ADMIN_ARCHIVED_EVENTS_PAGE_SIZE = 5;
   const [isLoadingArchivedBookings, setIsLoadingArchivedBookings] = useState(false);
   const [archivedBookingSearchQuery, setArchivedBookingSearchQuery] = useState('');
   const [selectedArchivedBookingIds, setSelectedArchivedBookingIds] = useState<string[]>([]);
   const [isBulkDeletingArchivedBookings, setIsBulkDeletingArchivedBookings] = useState(false);
   const [bookingLeads, setBookingLeads] = useState<any[]>([]);
+  const [leadsPage, setLeadsPage] = useState(1);
+  const [leadsHasMore, setLeadsHasMore] = useState(false);
+  const lastLeadsFetchAtRef = useRef(0);
+  const leadsPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
+  const ADMIN_LEADS_PAGE_SIZE = 25;
+  const ADMIN_LEADS_STALE_MS = 60_000;
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
   const [deletingBookingLeadId, setDeletingBookingLeadId] = useState<string | null>(null);
@@ -688,7 +718,7 @@ export default function AdminPage() {
       
       // Refresh events list if on events tab
       if (activeTab === 'events') {
-        fetchEvents();
+        fetchEventsPage(1, { reset: true });
       }
     } catch (error: any) {
       console.error('Error creating event in Firestore:', error);
@@ -696,36 +726,90 @@ export default function AdminPage() {
     }
   };
 
-  // Fetch events from Firestore
-  const fetchEvents = async () => {
+  const fetchEventsPage = async (
+    targetPage: number,
+    options?: { force?: boolean; reset?: boolean }
+  ) => {
     if (!db) {
       toast.error('Firebase is not initialized. Please check your configuration.');
       return;
     }
 
+    const page = options?.reset ? 1 : Math.max(1, targetPage);
+
     setIsLoadingEvents(true);
     try {
       const eventsCollection = collection(db, 'events');
+      const pageSize = ADMIN_EVENTS_PAGE_SIZE;
+      let walkCursor = eventsPageStartCursorsRef.current[page - 1] ?? null;
+      const activeEvents: any[] = [];
+      let terminalCursor: QueryDocumentSnapshot | null = walkCursor;
+      let hasMore = false;
 
-      let querySnapshot;
-      try {
-        const eventsQuery = query(eventsCollection, orderBy('createdAt', 'desc'));
-        querySnapshot = await getDocs(eventsQuery);
-      } catch (orderError: any) {
-        if (orderError.code === 'failed-precondition') {
-          console.warn('Index not found, fetching without orderBy');
-          querySnapshot = await getDocs(eventsCollection);
-        } else {
+      for (let batch = 0; batch < MAX_EVENT_BATCHES_PER_PAGE && activeEvents.length < pageSize; batch++) {
+        const batchLimit = pageSize + 1;
+        let snapshot;
+
+        try {
+          const eventsQuery = walkCursor
+            ? query(
+                eventsCollection,
+                orderBy('createdAt', 'desc'),
+                startAfter(walkCursor),
+                limit(batchLimit)
+              )
+            : query(eventsCollection, orderBy('createdAt', 'desc'), limit(batchLimit));
+          snapshot = await getDocs(eventsQuery);
+        } catch (orderError: any) {
+          if (orderError.code === 'failed-precondition') {
+            console.warn('Index not found, fetching events without orderBy');
+            snapshot = await getDocs(eventsCollection);
+            const allActive = snapshot.docs
+              .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
+              .filter((event: any) => event.status !== 'archived');
+            const start = (page - 1) * pageSize;
+            const pageItems = allActive.slice(start, start + pageSize);
+            setEvents(pageItems);
+            setEventsPage(page);
+            setEventsHasMore(start + pageSize < allActive.length);
+            setBookingCounts(deriveParticipantCountsFromEvents(pageItems));
+            return;
+          }
           throw orderError;
+        }
+
+        if (snapshot.empty) {
+          hasMore = false;
+          break;
+        }
+
+        for (const docSnapshot of snapshot.docs) {
+          const data: any = { id: docSnapshot.id, ...docSnapshot.data() };
+          if (data.status === 'archived') continue;
+          if (activeEvents.length < pageSize) {
+            activeEvents.push(data);
+          }
+        }
+
+        terminalCursor = snapshot.docs[snapshot.docs.length - 1];
+        walkCursor = terminalCursor;
+        hasMore = snapshot.docs.length === batchLimit;
+
+        if (activeEvents.length >= pageSize) break;
+        if (snapshot.docs.length < batchLimit) {
+          hasMore = false;
+          break;
         }
       }
 
-      const eventsData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      if (terminalCursor && activeEvents.length > 0) {
+        eventsPageStartCursorsRef.current[page] = terminalCursor;
+      }
 
-      setEvents(eventsData.filter((event: any) => event.status !== 'archived'));
+      setEvents(activeEvents);
+      setEventsPage(page);
+      setEventsHasMore(hasMore);
+      setBookingCounts(deriveParticipantCountsFromEvents(activeEvents));
     } catch (error: any) {
       console.error('Error fetching events:', error);
       toast.error('Failed to load events. Please check if Firestore is enabled.');
@@ -1151,28 +1235,58 @@ export default function AdminPage() {
     setExpandedEventId(eventId);
   };
 
-  const fetchArchivedBookings = async () => {
+  const fetchArchivedBookingsPage = async (
+    targetPage: number,
+    options?: { reset?: boolean }
+  ) => {
     if (!db) {
       toast.error('Firebase is not initialized.');
       return;
     }
 
+    const page = options?.reset ? 1 : Math.max(1, targetPage);
     setIsLoadingArchivedBookings(true);
+
     try {
       const eventsCollection = collection(db, 'events');
-      const archivedEventsSnapshot = await getDocs(query(eventsCollection, where('status', '==', 'archived')));
+      const bookingsCollection = collection(db, 'eventBookings');
+      const startCursor = archivedPageStartCursorsRef.current[page - 1] ?? null;
+      const pageSize = ADMIN_ARCHIVED_EVENTS_PAGE_SIZE;
 
-      const archivedEvents = archivedEventsSnapshot.docs.map((docSnapshot) => ({
+      const runArchivedEventsQuery = (orderField: 'deletedAt' | 'createdAt') => {
+        const constraints = [
+          where('status', '==', 'archived'),
+          orderBy(orderField, 'desc'),
+          ...(startCursor ? [startAfter(startCursor)] : []),
+          limit(pageSize + 1),
+        ];
+        return getDocs(query(eventsCollection, ...constraints));
+      };
+
+      let archivedEventsSnapshot;
+      try {
+        archivedEventsSnapshot = await runArchivedEventsQuery('deletedAt');
+      } catch (error: any) {
+        if (error?.code === 'failed-precondition') {
+          archivedEventsSnapshot = await runArchivedEventsQuery('createdAt');
+        } else {
+          throw error;
+        }
+      }
+
+      const archivedDocs = archivedEventsSnapshot.docs;
+      const hasMore = archivedDocs.length > pageSize;
+      const pageDocs = archivedDocs.slice(0, pageSize);
+
+      if (pageDocs.length > 0) {
+        archivedPageStartCursorsRef.current[page] = pageDocs[pageDocs.length - 1];
+      }
+
+      const archivedEvents = pageDocs.map((docSnapshot) => ({
         id: docSnapshot.id,
         ...docSnapshot.data(),
       }));
 
-      if (archivedEvents.length === 0) {
-        setArchivedBookingData([]);
-        return;
-      }
-
-      const bookingsCollection = collection(db, 'eventBookings');
       const archivedData = await Promise.all(
         archivedEvents.map(async (event) => {
           const bookingsQuery = query(bookingsCollection, where('eventId', '==', event.id));
@@ -1199,6 +1313,9 @@ export default function AdminPage() {
       );
 
       setArchivedBookingData(archivedData);
+      setArchivedPage(page);
+      setArchivedHasMore(hasMore);
+      setSelectedArchivedBookingIds([]);
     } catch (error: any) {
       console.error('Error fetching archived bookings:', error);
       toast.error('Failed to load archived user data. Please try again.');
@@ -1214,12 +1331,12 @@ export default function AdminPage() {
     if (!nextState) {
       setArchivedBookingSearchQuery('');
       setSelectedArchivedBookingIds([]);
+      setArchivedPage(1);
+      archivedPageStartCursorsRef.current = [null];
       return;
     }
 
-    if (archivedBookingData.length === 0) {
-      await fetchArchivedBookings();
-    }
+    await fetchArchivedBookingsPage(1, { reset: true });
   };
 
   const archivedBookingMatchesSearch = (booking: any, event: any, search: string) =>
@@ -1371,7 +1488,7 @@ export default function AdminPage() {
         deletedAt: Timestamp.now()
       });
       toast.success('Event archived successfully! Existing registrations remain stored.');
-      fetchEvents();
+      fetchEventsPage(eventsPage, { force: true });
     } catch (error: any) {
       console.error('Error deleting event:', error);
       toast.error('Failed to delete event. Please try again.');
@@ -1500,7 +1617,7 @@ export default function AdminPage() {
       setCustomTicketRows([]);
       
       setActiveTab('events');
-      fetchEvents();
+      fetchEventsPage(eventsPage, { force: true });
     } catch (error: any) {
       console.error('Error updating event:', error);
       toast.error('Failed to update event. Please try again.');
@@ -1508,53 +1625,49 @@ export default function AdminPage() {
   };
 
 
-  // Fetch booking counts for all events
-  const fetchAllBookingCounts = async () => {
-    if (!db) return;
-
-    try {
-      const bookingsCollection = collection(db, 'eventBookings');
-      const snapshot = await getDocs(bookingsCollection);
-
-      const counts: Record<string, number> = {};
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const eventId = data.eventId;
-        if (eventId) {
-          counts[eventId] = (counts[eventId] || 0) + 1;
-        }
-      });
-
-      setBookingCounts(counts);
-    } catch (error: any) {
-      console.error('Error fetching booking counts:', error);
-      
-      // Handle permission errors gracefully - don't show toast for permission errors
-      // as it's expected if rules aren't set up yet
-      if (error?.code === 'permission-denied') {
-        console.warn('Permission denied for eventBookings. Please update Firestore security rules to allow read access.');
-        // Set empty counts to prevent UI issues
-        setBookingCounts({});
-      } else {
-        // Only show toast for unexpected errors
-        toast.error('Failed to load booking counts. Please check your connection.');
-      }
-    }
-  };
-
-  const fetchBookingLeads = async () => {
+  const fetchBookingLeadsPage = async (
+    targetPage: number,
+    options?: { force?: boolean; reset?: boolean }
+  ) => {
     if (!db) {
       toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    const page = options?.reset ? 1 : Math.max(1, targetPage);
+
+    if (
+      !options?.force &&
+      !options?.reset &&
+      page === leadsPage &&
+      bookingLeads.length > 0 &&
+      Date.now() - lastLeadsFetchAtRef.current < ADMIN_LEADS_STALE_MS
+    ) {
       return;
     }
 
     setIsLoadingBookingLeads(true);
     try {
       const leadsCollection = collection(db, 'bookingLeads');
-      const leadsQuery = query(leadsCollection, orderBy('createdAt', 'desc'));
+      const startCursor = leadsPageStartCursorsRef.current[page - 1] ?? null;
+      const leadsQuery = startCursor
+        ? query(
+            leadsCollection,
+            orderBy('createdAt', 'desc'),
+            startAfter(startCursor),
+            limit(ADMIN_LEADS_PAGE_SIZE + 1)
+          )
+        : query(
+            leadsCollection,
+            orderBy('createdAt', 'desc'),
+            limit(ADMIN_LEADS_PAGE_SIZE + 1)
+          );
       const snapshot = await getDocs(leadsQuery);
+      const docs = snapshot.docs;
+      const hasMore = docs.length > ADMIN_LEADS_PAGE_SIZE;
+      const pageDocs = docs.slice(0, ADMIN_LEADS_PAGE_SIZE);
 
-      const leads = snapshot.docs.map((docSnapshot) => {
+      const leads = pageDocs.map((docSnapshot) => {
         const data = docSnapshot.data();
         const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
         const updatedAt = data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
@@ -1567,7 +1680,15 @@ export default function AdminPage() {
         };
       });
 
+      if (pageDocs.length > 0) {
+        leadsPageStartCursorsRef.current[page] = pageDocs[pageDocs.length - 1];
+      }
+
       setBookingLeads(leads);
+      setLeadsPage(page);
+      setLeadsHasMore(hasMore);
+      setSelectedBookingLeadIds([]);
+      lastLeadsFetchAtRef.current = Date.now();
     } catch (error: any) {
       console.error('Error fetching booking leads:', error);
       if (error?.code === 'permission-denied') {
@@ -1583,15 +1704,14 @@ export default function AdminPage() {
   // Fetch events when events tab is active
   useEffect(() => {
     if (isAuthorized && activeTab === 'events') {
-      fetchEvents();
-      fetchAllBookingCounts();
+      fetchEventsPage(1, { reset: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthorized]);
 
   useEffect(() => {
     if (isAuthorized && activeTab === 'leads') {
-      fetchBookingLeads();
+      fetchBookingLeadsPage(1, { reset: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthorized]);
@@ -1620,6 +1740,23 @@ export default function AdminPage() {
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(search));
   });
+
+  const eventMatchesSearch = (event: any) => {
+    const search = eventSearchQuery.trim().toLowerCase();
+    if (!search) return true;
+
+    return (
+      event.title?.toLowerCase().includes(search) ||
+      event.category?.toLowerCase().includes(search) ||
+      event.location?.toLowerCase().includes(search)
+    );
+  };
+
+  const filteredEvents = useMemo(
+    () => events.filter((event) => eventMatchesSearch(event)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [events, eventSearchQuery]
+  );
 
   const filteredBookingLeadIds = filteredBookingLeads.map((lead) => lead.id);
   const allFilteredBookingLeadsSelected =
@@ -2438,6 +2575,7 @@ export default function AdminPage() {
                     <h2 className="text-2xl font-bold text-white mb-2">Booking Leads</h2>
                     <p className="text-gray-400">
                       Details captured before payment, including users who cancelled or did not finish checkout.
+                      Loads {ADMIN_LEADS_PAGE_SIZE} leads per page to save Firestore quota.
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -2452,7 +2590,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <button
-                      onClick={fetchBookingLeads}
+                      onClick={() => fetchBookingLeadsPage(1, { reset: true, force: true })}
                       disabled={isLoadingBookingLeads}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
@@ -2468,26 +2606,32 @@ export default function AdminPage() {
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Total Leads</div>
+                    <div className="text-gray-400 text-sm">On this page</div>
                     <div className="text-2xl font-bold text-white">{bookingLeads.length}</div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Not Paid Yet</div>
+                    <div className="text-gray-400 text-sm">Not paid (page)</div>
                     <div className="text-2xl font-bold text-amber-300">
                       {bookingLeads.filter((lead) => lead.status !== 'confirmed').length}
                     </div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Confirmed</div>
+                    <div className="text-gray-400 text-sm">Confirmed (page)</div>
                     <div className="text-2xl font-bold text-green-400">
                       {bookingLeads.filter((lead) => lead.status === 'confirmed').length}
                     </div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Showing</div>
+                    <div className="text-gray-400 text-sm">Matching search</div>
                     <div className="text-2xl font-bold text-primary-400">{filteredBookingLeads.length}</div>
                   </div>
                 </div>
+
+                {leadSearchQuery.trim() && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    Search filters the current page only. Clear search or use Next/Previous to browse other pages.
+                  </p>
+                )}
 
                 {isLoadingBookingLeads ? (
                   <div className="text-center py-12">
@@ -2555,6 +2699,33 @@ export default function AdminPage() {
                         />
                       ))}
                     </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-6 border-t border-gray-700">
+                      <div className="text-sm text-gray-400">
+                        Page {leadsPage} · {filteredBookingLeads.length} lead
+                        {filteredBookingLeads.length === 1 ? '' : 's'} on this page
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fetchBookingLeadsPage(leadsPage - 1)}
+                          disabled={isLoadingBookingLeads || leadsPage <= 1}
+                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Previous</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fetchBookingLeadsPage(leadsPage + 1)}
+                          disabled={isLoadingBookingLeads || !leadsHasMore}
+                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -2587,13 +2758,10 @@ export default function AdminPage() {
                       />
                     </div>
                     <button 
-                      onClick={() => {
-                        fetchEvents();
-                        fetchAllBookingCounts();
-                      }}
+                      onClick={() => fetchEventsPage(1, { reset: true, force: true })}
                       disabled={isLoadingEvents}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
-                      title="Refresh events list and booking counts"
+                      title="Refresh events list"
                     >
                       {isLoadingEvents ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -2620,6 +2788,12 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {eventSearchQuery.trim() && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    Search filters the current page only. Clear search or use Next/Previous to browse other pages.
+                  </p>
+                )}
+
                 {/* Events Table */}
                 {isLoadingEvents ? (
                   <div className="text-center py-12">
@@ -2628,13 +2802,7 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto -mx-4 sm:mx-0">
-                    {events.filter(event => {
-                      const search = eventSearchQuery.toLowerCase();
-                      return !search || 
-                        event.title?.toLowerCase().includes(search) ||
-                        event.category?.toLowerCase().includes(search) ||
-                        event.location?.toLowerCase().includes(search);
-                    }).length === 0 ? (
+                    {filteredEvents.length === 0 ? (
                       <div className="text-center py-12">
                         <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold text-white mb-2">No events found</h3>
@@ -2659,15 +2827,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {events
-                              .filter(event => {
-                                const search = eventSearchQuery.toLowerCase();
-                                return !search || 
-                                  event.title?.toLowerCase().includes(search) ||
-                                  event.category?.toLowerCase().includes(search) ||
-                                  event.location?.toLowerCase().includes(search);
-                              })
-                              .map((event) => (
+                            {filteredEvents.map((event) => (
                                 <React.Fragment key={event.id}>
                                 <tr className="border-b border-gray-700/50 hover:bg-dark-700/50 transition-colors">
                                   <td className="py-4 px-4">
@@ -2801,15 +2961,7 @@ export default function AdminPage() {
 
                         {/* Mobile Card View */}
                         <div className="md:hidden space-y-4">
-                          {events
-                            .filter(event => {
-                              const search = eventSearchQuery.toLowerCase();
-                              return !search || 
-                                event.title?.toLowerCase().includes(search) ||
-                                event.category?.toLowerCase().includes(search) ||
-                                event.location?.toLowerCase().includes(search);
-                            })
-                            .map((event) => (
+                          {filteredEvents.map((event) => (
                               <div key={event.id} className="bg-dark-700 rounded-lg border border-gray-600 p-4 space-y-4">
                                 {/* Header */}
                                 <div className="flex items-start justify-between">
@@ -3056,7 +3208,7 @@ export default function AdminPage() {
                       <div>
                         <h3 className="text-xl font-semibold text-white">Archived Event User Data</h3>
                         <p className="text-gray-400 text-sm">
-                          View every stored registration even after its event has been deleted.
+                          View stored registrations for archived events ({ADMIN_ARCHIVED_EVENTS_PAGE_SIZE} events per page).
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -3071,7 +3223,7 @@ export default function AdminPage() {
                           />
                         </div>
                         <button
-                          onClick={fetchArchivedBookings}
+                          onClick={() => fetchArchivedBookingsPage(1, { reset: true })}
                           className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                           disabled={isLoadingArchivedBookings}
                         >
@@ -3118,6 +3270,11 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <>
+                        {archivedBookingSearchQuery.trim() && (
+                          <p className="text-sm text-gray-500">
+                            Search filters the current page only. Clear search or use Next/Previous to browse other pages.
+                          </p>
+                        )}
                         <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
                           <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
                             <input
@@ -3206,21 +3363,63 @@ export default function AdminPage() {
                           );
                         })}
                       </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-700">
+                        <div className="text-sm text-gray-400">
+                          Page {archivedPage} · {filteredArchivedBookingData.length} archived event
+                          {filteredArchivedBookingData.length === 1 ? '' : 's'} on this page
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fetchArchivedBookingsPage(archivedPage - 1)}
+                            disabled={isLoadingArchivedBookings || archivedPage <= 1}
+                            className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            <span>Previous</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => fetchArchivedBookingsPage(archivedPage + 1)}
+                            disabled={isLoadingArchivedBookings || !archivedHasMore}
+                            className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                       </>
                     )}
                   </div>
                 )}
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-700">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-6 border-t border-gray-700">
                   <div className="text-sm text-gray-400">
-                    Showing {events.filter(event => {
-                      const search = eventSearchQuery.toLowerCase();
-                      return !search || 
-                        event.title?.toLowerCase().includes(search) ||
-                        event.category?.toLowerCase().includes(search) ||
-                        event.location?.toLowerCase().includes(search);
-                    }).length} of {events.length} events
+                    Page {eventsPage} · {filteredEvents.length} event
+                    {filteredEvents.length === 1 ? '' : 's'} on this page
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fetchEventsPage(eventsPage - 1)}
+                      disabled={isLoadingEvents || eventsPage <= 1}
+                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Previous</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fetchEventsPage(eventsPage + 1)}
+                      disabled={isLoadingEvents || !eventsHasMore}
+                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

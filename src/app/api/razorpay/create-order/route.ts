@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
+import { getCachedEventData } from '@/lib/event-data-cache';
 import {
   PAYMENT_COLLECTIONS,
   PaymentValidationError,
   createOrderDedupeKey,
   createPaymentBookingId,
+  isReusablePendingOrder,
+  isStaleIncompleteOrder,
   normalizePaymentBookingDetails,
   normalizePaymentCustomer,
   resolveTrustedTicketPrice,
@@ -19,8 +22,60 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function syncBookingLeadPaymentOrder(
+  bookingLeadId: string | null,
+  updates: Record<string, unknown>
+) {
+  if (!bookingLeadId) return;
+
+  void adminDb
+    .collection('bookingLeads')
+    .doc(bookingLeadId)
+    .update({
+      ...updates,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+    .catch(() => undefined);
+}
+
+function buildReusedOrderResponse(
+  orderIntent: {
+    internalOrderId: string;
+    bookingId: string;
+    razorpayOrderId: string;
+    amountSubunits: number;
+    amount?: number;
+    currency: string;
+  },
+  razorpayConfig: ReturnType<typeof getServerRazorpayConfig>,
+  bookingLeadId: string | null
+) {
+  syncBookingLeadPaymentOrder(bookingLeadId, {
+    status: 'payment_order_created',
+    internalOrderId: orderIntent.internalOrderId,
+    razorpayOrderId: orderIntent.razorpayOrderId,
+    bookingId: orderIntent.bookingId,
+    amountQuoted: orderIntent.amount ?? orderIntent.amountSubunits / 100,
+    currency: orderIntent.currency,
+  });
+
+  return NextResponse.json({
+    success: true,
+    internalOrderId: orderIntent.internalOrderId,
+    bookingId: orderIntent.bookingId,
+    orderId: orderIntent.razorpayOrderId,
+    amount: orderIntent.amountSubunits,
+    currency: orderIntent.currency,
+    companyName: razorpayConfig.checkout.companyName,
+    themeColor: razorpayConfig.checkout.themeColor,
+    reused: true,
+  });
+}
+
 export async function POST(request: NextRequest) {
   let internalOrderId: string | null = null;
+  let dedupeKey: string | null = null;
+  let orderPersisted = false;
 
   try {
     const body = await request.json().catch(() => null);
@@ -69,65 +124,66 @@ export async function POST(request: NextRequest) {
     }
 
     const nowMillis = Date.now();
-    const dedupeKey = createOrderDedupeKey({
+    dedupeKey = createOrderDedupeKey({
       eventId: normalizedEventId,
       ticketType: normalizedTicketType,
       customer: normalizedCustomer,
     });
-    const eventRef = adminDb.collection('events').doc(normalizedEventId);
+
     const orderCollection = adminDb.collection(PAYMENT_COLLECTIONS.orders);
+    const dedupeRef = adminDb.collection(PAYMENT_COLLECTIONS.orderDedupe).doc(dedupeKey);
+
+    // Fast path: one indexed document read instead of a collection query.
+    const existingDedupeSnapshot = await dedupeRef.get();
+    if (existingDedupeSnapshot.exists) {
+      const existingData = existingDedupeSnapshot.data() || {};
+      if (isReusablePendingOrder(existingData, nowMillis)) {
+        return buildReusedOrderResponse(
+          {
+            internalOrderId: String(existingData.internalOrderId),
+            bookingId: String(existingData.bookingId),
+            razorpayOrderId: String(existingData.razorpayOrderId),
+            amountSubunits: Number(existingData.amountSubunits),
+            amount:
+              typeof existingData.amount === 'number' ? existingData.amount : undefined,
+            currency: String(existingData.currency),
+          },
+          razorpayConfig,
+          normalizedBookingLeadId
+        );
+      }
+    }
+
+    const eventData = await getCachedEventData(adminDb, normalizedEventId);
+    const trustedPrice = resolveTrustedTicketPrice(eventData, normalizedTicketType);
+
     const orderRef = orderCollection.doc();
     const newInternalOrderId = orderRef.id;
     internalOrderId = newInternalOrderId;
 
     const orderIntent = await adminDb.runTransaction(async (transaction) => {
-      const eventSnapshot = await transaction.get(eventRef);
-      if (!eventSnapshot.exists) {
-        throw new PaymentValidationError('Event not found', 404);
-      }
+      const dedupeSnapshot = await transaction.get(dedupeRef);
 
-      const trustedPrice = resolveTrustedTicketPrice(
-        eventSnapshot.data() || {},
-        normalizedTicketType
-      );
+      if (dedupeSnapshot.exists) {
+        const data = dedupeSnapshot.data() || {};
+        if (isReusablePendingOrder(data, nowMillis)) {
+          return {
+            reused: true as const,
+            internalOrderId: String(data.internalOrderId),
+            bookingId: String(data.bookingId),
+            razorpayOrderId: String(data.razorpayOrderId),
+            amountSubunits: Number(data.amountSubunits),
+            amount: typeof data.amount === 'number' ? data.amount : undefined,
+            currency: String(data.currency),
+          };
+        }
 
-      const existingOrders = await transaction.get(
-        orderCollection.where('dedupeKey', '==', dedupeKey).limit(10)
-      );
-      const reusableOrder = existingOrders.docs.find((docSnapshot) => {
-        const data = docSnapshot.data();
-        const expiresAt = data.expiresAt?.toMillis?.() ?? 0;
-        return (
-          data.status === 'pending' &&
-          data.paymentState === 'created' &&
-          expiresAt > nowMillis
-        );
-      });
-
-      if (reusableOrder) {
-        const data = reusableOrder.data();
-        if (!data.razorpayOrderId) {
+        if (!isStaleIncompleteOrder(data, nowMillis)) {
           throw new PaymentValidationError(
             'Order creation is already in progress. Please try again.',
             409
           );
         }
-
-        if (normalizedBookingLeadId && data.bookingLeadId !== normalizedBookingLeadId) {
-          transaction.update(reusableOrder.ref, {
-            bookingLeadId: normalizedBookingLeadId,
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-        }
-
-        return {
-          reused: true,
-          internalOrderId: data.internalOrderId,
-          bookingId: data.bookingId,
-          razorpayOrderId: data.razorpayOrderId,
-          amountSubunits: data.amountSubunits,
-          currency: data.currency,
-        };
       }
 
       const receipt = createRazorpayReceipt(newInternalOrderId);
@@ -156,8 +212,25 @@ export async function POST(request: NextRequest) {
         expiresAt,
       });
 
+      transaction.set(dedupeRef, {
+        internalOrderId: newInternalOrderId,
+        bookingId,
+        razorpayOrderId: null,
+        status: 'pending',
+        paymentState: 'created',
+        eventId: normalizedEventId,
+        bookingLeadId: normalizedBookingLeadId,
+        amountSubunits: trustedPrice.amountSubunits,
+        currency: trustedPrice.currency,
+        amount: trustedPrice.amount,
+        dedupeKey,
+        expiresAt,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
       return {
-        reused: false,
+        reused: false as const,
         internalOrderId: newInternalOrderId,
         bookingId,
         receipt,
@@ -166,18 +239,10 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    orderPersisted = !orderIntent.reused;
+
     if (orderIntent.reused) {
-      return NextResponse.json({
-        success: true,
-        internalOrderId: orderIntent.internalOrderId,
-        bookingId: orderIntent.bookingId,
-        orderId: orderIntent.razorpayOrderId,
-        amount: orderIntent.amountSubunits,
-        currency: orderIntent.currency,
-        companyName: razorpayConfig.checkout.companyName,
-        themeColor: razorpayConfig.checkout.themeColor,
-        reused: true,
-      });
+      return buildReusedOrderResponse(orderIntent, razorpayConfig, normalizedBookingLeadId);
     }
 
     const razorpay = new Razorpay({
@@ -191,10 +256,31 @@ export async function POST(request: NextRequest) {
       receipt: orderIntent.receipt,
     });
 
-    await orderCollection.doc(orderIntent.internalOrderId).update({
+    const razorpayUpdate = {
       razorpayOrderId: order.id,
       receipt: order.receipt || orderIntent.receipt,
       updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    await Promise.all([
+      orderCollection.doc(orderIntent.internalOrderId).update(razorpayUpdate),
+      dedupeRef.set(razorpayUpdate, { merge: true }),
+      adminDb
+        .collection(PAYMENT_COLLECTIONS.orderRazorpay)
+        .doc(order.id)
+        .set({
+          internalOrderId: orderIntent.internalOrderId,
+          updatedAt: FieldValue.serverTimestamp(),
+        }),
+    ]);
+
+    syncBookingLeadPaymentOrder(normalizedBookingLeadId, {
+      status: 'payment_order_created',
+      internalOrderId: orderIntent.internalOrderId,
+      razorpayOrderId: order.id,
+      bookingId: orderIntent.bookingId,
+      amountQuoted: trustedPrice.amount,
+      currency: orderIntent.currency,
     });
 
     return NextResponse.json({
@@ -209,21 +295,34 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Razorpay order creation error:', error);
-    if (internalOrderId) {
-      await adminDb
-        .collection(PAYMENT_COLLECTIONS.orders)
-        .doc(internalOrderId)
-        .update({
-          status: 'cancelled',
-          paymentState: 'failed',
-          updatedAt: FieldValue.serverTimestamp(),
-          failureReason:
-            error?.error?.description ||
-            error?.description ||
-            error?.message ||
-            'Order creation failed',
-        })
-        .catch(() => undefined);
+
+    if (orderPersisted && internalOrderId) {
+      const failureReason =
+        error?.error?.description ||
+        error?.description ||
+        error?.message ||
+        'Order creation failed';
+      const failureUpdate = {
+        status: 'cancelled',
+        paymentState: 'failed',
+        updatedAt: FieldValue.serverTimestamp(),
+        failureReason,
+      };
+
+      const writes = [
+        adminDb.collection(PAYMENT_COLLECTIONS.orders).doc(internalOrderId).update(failureUpdate),
+      ];
+
+      if (dedupeKey) {
+        writes.push(
+          adminDb
+            .collection(PAYMENT_COLLECTIONS.orderDedupe)
+            .doc(dedupeKey)
+            .set(failureUpdate, { merge: true })
+        );
+      }
+
+      await Promise.all(writes.map((write) => write.catch(() => undefined)));
     }
 
     if (error instanceof PaymentValidationError) {
@@ -250,4 +349,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

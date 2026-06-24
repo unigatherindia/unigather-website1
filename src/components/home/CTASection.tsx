@@ -7,6 +7,11 @@ import { ArrowRight, Calendar, Users, Heart, Star, Sparkles } from 'lucide-react
 import { db } from '@/lib/firebase';
 import { formatEventDate } from '@/lib/formatEventDate';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import {
+  CLIENT_FIRESTORE_CACHE_TTL_MS,
+  readClientFirestoreCache,
+  writeClientFirestoreCache,
+} from '@/lib/client-firestore-cache';
 
 interface EventItem {
   id: string;
@@ -32,6 +37,13 @@ const CTASection: React.FC = () => {
       }
       try {
         setIsLoading(true);
+        const cachedItems = readClientFirestoreCache<EventItem[]>('public_events_cta');
+        if (cachedItems) {
+          setUpcomingEvents(cachedItems);
+          setIsLoading(false);
+          return;
+        }
+
         const eventsCol = collection(db, 'events');
         const q = query(eventsCol, orderBy('createdAt', 'desc'));
         const snap = await getDocs(q);
@@ -52,7 +64,9 @@ const CTASection: React.FC = () => {
         const sorted = items
           .filter((e) => e.date && e.status !== 'archived') // Filter out archived events
           .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
-        setUpcomingEvents(sorted.slice(0, 3));
+        const upcoming = sorted.slice(0, 3);
+        setUpcomingEvents(upcoming);
+        writeClientFirestoreCache('public_events_cta', upcoming, CLIENT_FIRESTORE_CACHE_TTL_MS);
       } catch (e) {
         setUpcomingEvents([]);
       } finally {

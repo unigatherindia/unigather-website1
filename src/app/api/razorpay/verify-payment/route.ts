@@ -118,6 +118,27 @@ export async function POST(request: NextRequest) {
       }
 
       if (!orderSnapshot) {
+        const orderIndexSnapshot = await transaction.get(
+          adminDb.collection(PAYMENT_COLLECTIONS.orderRazorpay).doc(razorpay_order_id)
+        );
+
+        if (orderIndexSnapshot.exists) {
+          const indexedInternalOrderId = orderIndexSnapshot.data()?.internalOrderId;
+          if (typeof indexedInternalOrderId === 'string' && indexedInternalOrderId.trim()) {
+            const indexedOrderRef = orderCollection.doc(indexedInternalOrderId.trim());
+            const indexedOrderSnapshot = await transaction.get(indexedOrderRef);
+            if (
+              indexedOrderSnapshot.exists &&
+              indexedOrderSnapshot.data()?.razorpayOrderId === razorpay_order_id
+            ) {
+              orderRef = indexedOrderRef;
+              orderSnapshot = indexedOrderSnapshot;
+            }
+          }
+        }
+      }
+
+      if (!orderSnapshot) {
         const orderQuery = await transaction.get(
           orderCollection.where('razorpayOrderId', '==', razorpay_order_id).limit(1)
         );
@@ -131,24 +152,25 @@ export async function POST(request: NextRequest) {
       }
 
       const orderData = orderSnapshot.data() || {};
-      const existingPayment = await transaction.get(
-        paymentCollection.where('razorpayPaymentId', '==', razorpay_payment_id).limit(1)
-      );
+      const paymentRef = paymentCollection.doc(razorpay_payment_id);
+      const existingPaymentSnapshot = await transaction.get(paymentRef);
 
-      if (!existingPayment.empty) {
-        const paymentDoc = existingPayment.docs[0];
+      if (existingPaymentSnapshot.exists) {
+        const paymentData = existingPaymentSnapshot.data() || {};
         return {
           duplicate: true,
           internalOrderId: orderData.internalOrderId,
-          internalPaymentId: paymentDoc.data().internalPaymentId,
-          amount: paymentDoc.data().amount ?? orderData.amount,
-          currency: paymentDoc.data().currency ?? orderData.currency,
-          bookingId: paymentDoc.data().bookingId,
+          internalPaymentId:
+            typeof paymentData.internalPaymentId === 'string'
+              ? paymentData.internalPaymentId
+              : razorpay_payment_id,
+          amount: paymentData.amount ?? orderData.amount,
+          currency: paymentData.currency ?? orderData.currency,
+          bookingId: paymentData.bookingId,
         };
       }
 
-      const paymentRef = paymentCollection.doc();
-      const internalPaymentId = paymentRef.id;
+      const internalPaymentId = razorpay_payment_id;
       const trustedAmount =
         typeof orderData.amount === 'number' && Number.isFinite(orderData.amount)
           ? orderData.amount
@@ -162,6 +184,7 @@ export async function POST(request: NextRequest) {
         internalPaymentId,
         internalOrderId: orderData.internalOrderId,
         razorpayPaymentId: razorpay_payment_id,
+        razorpayOrderId: razorpay_order_id,
         status: 'captured',
         amount: trustedAmount,
         currency: trustedCurrency,

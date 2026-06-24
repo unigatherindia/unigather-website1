@@ -36,6 +36,11 @@ export function isWebhookBookingConfirmationEnabled() {
   return readEnv('USE_WEBHOOK_BOOKING_CONFIRMATION').toLowerCase() !== 'false';
 }
 
+/** When false (default), webhook payment_logs only records warnings and errors. */
+export function isPaymentAuditLoggingEnabled() {
+  return readEnv('PAYMENT_AUDIT_LOGS').toLowerCase() === 'true';
+}
+
 export function getRazorpayCurrency() {
   return readEnv('RAZORPAY_CURRENCY') || DEFAULT_RAZORPAY_CURRENCY;
 }

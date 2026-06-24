@@ -137,26 +137,6 @@ async function sendEmailForConfirmedBooking(input: {
   }
 
   const emailHistory = adminDb.collection(PAYMENT_COLLECTIONS.emailHistory);
-  const existingSent = await emailHistory
-    .where('bookingId', '==', input.emailDetails.bookingId)
-    .where('recipient', '==', recipient)
-    .where('status', '==', 'sent')
-    .limit(1)
-    .get();
-
-  if (!existingSent.empty) {
-    const sentDoc = existingSent.docs[0];
-    const sentData = sentDoc.data() || {};
-    return {
-      status: 'skipped',
-      emailId: asString(sentData.emailId, sentDoc.id),
-      recipient,
-      provider: 'resend',
-      attempts: typeof sentData.attempts === 'number' ? sentData.attempts : undefined,
-      reason: 'already_sent',
-    };
-  }
-
   const emailRef = emailHistory.doc(createEmailId(input.emailDetails.bookingId, recipient));
   const emailAttempt = await adminDb.runTransaction<EmailAttempt>(async (transaction) => {
     const emailSnapshot = await transaction.get(emailRef);
@@ -454,6 +434,19 @@ export async function confirmBookingAfterPayment(
       eventBookingDocId: bookingRef.id,
       updatedAt: FieldValue.serverTimestamp(),
     });
+
+    const dedupeKey = asString(orderData.dedupeKey);
+    if (dedupeKey) {
+      transaction.set(
+        adminDb.collection(PAYMENT_COLLECTIONS.orderDedupe).doc(dedupeKey),
+        {
+          status: 'confirmed',
+          paymentState: 'captured',
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
 
     return {
       bookingId,

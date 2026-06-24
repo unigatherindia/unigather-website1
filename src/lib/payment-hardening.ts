@@ -4,11 +4,51 @@ import { getRazorpayCurrency } from '@/lib/razorpay-config';
 
 export const PAYMENT_COLLECTIONS = {
   orders: 'orders',
+  orderDedupe: 'order_dedupe',
+  orderRazorpay: 'order_razorpay',
   payments: 'payments',
   emailHistory: 'email_history',
   webhookEvents: 'webhook_events',
   paymentLogs: 'payment_logs',
 } as const;
+
+/** Incomplete orders without a Razorpay id older than this may be replaced. */
+export const STALE_INCOMPLETE_ORDER_MS = 90_000;
+
+export function isReusablePendingOrder(
+  data: Record<string, unknown>,
+  nowMillis = Date.now()
+): boolean {
+  const expiresAt =
+    typeof (data.expiresAt as { toMillis?: () => number } | undefined)?.toMillis === 'function'
+      ? (data.expiresAt as { toMillis: () => number }).toMillis()
+      : 0;
+
+  return (
+    data.status === 'pending' &&
+    data.paymentState === 'created' &&
+    expiresAt > nowMillis &&
+    typeof data.razorpayOrderId === 'string' &&
+    data.razorpayOrderId.length > 0
+  );
+}
+
+export function isStaleIncompleteOrder(
+  data: Record<string, unknown>,
+  nowMillis = Date.now()
+): boolean {
+  if (typeof data.razorpayOrderId === 'string' && data.razorpayOrderId.length > 0) {
+    return false;
+  }
+
+  const timestamp = data.updatedAt ?? data.createdAt;
+  const updatedAt =
+    typeof (timestamp as { toMillis?: () => number } | undefined)?.toMillis === 'function'
+      ? (timestamp as { toMillis: () => number }).toMillis()
+      : 0;
+
+  return updatedAt > 0 && nowMillis - updatedAt > STALE_INCOMPLETE_ORDER_MS;
+}
 
 export const ORDER_STATUSES = [
   'pending',

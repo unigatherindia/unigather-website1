@@ -13,6 +13,11 @@ import toast from 'react-hot-toast';
 import { resolveEventCurrency } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { formatEventDate } from '@/lib/formatEventDate';
+import {
+  CLIENT_FIRESTORE_CACHE_TTL_MS,
+  readClientFirestoreCache,
+  writeClientFirestoreCache,
+} from '@/lib/client-firestore-cache';
 
 interface Event {
   id: string;
@@ -70,6 +75,13 @@ const EventsList: React.FC = () => {
 
       setIsLoading(true);
       try {
+        const cachedEvents = readClientFirestoreCache<Event[]>('public_events');
+        if (cachedEvents) {
+          setEvents(cachedEvents);
+          setIsLoading(false);
+          return;
+        }
+
         const eventsCollection = collection(db, 'events');
         
         // Try with orderBy, fallback to simple query if index is missing
@@ -140,6 +152,7 @@ const EventsList: React.FC = () => {
         // Filter out archived events
         const activeEvents = eventsData.filter((event: any) => event.status !== 'archived');
         setEvents(activeEvents);
+        writeClientFirestoreCache('public_events', activeEvents, CLIENT_FIRESTORE_CACHE_TTL_MS);
       } catch (error: any) {
         console.error('Error fetching events:', error);
         toast.error('Failed to load events. Please try again.');
@@ -440,6 +453,7 @@ const EventsList: React.FC = () => {
       <AnimatePresence>
         {selectedEvent && (
           <BookingModal
+            key={selectedEvent.id}
             event={selectedEvent}
             onClose={() => setSelectedEvent(null)}
           />

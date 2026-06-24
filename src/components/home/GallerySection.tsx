@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Heart, Users, Camera, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import {
+  CLIENT_FIRESTORE_CACHE_TTL_MS,
+  readClientFirestoreCache,
+  writeClientFirestoreCache,
+} from '@/lib/client-firestore-cache';
 
 interface GalleryImage {
   id: string;
@@ -39,6 +44,13 @@ const GallerySection: React.FC = () => {
 
       try {
         setIsLoading(true);
+        const cachedImages = readClientFirestoreCache<GalleryImage[]>('public_gallery');
+        if (cachedImages) {
+          setGalleryImages(cachedImages);
+          setIsLoading(false);
+          return;
+        }
+
         const galleryCollection = collection(db, 'gallery');
         const q = query(galleryCollection, orderBy('uploadedAt', 'desc'));
         const querySnapshot = await getDocs(q);
@@ -58,6 +70,7 @@ const GallerySection: React.FC = () => {
         });
 
         setGalleryImages(images);
+        writeClientFirestoreCache('public_gallery', images, CLIENT_FIRESTORE_CACHE_TTL_MS);
       } catch (error: any) {
         console.error('Error fetching gallery images:', error);
         // If there's an error, show empty state instead of crashing

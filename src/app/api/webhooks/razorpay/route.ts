@@ -4,7 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { confirmBookingAfterPayment } from '@/lib/payment-confirmation';
 import { PAYMENT_COLLECTIONS } from '@/lib/payment-hardening';
-import { getRazorpayCurrency, getRazorpayWebhookSecret } from '@/lib/razorpay-config';
+import { getRazorpayCurrency, getRazorpayWebhookSecret, isPaymentAuditLoggingEnabled } from '@/lib/razorpay-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,12 +46,17 @@ async function writePaymentLog(input: {
   bookingId?: string;
   emailStatus?: string;
 }) {
+  const level = input.level || 'info';
+  if (level === 'info' && !isPaymentAuditLoggingEnabled()) {
+    return;
+  }
+
   try {
     const logRef = adminDb.collection(PAYMENT_COLLECTIONS.paymentLogs).doc();
     await logRef.set({
       internalPaymentLogId: logRef.id,
       provider: 'razorpay',
-      level: input.level || 'info',
+      level,
       message: input.message,
       eventType: input.eventType || null,
       razorpayEventId: input.razorpayEventId || null,
@@ -113,27 +118,25 @@ async function registerWebhookEvent(input: {
   razorpayEventId: string;
   eventType: string;
 }) {
-  const webhookCollection = adminDb.collection(PAYMENT_COLLECTIONS.webhookEvents);
-  const webhookRef = webhookCollection.doc();
+  const webhookRef = adminDb
+    .collection(PAYMENT_COLLECTIONS.webhookEvents)
+    .doc(input.razorpayEventId);
 
   return adminDb.runTransaction(async (transaction) => {
-    const existingEvent = await transaction.get(
-      webhookCollection.where('razorpayEventId', '==', input.razorpayEventId).limit(1)
-    );
+    const existingEvent = await transaction.get(webhookRef);
 
-    if (!existingEvent.empty) {
-      const existingEventDoc = existingEvent.docs[0];
-      const existingEventData = existingEventDoc.data() || {};
+    if (existingEvent.exists) {
+      const existingEventData = existingEvent.data() || {};
 
       if (existingEventData.processed === true) {
         return {
           duplicate: true,
-          webhookEventDocId: existingEventDoc.id,
+          webhookEventDocId: webhookRef.id,
           eventId: existingEventData.eventId,
         };
       }
 
-      transaction.update(existingEventDoc.ref, {
+      transaction.update(webhookRef, {
         eventType: input.eventType,
         status: 'received',
         lastReceivedAt: FieldValue.serverTimestamp(),
@@ -141,8 +144,8 @@ async function registerWebhookEvent(input: {
 
       return {
         duplicate: false,
-        webhookEventDocId: existingEventDoc.id,
-        eventId: existingEventData.eventId || existingEventDoc.id,
+        webhookEventDocId: webhookRef.id,
+        eventId: existingEventData.eventId || webhookRef.id,
       };
     }
 
@@ -211,36 +214,53 @@ async function handlePaymentCaptured(input: {
   const paymentProcessing = await adminDb.runTransaction(async (transaction) => {
     const orderCollection = adminDb.collection(PAYMENT_COLLECTIONS.orders);
     const paymentCollection = adminDb.collection(PAYMENT_COLLECTIONS.payments);
-    const orderQuery = await transaction.get(
-      orderCollection.where('razorpayOrderId', '==', razorpayOrderId).limit(1)
+
+    const orderIndexSnapshot = await transaction.get(
+      adminDb.collection(PAYMENT_COLLECTIONS.orderRazorpay).doc(razorpayOrderId)
     );
 
-    if (orderQuery.empty) {
-      throw new Error('Matching order was not found for captured payment');
+    let orderRef;
+    let orderSnapshot;
+
+    if (orderIndexSnapshot.exists) {
+      const indexedInternalOrderId = orderIndexSnapshot.data()?.internalOrderId;
+      if (typeof indexedInternalOrderId === 'string' && indexedInternalOrderId.trim()) {
+        orderRef = orderCollection.doc(indexedInternalOrderId.trim());
+        orderSnapshot = await transaction.get(orderRef);
+      }
     }
 
-    const orderSnapshot = orderQuery.docs[0];
-    const orderRef = orderSnapshot.ref;
-    const orderData = orderSnapshot.data() || {};
-    const existingPayment = await transaction.get(
-      paymentCollection.where('razorpayPaymentId', '==', razorpayPaymentId).limit(1)
-    );
+    if (!orderSnapshot?.exists) {
+      const orderQuery = await transaction.get(
+        orderCollection.where('razorpayOrderId', '==', razorpayOrderId).limit(1)
+      );
 
-    if (!existingPayment.empty) {
-      const paymentDoc = existingPayment.docs[0];
-      const paymentData = paymentDoc.data() || {};
+      if (orderQuery.empty) {
+        throw new Error('Matching order was not found for captured payment');
+      }
+
+      orderSnapshot = orderQuery.docs[0];
+      orderRef = orderSnapshot.ref;
+    }
+
+    const orderData = orderSnapshot.data() || {};
+    const paymentRef = paymentCollection.doc(razorpayPaymentId);
+    const existingPaymentSnapshot = await transaction.get(paymentRef);
+
+    if (existingPaymentSnapshot.exists) {
+      const paymentData = existingPaymentSnapshot.data() || {};
       const internalPaymentId =
         typeof paymentData.internalPaymentId === 'string'
           ? paymentData.internalPaymentId
-          : paymentDoc.id;
+          : razorpayPaymentId;
 
-      transaction.update(paymentDoc.ref, {
+      transaction.update(paymentRef, {
         internalPaymentId,
         status: 'captured',
         razorpayOrderId,
         processedAt: FieldValue.serverTimestamp(),
       });
-      transaction.update(orderRef, {
+      transaction.update(orderRef!, {
         paymentState: 'captured',
         status: orderData.status === 'confirmed' ? 'confirmed' : 'processing',
         updatedAt: FieldValue.serverTimestamp(),
@@ -255,8 +275,7 @@ async function handlePaymentCaptured(input: {
       };
     }
 
-    const paymentRef = paymentCollection.doc();
-    const internalPaymentId = paymentRef.id;
+    const internalPaymentId = razorpayPaymentId;
     const amount =
       typeof orderData.amount === 'number' && Number.isFinite(orderData.amount)
         ? orderData.amount
@@ -281,7 +300,7 @@ async function handlePaymentCaptured(input: {
       processedAt: FieldValue.serverTimestamp(),
     });
 
-    transaction.update(orderRef, {
+    transaction.update(orderRef!, {
       paymentState: 'captured',
       status: 'processing',
       updatedAt: FieldValue.serverTimestamp(),

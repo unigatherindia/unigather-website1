@@ -25,6 +25,9 @@ declare global {
   }
 }
 
+/** Ignore popstate caused by modal cleanup `history.back()` (e.g. React Strict Mode remount). */
+let bookingModalProgrammaticBackPending = 0;
+
 interface Event {
   id: string;
   title: string;
@@ -118,6 +121,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     pushModalState();
 
     const handlePopState = () => {
+      if (bookingModalProgrammaticBackPending > 0) {
+        bookingModalProgrammaticBackPending--;
+        return;
+      }
+
       if (showAuthModalRef.current) {
         setShowAuthModal(false);
         pushModalState();
@@ -137,10 +145,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
       if (!closedFromPopstateRef.current) {
+        bookingModalProgrammaticBackPending++;
         window.history.back();
       }
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
@@ -542,27 +551,41 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         );
       }
 
-      const orderResponse = await fetch('/api/razorpay/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          eventId: event.id,
-          ticketType: bookingForm.ticketType,
-          bookingLeadId: bookingLeadDocId,
-          customer: {
-            name: bookingForm.name,
-            email: bookingForm.email,
-            phone: bookingForm.phone,
+      const orderController = new AbortController();
+      const orderTimeoutId = window.setTimeout(() => orderController.abort(), 45000);
+
+      let orderResponse: Response;
+      try {
+        orderResponse = await fetch('/api/razorpay/create-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          bookingDetails: {
-            age: bookingForm.age,
-            dietaryRestrictions: bookingForm.dietaryRestrictions,
-            experience: bookingForm.experience,
-          },
-        }),
-      });
+          signal: orderController.signal,
+          body: JSON.stringify({
+            eventId: event.id,
+            ticketType: bookingForm.ticketType,
+            bookingLeadId: bookingLeadDocId,
+            customer: {
+              name: bookingForm.name,
+              email: bookingForm.email,
+              phone: bookingForm.phone,
+            },
+            bookingDetails: {
+              age: bookingForm.age,
+              dietaryRestrictions: bookingForm.dietaryRestrictions,
+              experience: bookingForm.experience,
+            },
+          }),
+        });
+      } catch (fetchError: unknown) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+          throw new Error('Payment request timed out. Please try again in a moment.');
+        }
+        throw fetchError;
+      } finally {
+        window.clearTimeout(orderTimeoutId);
+      }
 
       let orderData: {
         success?: boolean;
@@ -587,19 +610,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       if (!orderResponse.ok || !orderData.success) {
         const detail = [orderData.message, orderData.error].filter(Boolean).join(' — ');
         throw new Error(detail || 'Failed to create order');
-      }
-
-      try {
-        await updateBookingLead({
-          status: 'payment_order_created',
-          internalOrderId: orderData.internalOrderId || null,
-          razorpayOrderId: orderData.orderId || null,
-          bookingId: orderData.bookingId || null,
-          amountQuoted: selectedPrice,
-          currency: orderData.currency || eventCurrency,
-        });
-      } catch (leadError) {
-        console.error('Error updating booking lead for payment order:', leadError);
       }
 
       // Initialize Razorpay
@@ -662,22 +672,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
                 emailSent: verifyData.emailSent === true,
               });
 
-              try {
-                await updateBookingLead({
-                  status: backendConfirmationPending ? 'payment_received' : 'confirmed',
-                  bookingId: confirmedBookingId,
-                  orderId: response.razorpay_order_id,
-                  paymentId: response.razorpay_payment_id,
-                  internalOrderId: orderData.internalOrderId || null,
-                  amountPaid: selectedPrice,
-                  currency: orderData.currency || eventCurrency,
-                  backendConfirmation: verifyData.backendConfirmation || 'verify-payment',
-                  webhookConfirmationPending: backendConfirmationPending,
-                });
-              } catch (leadError) {
-                console.error('Error updating booking lead after payment:', leadError);
-              }
-
               // Generate WhatsApp confirmation URL for customer
               const whatsappDetails: WhatsAppBookingDetails = {
                 bookingId: confirmedBookingId,
@@ -702,14 +696,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             }
           } catch (error: any) {
             console.error('Payment verification error:', error);
-            try {
-              await updateBookingLead({
-                status: 'payment_verification_failed',
-                failureReason: error?.message || 'Payment verification failed',
-              });
-            } catch (leadError) {
+            void updateBookingLead({
+              status: 'payment_verification_failed',
+              failureReason: error?.message || 'Payment verification failed',
+            }).catch((leadError) => {
               console.error('Error updating booking lead after verification failure:', leadError);
-            }
+            });
             toast.error('Payment verification failed. Please contact support.');
             setIsLoading(false);
           }
@@ -737,18 +729,17 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
+      setIsLoading(false);
     } catch (error: any) {
       console.error('Payment error:', error);
-      try {
-        await updateBookingLead({
-          status: 'payment_error',
-          failureReason: error?.message || 'Failed to process payment',
-        });
-      } catch (leadError) {
-        console.error('Error updating booking lead after payment error:', leadError);
-      }
-      toast.error(error.message || 'Failed to process payment. Please try again.');
       setIsLoading(false);
+      toast.error(error.message || 'Failed to process payment. Please try again.');
+      void updateBookingLead({
+        status: 'payment_error',
+        failureReason: error?.message || 'Failed to process payment',
+      }).catch((leadError) => {
+        console.error('Error updating booking lead after payment error:', leadError);
+      });
     }
   };
 
