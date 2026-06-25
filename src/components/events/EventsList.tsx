@@ -261,8 +261,6 @@ const EventsList: React.FC = () => {
             event.currentParticipants.female +
             (event.currentParticipants.couple || 0) +
             customPartSum;
-          const occupancyPercentage = (totalParticipants / event.maxCapacity) * 100;
-          
           // Helper to check if a price is available (not N/A, not 0, not undefined)
           const isPriceAvailable = (price: number | string | undefined): boolean => {
             if (price === undefined || price === null) return false;
@@ -379,13 +377,7 @@ const EventsList: React.FC = () => {
                   )}
                   <div className="flex items-center text-sm text-gray-300">
                     <Users className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
-                    <span>
-                      {totalParticipants >= event.maxCapacity
-                        ? 'No seats left'
-                        : occupancyPercentage >= 80
-                          ? 'Limited seats left'
-                          : `${event.maxCapacity - totalParticipants} seats left`}
-                    </span>
+                    <span>Always limited seats available</span>
                   </div>
                 </div>
 
