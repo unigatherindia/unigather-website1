@@ -164,11 +164,10 @@ export default function AdminPage() {
   const [selectedArchivedBookingIds, setSelectedArchivedBookingIds] = useState<string[]>([]);
   const [isBulkDeletingArchivedBookings, setIsBulkDeletingArchivedBookings] = useState(false);
   const [bookingLeads, setBookingLeads] = useState<any[]>([]);
-  const [leadsPage, setLeadsPage] = useState(1);
   const [leadsHasMore, setLeadsHasMore] = useState(false);
+  const [leadsShowAll, setLeadsShowAll] = useState(false);
   const lastLeadsFetchAtRef = useRef(0);
-  const leadsPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
-  const ADMIN_LEADS_PAGE_SIZE = 25;
+  const ADMIN_LEADS_PREVIEW_SIZE = 25;
   const ADMIN_LEADS_STALE_MS = 60_000;
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
@@ -1625,21 +1624,29 @@ export default function AdminPage() {
   };
 
 
-  const fetchBookingLeadsPage = async (
-    targetPage: number,
-    options?: { force?: boolean; reset?: boolean }
-  ) => {
+  const mapBookingLeadDocs = (docs: QueryDocumentSnapshot[]) =>
+    docs.map((docSnapshot) => {
+      const data = docSnapshot.data();
+      const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+      const updatedAt = data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
+
+      return {
+        id: docSnapshot.id,
+        ...data,
+        createdAt,
+        updatedAt,
+      };
+    });
+
+  const fetchBookingLeadsPreview = async (force = false) => {
     if (!db) {
       toast.error('Firebase is not initialized.');
       return;
     }
 
-    const page = options?.reset ? 1 : Math.max(1, targetPage);
-
     if (
-      !options?.force &&
-      !options?.reset &&
-      page === leadsPage &&
+      !force &&
+      !leadsShowAll &&
       bookingLeads.length > 0 &&
       Date.now() - lastLeadsFetchAtRef.current < ADMIN_LEADS_STALE_MS
     ) {
@@ -1649,44 +1656,19 @@ export default function AdminPage() {
     setIsLoadingBookingLeads(true);
     try {
       const leadsCollection = collection(db, 'bookingLeads');
-      const startCursor = leadsPageStartCursorsRef.current[page - 1] ?? null;
-      const leadsQuery = startCursor
-        ? query(
-            leadsCollection,
-            orderBy('createdAt', 'desc'),
-            startAfter(startCursor),
-            limit(ADMIN_LEADS_PAGE_SIZE + 1)
-          )
-        : query(
-            leadsCollection,
-            orderBy('createdAt', 'desc'),
-            limit(ADMIN_LEADS_PAGE_SIZE + 1)
-          );
+      const leadsQuery = query(
+        leadsCollection,
+        orderBy('createdAt', 'desc'),
+        limit(ADMIN_LEADS_PREVIEW_SIZE + 1)
+      );
       const snapshot = await getDocs(leadsQuery);
       const docs = snapshot.docs;
-      const hasMore = docs.length > ADMIN_LEADS_PAGE_SIZE;
-      const pageDocs = docs.slice(0, ADMIN_LEADS_PAGE_SIZE);
+      const hasMore = docs.length > ADMIN_LEADS_PREVIEW_SIZE;
+      const previewDocs = docs.slice(0, ADMIN_LEADS_PREVIEW_SIZE);
 
-      const leads = pageDocs.map((docSnapshot) => {
-        const data = docSnapshot.data();
-        const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
-        const updatedAt = data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
-
-        return {
-          id: docSnapshot.id,
-          ...data,
-          createdAt,
-          updatedAt,
-        };
-      });
-
-      if (pageDocs.length > 0) {
-        leadsPageStartCursorsRef.current[page] = pageDocs[pageDocs.length - 1];
-      }
-
-      setBookingLeads(leads);
-      setLeadsPage(page);
+      setBookingLeads(mapBookingLeadDocs(previewDocs));
       setLeadsHasMore(hasMore);
+      setLeadsShowAll(false);
       setSelectedBookingLeadIds([]);
       lastLeadsFetchAtRef.current = Date.now();
     } catch (error: any) {
@@ -1695,6 +1677,35 @@ export default function AdminPage() {
         toast.error('Permission denied. Update Firestore rules for bookingLeads.');
       } else {
         toast.error(error?.message || 'Failed to load booking leads.');
+      }
+    } finally {
+      setIsLoadingBookingLeads(false);
+    }
+  };
+
+  const fetchAllBookingLeads = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+
+    setIsLoadingBookingLeads(true);
+    try {
+      const leadsCollection = collection(db, 'bookingLeads');
+      const snapshot = await getDocs(query(leadsCollection, orderBy('createdAt', 'desc')));
+
+      setBookingLeads(mapBookingLeadDocs(snapshot.docs));
+      setLeadsHasMore(false);
+      setLeadsShowAll(true);
+      setSelectedBookingLeadIds([]);
+      lastLeadsFetchAtRef.current = Date.now();
+      toast.success(`Loaded all ${snapshot.docs.length} booking leads.`);
+    } catch (error: any) {
+      console.error('Error fetching all booking leads:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for bookingLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to load all booking leads.');
       }
     } finally {
       setIsLoadingBookingLeads(false);
@@ -1711,7 +1722,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isAuthorized && activeTab === 'leads') {
-      fetchBookingLeadsPage(1, { reset: true });
+      fetchBookingLeadsPreview();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthorized]);
@@ -2574,8 +2585,7 @@ export default function AdminPage() {
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-2">Booking Leads</h2>
                     <p className="text-gray-400">
-                      Details captured before payment, including users who cancelled or did not finish checkout.
-                      Loads {ADMIN_LEADS_PAGE_SIZE} leads per page to save Firestore quota.
+                      Shows the latest {ADMIN_LEADS_PREVIEW_SIZE} leads first. Use &quot;Load all leads&quot; to view every lead on one page.
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -2590,7 +2600,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <button
-                      onClick={() => fetchBookingLeadsPage(1, { reset: true, force: true })}
+                      onClick={() => fetchBookingLeadsPreview(true)}
                       disabled={isLoadingBookingLeads}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
@@ -2606,17 +2616,17 @@ export default function AdminPage() {
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">On this page</div>
+                    <div className="text-gray-400 text-sm">{leadsShowAll ? 'Total loaded' : 'Preview loaded'}</div>
                     <div className="text-2xl font-bold text-white">{bookingLeads.length}</div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Not paid (page)</div>
+                    <div className="text-gray-400 text-sm">Not paid yet</div>
                     <div className="text-2xl font-bold text-amber-300">
                       {bookingLeads.filter((lead) => lead.status !== 'confirmed').length}
                     </div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">Confirmed (page)</div>
+                    <div className="text-gray-400 text-sm">Confirmed</div>
                     <div className="text-2xl font-bold text-green-400">
                       {bookingLeads.filter((lead) => lead.status === 'confirmed').length}
                     </div>
@@ -2627,9 +2637,9 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {leadSearchQuery.trim() && (
+                {!leadsShowAll && leadSearchQuery.trim() && (
                   <p className="text-sm text-gray-500 mb-4">
-                    Search filters the current page only. Clear search or use Next/Previous to browse other pages.
+                    Search filters the preview only. Load all leads to search across every lead.
                   </p>
                 )}
 
@@ -2702,29 +2712,25 @@ export default function AdminPage() {
 
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-6 border-t border-gray-700">
                       <div className="text-sm text-gray-400">
-                        Page {leadsPage} · {filteredBookingLeads.length} lead
-                        {filteredBookingLeads.length === 1 ? '' : 's'} on this page
+                        {leadsShowAll
+                          ? `Showing all ${filteredBookingLeads.length} lead${filteredBookingLeads.length === 1 ? '' : 's'}`
+                          : `Showing latest ${filteredBookingLeads.length} of ${leadsHasMore ? `${ADMIN_LEADS_PREVIEW_SIZE}+` : filteredBookingLeads.length} leads`}
                       </div>
-                      <div className="flex items-center gap-2">
+                      {!leadsShowAll && leadsHasMore && (
                         <button
                           type="button"
-                          onClick={() => fetchBookingLeadsPage(leadsPage - 1)}
-                          disabled={isLoadingBookingLeads || leadsPage <= 1}
-                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={fetchAllBookingLeads}
+                          disabled={isLoadingBookingLeads}
+                          className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-400 text-white rounded-lg font-medium hover:from-primary-600 hover:to-primary-500 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <ChevronLeft className="w-4 h-4" />
-                          <span>Previous</span>
+                          {isLoadingBookingLeads ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                          <span>Load all leads</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => fetchBookingLeadsPage(leadsPage + 1)}
-                          disabled={isLoadingBookingLeads || !leadsHasMore}
-                          className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <span>Next</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )}
                     </div>
                   </>
                 )}
