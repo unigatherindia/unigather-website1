@@ -377,7 +377,7 @@ const EventsList: React.FC = () => {
                   )}
                   <div className="flex items-center text-sm text-gray-300">
                     <Users className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
-                    <span>Always limited seats available</span>
+                    <span>Limited Seats </span>
                   </div>
                 </div>
 
