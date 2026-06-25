@@ -64,6 +64,16 @@ const EventsList: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
+  const [viewedEventIds, setViewedEventIds] = useState<Set<string>>(new Set());
+
+  const markEventViewed = (eventId: string) => {
+    setViewedEventIds((prev) => {
+      if (prev.has(eventId)) return prev;
+      const next = new Set(prev);
+      next.add(eventId);
+      return next;
+    });
+  };
 
   const toggleEventExpanded = (eventId: string) => {
     setExpandedEventIds((prev) => {
@@ -72,9 +82,20 @@ const EventsList: React.FC = () => {
         next.delete(eventId);
       } else {
         next.add(eventId);
+        markEventViewed(eventId);
       }
       return next;
     });
+  };
+
+  const handleBookNow = (event: Event) => {
+    if (!viewedEventIds.has(event.id)) {
+      setExpandedEventIds((prev) => new Set(prev).add(event.id));
+      markEventViewed(event.id);
+      toast('Please read the full event details before booking.', { icon: '📋' });
+      return;
+    }
+    setSelectedEvent(event);
   };
 
   // Fetch events from Firestore
@@ -342,7 +363,33 @@ const EventsList: React.FC = () => {
                   <span>{formatEventDate(event.date)} at {event.time}</span>
                 </div>
 
-                {/* Expandable details */}
+                {/* Location, duration & availability — always visible */}
+                <div className="space-y-3 mb-3">
+                  {(event.location || event.address) && (
+                    <div className="flex items-center text-gray-300 text-sm">
+                      <MapPin className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                      <span>{[event.location, event.address].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                  {event.duration && (
+                    <div className="flex items-center text-gray-300 text-sm">
+                      <Clock className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                      <span>{event.duration}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center text-sm text-gray-300">
+                    <Users className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                    <span>
+                      {totalParticipants >= event.maxCapacity
+                        ? 'No seats left'
+                        : occupancyPercentage >= 80
+                          ? 'Limited seats left'
+                          : `${event.maxCapacity - totalParticipants} seats left`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expandable description */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
@@ -358,28 +405,6 @@ const EventsList: React.FC = () => {
                           {event.description}
                         </p>
                       )}
-
-                      <div className="space-y-3 mb-4">
-                        {(event.location || event.address) && (
-                          <div className="flex items-center text-gray-300 text-sm">
-                            <MapPin className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
-                            <span>{[event.location, event.address].filter(Boolean).join(', ')}</span>
-                          </div>
-                        )}
-                        {event.duration && (
-                          <div className="flex items-center text-gray-300 text-sm">
-                            <Clock className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
-                            <span>{event.duration}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mb-4">
-                        <div className="flex items-center text-sm text-gray-300">
-                          <Users className="w-4 h-4 mr-2 text-primary-400" />
-                          <span>Limited Seats Left</span>
-                        </div>
-                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -464,7 +489,7 @@ const EventsList: React.FC = () => {
 
                 {/* Book Button */}
                 <button
-                  onClick={() => setSelectedEvent(event)}
+                  onClick={() => handleBookNow(event)}
                   className="w-full bg-gradient-to-r from-primary-500 to-primary-400 text-white py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 flex items-center justify-center space-x-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={totalParticipants >= event.maxCapacity || isEventSoldOut}
                 >

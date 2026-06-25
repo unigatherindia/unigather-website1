@@ -9,7 +9,7 @@ import {
   Image, FileText, Video, Calendar, MapPin,
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
-  Users, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Mail, Phone, IndianRupee, CheckCircle, Clock,
+  Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
   Archive, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -19,8 +19,6 @@ import {
   getDocs,
   query,
   orderBy,
-  limit,
-  startAfter,
   Timestamp,
   doc,
   addDoc,
@@ -144,30 +142,18 @@ export default function AdminPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
-  const [eventsPage, setEventsPage] = useState(1);
-  const [eventsHasMore, setEventsHasMore] = useState(false);
-  const eventsPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
-  const ADMIN_EVENTS_PAGE_SIZE = 10;
-  const MAX_EVENT_BATCHES_PER_PAGE = 4;
   const [bookingsByEvent, setBookingsByEvent] = useState<Record<string, any[]>>({});
   const [loadingBookingsFor, setLoadingBookingsFor] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>({});
   const [showArchivedBookings, setShowArchivedBookings] = useState(false);
   const [archivedBookingData, setArchivedBookingData] = useState<Array<{ event: any; bookings: any[] }>>([]);
-  const [archivedPage, setArchivedPage] = useState(1);
-  const [archivedHasMore, setArchivedHasMore] = useState(false);
-  const archivedPageStartCursorsRef = useRef<Array<QueryDocumentSnapshot | null>>([null]);
-  const ADMIN_ARCHIVED_EVENTS_PAGE_SIZE = 5;
   const [isLoadingArchivedBookings, setIsLoadingArchivedBookings] = useState(false);
   const [archivedBookingSearchQuery, setArchivedBookingSearchQuery] = useState('');
   const [selectedArchivedBookingIds, setSelectedArchivedBookingIds] = useState<string[]>([]);
   const [isBulkDeletingArchivedBookings, setIsBulkDeletingArchivedBookings] = useState(false);
   const [bookingLeads, setBookingLeads] = useState<any[]>([]);
-  const [leadsHasMore, setLeadsHasMore] = useState(false);
-  const [leadsShowAll, setLeadsShowAll] = useState(false);
   const lastLeadsFetchAtRef = useRef(0);
-  const ADMIN_LEADS_PREVIEW_SIZE = 25;
   const ADMIN_LEADS_STALE_MS = 60_000;
   const [isLoadingBookingLeads, setIsLoadingBookingLeads] = useState(false);
   const [leadSearchQuery, setLeadSearchQuery] = useState('');
@@ -717,7 +703,7 @@ export default function AdminPage() {
       
       // Refresh events list if on events tab
       if (activeTab === 'events') {
-        fetchEventsPage(1, { reset: true });
+        fetchEvents();
       }
     } catch (error: any) {
       console.error('Error creating event in Firestore:', error);
@@ -725,89 +711,43 @@ export default function AdminPage() {
     }
   };
 
-  const fetchEventsPage = async (
-    targetPage: number,
-    options?: { force?: boolean; reset?: boolean }
-  ) => {
+  const fetchEvents = async () => {
     if (!db) {
       toast.error('Firebase is not initialized. Please check your configuration.');
       return;
     }
 
-    const page = options?.reset ? 1 : Math.max(1, targetPage);
-
     setIsLoadingEvents(true);
     try {
       const eventsCollection = collection(db, 'events');
-      const pageSize = ADMIN_EVENTS_PAGE_SIZE;
-      let walkCursor = eventsPageStartCursorsRef.current[page - 1] ?? null;
-      const activeEvents: any[] = [];
-      let terminalCursor: QueryDocumentSnapshot | null = walkCursor;
-      let hasMore = false;
+      let snapshot;
+      let sortedClientSide = false;
 
-      for (let batch = 0; batch < MAX_EVENT_BATCHES_PER_PAGE && activeEvents.length < pageSize; batch++) {
-        const batchLimit = pageSize + 1;
-        let snapshot;
-
-        try {
-          const eventsQuery = walkCursor
-            ? query(
-                eventsCollection,
-                orderBy('createdAt', 'desc'),
-                startAfter(walkCursor),
-                limit(batchLimit)
-              )
-            : query(eventsCollection, orderBy('createdAt', 'desc'), limit(batchLimit));
-          snapshot = await getDocs(eventsQuery);
-        } catch (orderError: any) {
-          if (orderError.code === 'failed-precondition') {
-            console.warn('Index not found, fetching events without orderBy');
-            snapshot = await getDocs(eventsCollection);
-            const allActive = snapshot.docs
-              .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
-              .filter((event: any) => event.status !== 'archived');
-            const start = (page - 1) * pageSize;
-            const pageItems = allActive.slice(start, start + pageSize);
-            setEvents(pageItems);
-            setEventsPage(page);
-            setEventsHasMore(start + pageSize < allActive.length);
-            setBookingCounts(deriveParticipantCountsFromEvents(pageItems));
-            return;
-          }
+      try {
+        snapshot = await getDocs(query(eventsCollection, orderBy('createdAt', 'desc')));
+      } catch (orderError: any) {
+        if (orderError.code === 'failed-precondition') {
+          console.warn('Index not found, fetching events without orderBy');
+          snapshot = await getDocs(eventsCollection);
+          sortedClientSide = true;
+        } else {
           throw orderError;
-        }
-
-        if (snapshot.empty) {
-          hasMore = false;
-          break;
-        }
-
-        for (const docSnapshot of snapshot.docs) {
-          const data: any = { id: docSnapshot.id, ...docSnapshot.data() };
-          if (data.status === 'archived') continue;
-          if (activeEvents.length < pageSize) {
-            activeEvents.push(data);
-          }
-        }
-
-        terminalCursor = snapshot.docs[snapshot.docs.length - 1];
-        walkCursor = terminalCursor;
-        hasMore = snapshot.docs.length === batchLimit;
-
-        if (activeEvents.length >= pageSize) break;
-        if (snapshot.docs.length < batchLimit) {
-          hasMore = false;
-          break;
         }
       }
 
-      if (terminalCursor && activeEvents.length > 0) {
-        eventsPageStartCursorsRef.current[page] = terminalCursor;
+      const activeEvents = snapshot.docs
+        .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
+        .filter((event: any) => event.status !== 'archived');
+
+      if (sortedClientSide) {
+        activeEvents.sort((a: any, b: any) => {
+          const aTime = a.createdAt?.toDate?.()?.getTime() ?? (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = b.createdAt?.toDate?.()?.getTime() ?? (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return bTime - aTime;
+        });
       }
 
       setEvents(activeEvents);
-      setEventsPage(page);
-      setEventsHasMore(hasMore);
       setBookingCounts(deriveParticipantCountsFromEvents(activeEvents));
     } catch (error: any) {
       console.error('Error fetching events:', error);
@@ -1234,57 +1174,37 @@ export default function AdminPage() {
     setExpandedEventId(eventId);
   };
 
-  const fetchArchivedBookingsPage = async (
-    targetPage: number,
-    options?: { reset?: boolean }
-  ) => {
+  const fetchArchivedBookings = async () => {
     if (!db) {
       toast.error('Firebase is not initialized.');
       return;
     }
 
-    const page = options?.reset ? 1 : Math.max(1, targetPage);
     setIsLoadingArchivedBookings(true);
 
     try {
       const eventsCollection = collection(db, 'events');
       const bookingsCollection = collection(db, 'eventBookings');
-      const startCursor = archivedPageStartCursorsRef.current[page - 1] ?? null;
-      const pageSize = ADMIN_ARCHIVED_EVENTS_PAGE_SIZE;
+      const archivedEventsSnapshot = await getDocs(
+        query(eventsCollection, where('status', '==', 'archived'))
+      );
 
-      const runArchivedEventsQuery = (orderField: 'deletedAt' | 'createdAt') => {
-        const constraints = [
-          where('status', '==', 'archived'),
-          orderBy(orderField, 'desc'),
-          ...(startCursor ? [startAfter(startCursor)] : []),
-          limit(pageSize + 1),
-        ];
-        return getDocs(query(eventsCollection, ...constraints));
-      };
-
-      let archivedEventsSnapshot;
-      try {
-        archivedEventsSnapshot = await runArchivedEventsQuery('deletedAt');
-      } catch (error: any) {
-        if (error?.code === 'failed-precondition') {
-          archivedEventsSnapshot = await runArchivedEventsQuery('createdAt');
-        } else {
-          throw error;
-        }
-      }
-
-      const archivedDocs = archivedEventsSnapshot.docs;
-      const hasMore = archivedDocs.length > pageSize;
-      const pageDocs = archivedDocs.slice(0, pageSize);
-
-      if (pageDocs.length > 0) {
-        archivedPageStartCursorsRef.current[page] = pageDocs[pageDocs.length - 1];
-      }
-
-      const archivedEvents = pageDocs.map((docSnapshot) => ({
-        id: docSnapshot.id,
-        ...docSnapshot.data(),
-      }));
+      const archivedEvents = archivedEventsSnapshot.docs
+        .map((docSnapshot) => ({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
+        } as any))
+        .sort((a, b) => {
+          const aTime =
+            toAdminDate(a.deletedAt)?.getTime() ??
+            toAdminDate(a.createdAt)?.getTime() ??
+            0;
+          const bTime =
+            toAdminDate(b.deletedAt)?.getTime() ??
+            toAdminDate(b.createdAt)?.getTime() ??
+            0;
+          return bTime - aTime;
+        });
 
       const archivedData = await Promise.all(
         archivedEvents.map(async (event) => {
@@ -1312,8 +1232,6 @@ export default function AdminPage() {
       );
 
       setArchivedBookingData(archivedData);
-      setArchivedPage(page);
-      setArchivedHasMore(hasMore);
       setSelectedArchivedBookingIds([]);
     } catch (error: any) {
       console.error('Error fetching archived bookings:', error);
@@ -1330,12 +1248,10 @@ export default function AdminPage() {
     if (!nextState) {
       setArchivedBookingSearchQuery('');
       setSelectedArchivedBookingIds([]);
-      setArchivedPage(1);
-      archivedPageStartCursorsRef.current = [null];
       return;
     }
 
-    await fetchArchivedBookingsPage(1, { reset: true });
+    await fetchArchivedBookings();
   };
 
   const archivedBookingMatchesSearch = (booking: any, event: any, search: string) =>
@@ -1487,7 +1403,7 @@ export default function AdminPage() {
         deletedAt: Timestamp.now()
       });
       toast.success('Event archived successfully! Existing registrations remain stored.');
-      fetchEventsPage(eventsPage, { force: true });
+      fetchEvents();
     } catch (error: any) {
       console.error('Error deleting event:', error);
       toast.error('Failed to delete event. Please try again.');
@@ -1616,7 +1532,7 @@ export default function AdminPage() {
       setCustomTicketRows([]);
       
       setActiveTab('events');
-      fetchEventsPage(eventsPage, { force: true });
+      fetchEvents();
     } catch (error: any) {
       console.error('Error updating event:', error);
       toast.error('Failed to update event. Please try again.');
@@ -1638,7 +1554,7 @@ export default function AdminPage() {
       };
     });
 
-  const fetchBookingLeadsPreview = async (force = false) => {
+  const fetchBookingLeads = async (force = false) => {
     if (!db) {
       toast.error('Firebase is not initialized.');
       return;
@@ -1646,7 +1562,6 @@ export default function AdminPage() {
 
     if (
       !force &&
-      !leadsShowAll &&
       bookingLeads.length > 0 &&
       Date.now() - lastLeadsFetchAtRef.current < ADMIN_LEADS_STALE_MS
     ) {
@@ -1656,19 +1571,9 @@ export default function AdminPage() {
     setIsLoadingBookingLeads(true);
     try {
       const leadsCollection = collection(db, 'bookingLeads');
-      const leadsQuery = query(
-        leadsCollection,
-        orderBy('createdAt', 'desc'),
-        limit(ADMIN_LEADS_PREVIEW_SIZE + 1)
-      );
-      const snapshot = await getDocs(leadsQuery);
-      const docs = snapshot.docs;
-      const hasMore = docs.length > ADMIN_LEADS_PREVIEW_SIZE;
-      const previewDocs = docs.slice(0, ADMIN_LEADS_PREVIEW_SIZE);
+      const snapshot = await getDocs(query(leadsCollection, orderBy('createdAt', 'desc')));
 
-      setBookingLeads(mapBookingLeadDocs(previewDocs));
-      setLeadsHasMore(hasMore);
-      setLeadsShowAll(false);
+      setBookingLeads(mapBookingLeadDocs(snapshot.docs));
       setSelectedBookingLeadIds([]);
       lastLeadsFetchAtRef.current = Date.now();
     } catch (error: any) {
@@ -1683,46 +1588,17 @@ export default function AdminPage() {
     }
   };
 
-  const fetchAllBookingLeads = async () => {
-    if (!db) {
-      toast.error('Firebase is not initialized.');
-      return;
-    }
-
-    setIsLoadingBookingLeads(true);
-    try {
-      const leadsCollection = collection(db, 'bookingLeads');
-      const snapshot = await getDocs(query(leadsCollection, orderBy('createdAt', 'desc')));
-
-      setBookingLeads(mapBookingLeadDocs(snapshot.docs));
-      setLeadsHasMore(false);
-      setLeadsShowAll(true);
-      setSelectedBookingLeadIds([]);
-      lastLeadsFetchAtRef.current = Date.now();
-      toast.success(`Loaded all ${snapshot.docs.length} booking leads.`);
-    } catch (error: any) {
-      console.error('Error fetching all booking leads:', error);
-      if (error?.code === 'permission-denied') {
-        toast.error('Permission denied. Update Firestore rules for bookingLeads.');
-      } else {
-        toast.error(error?.message || 'Failed to load all booking leads.');
-      }
-    } finally {
-      setIsLoadingBookingLeads(false);
-    }
-  };
-
   // Fetch events when events tab is active
   useEffect(() => {
     if (isAuthorized && activeTab === 'events') {
-      fetchEventsPage(1, { reset: true });
+      fetchEvents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthorized]);
 
   useEffect(() => {
     if (isAuthorized && activeTab === 'leads') {
-      fetchBookingLeadsPreview();
+      fetchBookingLeads();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthorized]);
@@ -2585,7 +2461,7 @@ export default function AdminPage() {
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-2">Booking Leads</h2>
                     <p className="text-gray-400">
-                      Shows the latest {ADMIN_LEADS_PREVIEW_SIZE} leads first. Use &quot;Load all leads&quot; to view every lead on one page.
+                      All booking form submissions appear here before and after payment.
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -2600,7 +2476,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <button
-                      onClick={() => fetchBookingLeadsPreview(true)}
+                      onClick={() => fetchBookingLeads(true)}
                       disabled={isLoadingBookingLeads}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
@@ -2616,7 +2492,7 @@ export default function AdminPage() {
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
-                    <div className="text-gray-400 text-sm">{leadsShowAll ? 'Total loaded' : 'Preview loaded'}</div>
+                    <div className="text-gray-400 text-sm">Total leads</div>
                     <div className="text-2xl font-bold text-white">{bookingLeads.length}</div>
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
@@ -2636,12 +2512,6 @@ export default function AdminPage() {
                     <div className="text-2xl font-bold text-primary-400">{filteredBookingLeads.length}</div>
                   </div>
                 </div>
-
-                {!leadsShowAll && leadSearchQuery.trim() && (
-                  <p className="text-sm text-gray-500 mb-4">
-                    Search filters the preview only. Load all leads to search across every lead.
-                  </p>
-                )}
 
                 {isLoadingBookingLeads ? (
                   <div className="text-center py-12">
@@ -2710,27 +2580,9 @@ export default function AdminPage() {
                       ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-6 border-t border-gray-700">
-                      <div className="text-sm text-gray-400">
-                        {leadsShowAll
-                          ? `Showing all ${filteredBookingLeads.length} lead${filteredBookingLeads.length === 1 ? '' : 's'}`
-                          : `Showing latest ${filteredBookingLeads.length} of ${leadsHasMore ? `${ADMIN_LEADS_PREVIEW_SIZE}+` : filteredBookingLeads.length} leads`}
-                      </div>
-                      {!leadsShowAll && leadsHasMore && (
-                        <button
-                          type="button"
-                          onClick={fetchAllBookingLeads}
-                          disabled={isLoadingBookingLeads}
-                          className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-400 text-white rounded-lg font-medium hover:from-primary-600 hover:to-primary-500 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isLoadingBookingLeads ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                          <span>Load all leads</span>
-                        </button>
-                      )}
+                    <div className="mt-6 pt-6 border-t border-gray-700 text-sm text-gray-400">
+                      Showing {filteredBookingLeads.length} lead{filteredBookingLeads.length === 1 ? '' : 's'}
+                      {leadSearchQuery.trim() ? ` matching search` : ''}
                     </div>
                   </>
                 )}
@@ -2764,7 +2616,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <button 
-                      onClick={() => fetchEventsPage(1, { reset: true, force: true })}
+                      onClick={() => fetchEvents()}
                       disabled={isLoadingEvents}
                       className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
                       title="Refresh events list"
@@ -2793,12 +2645,6 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-
-                {eventSearchQuery.trim() && (
-                  <p className="text-sm text-gray-500 mb-4">
-                    Search filters the current page only. Clear search or use Next/Previous to browse other pages.
-                  </p>
-                )}
 
                 {/* Events Table */}
                 {isLoadingEvents ? (
@@ -3214,7 +3060,7 @@ export default function AdminPage() {
                       <div>
                         <h3 className="text-xl font-semibold text-white">Archived Event User Data</h3>
                         <p className="text-gray-400 text-sm">
-                          View stored registrations for archived events ({ADMIN_ARCHIVED_EVENTS_PAGE_SIZE} events per page).
+                          View stored registrations for all archived events.
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -3229,7 +3075,7 @@ export default function AdminPage() {
                           />
                         </div>
                         <button
-                          onClick={() => fetchArchivedBookingsPage(1, { reset: true })}
+                          onClick={() => fetchArchivedBookings()}
                           className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                           disabled={isLoadingArchivedBookings}
                         >
@@ -3276,11 +3122,6 @@ export default function AdminPage() {
                       </div>
                     ) : (
                       <>
-                        {archivedBookingSearchQuery.trim() && (
-                          <p className="text-sm text-gray-500">
-                            Search filters the current page only. Clear search or use Next/Previous to browse other pages.
-                          </p>
-                        )}
                         <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
                           <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
                             <input
@@ -3370,63 +3211,19 @@ export default function AdminPage() {
                         })}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-700">
-                        <div className="text-sm text-gray-400">
-                          Page {archivedPage} · {filteredArchivedBookingData.length} archived event
-                          {filteredArchivedBookingData.length === 1 ? '' : 's'} on this page
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fetchArchivedBookingsPage(archivedPage - 1)}
-                            disabled={isLoadingArchivedBookings || archivedPage <= 1}
-                            className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                            <span>Previous</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fetchArchivedBookingsPage(archivedPage + 1)}
-                            disabled={isLoadingArchivedBookings || !archivedHasMore}
-                            className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <span>Next</span>
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
+                      <div className="pt-4 border-t border-gray-700 text-sm text-gray-400">
+                        Showing {filteredArchivedBookingData.length} archived event
+                        {filteredArchivedBookingData.length === 1 ? '' : 's'}
+                        {archivedBookingSearchQuery.trim() ? ' matching search' : ''}
                       </div>
                       </>
                     )}
                   </div>
                 )}
 
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-6 border-t border-gray-700">
-                  <div className="text-sm text-gray-400">
-                    Page {eventsPage} · {filteredEvents.length} event
-                    {filteredEvents.length === 1 ? '' : 's'} on this page
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fetchEventsPage(eventsPage - 1)}
-                      disabled={isLoadingEvents || eventsPage <= 1}
-                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span>Previous</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fetchEventsPage(eventsPage + 1)}
-                      disabled={isLoadingEvents || !eventsHasMore}
-                      className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span>Next</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div className="mt-6 pt-6 border-t border-gray-700 text-sm text-gray-400">
+                  Showing {filteredEvents.length} event{filteredEvents.length === 1 ? '' : 's'}
+                  {eventSearchQuery.trim() ? ' matching search' : ''}
                 </div>
               </div>
             </motion.div>
