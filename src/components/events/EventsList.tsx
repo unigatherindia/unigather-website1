@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Clock, Star, 
-  ChevronRight, Ticket, Loader2, Users, User, UserCheck
+  ChevronRight, ChevronDown, Ticket, Loader2, Users
 } from 'lucide-react';
 import BookingModal from './BookingModal';
 import { db } from '@/lib/firebase';
@@ -63,6 +63,19 @@ const EventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
+
+  const toggleEventExpanded = (eventId: string) => {
+    setExpandedEventIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+  };
 
   // Fetch events from Firestore
   useEffect(() => {
@@ -215,7 +228,7 @@ const EventsList: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8"
+        className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8 items-start"
       >
         {events.map((event, index) => {
           const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(
@@ -250,6 +263,7 @@ const EventsList: React.FC = () => {
             if (isPriceAvailable(o.price)) soldOutChecks.push(isSoldOut(o.price));
           }
           const isEventSoldOut = soldOutChecks.length > 0 && soldOutChecks.every(Boolean);
+          const isExpanded = expandedEventIds.has(event.id);
           
           return (
             <motion.div
@@ -257,7 +271,7 @@ const EventsList: React.FC = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              className={`group relative bg-dark-700 rounded-3xl overflow-hidden border transition-all duration-500 hover:transform hover:scale-[1.02] ${
+              className={`group relative h-fit self-start bg-dark-700 rounded-3xl overflow-hidden border transition-all duration-500 hover:transform hover:scale-[1.02] ${
                 event.featured 
                   ? 'border-primary-500/50 shadow-lg shadow-primary-500/20' 
                   : 'border-gray-700/50 hover:border-primary-500/30'
@@ -306,8 +320,8 @@ const EventsList: React.FC = () => {
               {/* Content */}
               <div className="p-6">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-full">
                     <div className="flex items-center space-x-2 mb-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(event.category)}`}>
                         {event.category}
@@ -319,39 +333,68 @@ const EventsList: React.FC = () => {
                     <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
                       {event.title}
                     </h3>
-                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
-                      {event.description}
-                    </p>
                   </div>
                 </div>
 
-                {/* Details */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-gray-300 text-sm">
-                    <Calendar className="w-4 h-4 mr-3 text-primary-400" />
-                    <span>{formatEventDate(event.date)} at {event.time}</span>
-                  </div>
-                  <div className="flex items-center text-gray-300 text-sm">
-                    <MapPin className="w-4 h-4 mr-3 text-primary-400" />
-                    <span>{event.location}, {event.address}</span>
-                  </div>
-                  <div className="flex items-center text-gray-300 text-sm">
-                    <Clock className="w-4 h-4 mr-3 text-primary-400" />
-                    <span>{event.duration}</span>
-                  </div>
+                {/* Date & Time — always visible */}
+                <div className="flex items-center text-gray-300 text-sm mb-3">
+                  <Calendar className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                  <span>{formatEventDate(event.date)} at {event.time}</span>
                 </div>
 
-                {/* Availability Notice */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-300">
-                      <Users className="w-4 h-4 mr-2 text-primary-400" />
-                      <span>Limited Seats Left</span>
-                    </div>
-                  </div>
-                </div>
+                {/* Expandable details */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      key="expanded-details"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      {event.description && (
+                        <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line mb-4">
+                          {event.description}
+                        </p>
+                      )}
 
-                {/* Organizer removed per design */}
+                      <div className="space-y-3 mb-4">
+                        {(event.location || event.address) && (
+                          <div className="flex items-center text-gray-300 text-sm">
+                            <MapPin className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                            <span>{[event.location, event.address].filter(Boolean).join(', ')}</span>
+                          </div>
+                        )}
+                        {event.duration && (
+                          <div className="flex items-center text-gray-300 text-sm">
+                            <Clock className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
+                            <span>{event.duration}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="flex items-center text-sm text-gray-300">
+                          <Users className="w-4 h-4 mr-2 text-primary-400" />
+                          <span>Limited Seats Left</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* See More / See Less */}
+                <button
+                  type="button"
+                  onClick={() => toggleEventExpanded(event.id)}
+                  className="flex w-full items-center justify-end text-primary-400 hover:text-primary-300 text-sm font-medium mb-4 transition-colors sm:w-auto sm:justify-start"
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 mr-1 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                  />
+                  <span>{isExpanded ? 'See Less' : 'See More'}</span>
+                </button>
 
                 {/* Pricing */}
                 {(() => {
