@@ -87,6 +87,37 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   } | null>(null);
   const [bookingLeadDocId, setBookingLeadDocId] = useState<string | null>(null);
   const [whatsAppUrl, setWhatsAppUrl] = useState<string>('');
+  const [retrySeconds, setRetrySeconds] = useState(0);
+  const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startRetryCountdown = (seconds: number) => {
+    const safeSeconds = Math.max(1, Math.ceil(seconds));
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current);
+    }
+    setRetrySeconds(safeSeconds);
+    retryIntervalRef.current = setInterval(() => {
+      setRetrySeconds((prev) => {
+        if (prev <= 1) {
+          if (retryIntervalRef.current) {
+            clearInterval(retryIntervalRef.current);
+            retryIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current);
+      }
+    };
+  }, []);
+
   
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     name: '',
@@ -598,6 +629,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         currency?: string;
         companyName?: string;
         themeColor?: string;
+        retryAfterSeconds?: number;
       };
       try {
         orderData = await orderResponse.json();
@@ -608,6 +640,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       }
 
       if (!orderResponse.ok || !orderData.success) {
+        // A concurrent order-creation is still running for these details. This
+        // is never a permanent block: it clears automatically, so show a live
+        // countdown and let the user retry once it reaches zero.
+        if (orderResponse.status === 409 && typeof orderData.retryAfterSeconds === 'number') {
+          setIsLoading(false);
+          startRetryCountdown(orderData.retryAfterSeconds);
+          toast(`Please try again in ${Math.max(1, Math.ceil(orderData.retryAfterSeconds))} seconds.`, {
+            icon: '⏳',
+          });
+          return;
+        }
+
         const detail = [orderData.message, orderData.error].filter(Boolean).join(' — ');
         throw new Error(detail || 'Failed to create order');
       }
@@ -1140,13 +1184,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               <button
                 type="button"
                 onClick={handlePayment}
-                disabled={isLoading}
+                disabled={isLoading || retrySeconds > 0}
                 className="flex flex-[2] items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 px-6 py-3 font-semibold text-white transition-all duration-300 hover:from-primary-600 hover:to-primary-500 disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     <span>Processing...</span>
+                  </>
+                ) : retrySeconds > 0 ? (
+                  <>
+                    <Clock className="h-5 w-5" />
+                    <span>Try again in {retrySeconds}s</span>
                   </>
                 ) : (
                   <>

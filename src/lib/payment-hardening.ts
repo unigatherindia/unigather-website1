@@ -15,6 +15,13 @@ export const PAYMENT_COLLECTIONS = {
 /** Incomplete orders without a Razorpay id older than this may be replaced. */
 export const STALE_INCOMPLETE_ORDER_MS = 90_000;
 
+/**
+ * How long a create-order request is considered "still running" for the same
+ * dedupe key. This is the ONLY window during which a duplicate request is asked
+ * to wait; once it elapses the user can always try again. Never permanent.
+ */
+export const ORDER_CREATION_INFLIGHT_MS = 60_000;
+
 export function isReusablePendingOrder(
   data: Record<string, unknown>,
   nowMillis = Date.now()
@@ -48,6 +55,49 @@ export function isStaleIncompleteOrder(
       : 0;
 
   return updatedAt > 0 && nowMillis - updatedAt > STALE_INCOMPLETE_ORDER_MS;
+}
+
+/**
+ * True only when another create-order request for the same dedupe key is
+ * genuinely still running: no Razorpay order id has been attached yet AND the
+ * record was written within the concurrency window. This is the only situation
+ * that should be blocked with a "creation in progress" response. Any record
+ * that already has a Razorpay order id (confirmed, cancelled, captured, or
+ * expired) is a completed lifecycle and must never block a fresh registration.
+ */
+export function isOrderCreationInFlight(
+  data: Record<string, unknown>,
+  nowMillis = Date.now()
+): boolean {
+  if (typeof data.razorpayOrderId === 'string' && data.razorpayOrderId.length > 0) {
+    return false;
+  }
+
+  const updatedAt = readOrderTimestampMillis(data);
+
+  return updatedAt > 0 && nowMillis - updatedAt < ORDER_CREATION_INFLIGHT_MS;
+}
+
+function readOrderTimestampMillis(data: Record<string, unknown>): number {
+  const timestamp = data.updatedAt ?? data.createdAt;
+  return typeof (timestamp as { toMillis?: () => number } | undefined)?.toMillis === 'function'
+    ? (timestamp as { toMillis: () => number }).toMillis()
+    : 0;
+}
+
+/**
+ * Seconds the caller should wait before retrying an in-flight order creation.
+ * Always at least 1 and never more than the full in-flight window, so the UI
+ * can show an accurate "try again in Ns" countdown that is guaranteed to clear.
+ */
+export function getOrderCreationRetryAfterSeconds(
+  data: Record<string, unknown>,
+  nowMillis = Date.now()
+): number {
+  const updatedAt = readOrderTimestampMillis(data);
+  const elapsed = updatedAt > 0 ? nowMillis - updatedAt : 0;
+  const remainingMs = Math.min(ORDER_CREATION_INFLIGHT_MS, Math.max(0, ORDER_CREATION_INFLIGHT_MS - elapsed));
+  return Math.max(1, Math.ceil(remainingMs / 1000));
 }
 
 export const ORDER_STATUSES = [
@@ -138,11 +188,13 @@ export interface PaymentLogRecord {
 
 export class PaymentValidationError extends Error {
   status: number;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, status = 400) {
+  constructor(message: string, status = 400, details?: Record<string, unknown>) {
     super(message);
     this.name = 'PaymentValidationError';
     this.status = status;
+    this.details = details;
   }
 }
 

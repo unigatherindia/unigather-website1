@@ -8,8 +8,9 @@ import {
   PaymentValidationError,
   createOrderDedupeKey,
   createPaymentBookingId,
+  getOrderCreationRetryAfterSeconds,
+  isOrderCreationInFlight,
   isReusablePendingOrder,
-  isStaleIncompleteOrder,
   normalizePaymentBookingDetails,
   normalizePaymentCustomer,
   resolveTrustedTicketPrice,
@@ -178,10 +179,17 @@ export async function POST(request: NextRequest) {
           };
         }
 
-        if (!isStaleIncompleteOrder(data, nowMillis)) {
+        // Only block a request that is genuinely racing an in-flight creation
+        // (no Razorpay order id yet, written moments ago). Any other existing
+        // record — confirmed, cancelled, expired, or a stale incomplete one —
+        // is a finished lifecycle and must not block a fresh registration; the
+        // dedupe document below is overwritten with the new order.
+        if (isOrderCreationInFlight(data, nowMillis)) {
+          const retryAfterSeconds = getOrderCreationRetryAfterSeconds(data, nowMillis);
           throw new PaymentValidationError(
-            'Order creation is already in progress. Please try again.',
-            409
+            `Order creation is already in progress. Please try again in ${retryAfterSeconds} seconds.`,
+            409,
+            { retryAfterSeconds }
           );
         }
       }
@@ -330,6 +338,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: error.message,
+          ...(error.details ?? {}),
         },
         { status: error.status }
       );
