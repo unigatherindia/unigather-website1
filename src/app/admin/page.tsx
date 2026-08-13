@@ -1628,6 +1628,31 @@ export default function AdminPage() {
       .some((value) => String(value).toLowerCase().includes(search));
   });
 
+  const parseLeadAmountValue = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/,/g, '').trim();
+      if (!cleaned) return 0;
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const confirmedBookingLeads = bookingLeads.filter((lead) => lead.status === 'confirmed');
+  const confirmedLeadsTotalsByCurrency = confirmedBookingLeads.reduce<Record<string, number>>(
+    (totals, lead) => {
+      const currency = String(lead.currency || DEFAULT_CURRENCY).toUpperCase();
+      const amount = parseLeadAmountValue(lead.amountPaid ?? lead.amountQuoted ?? 0);
+      totals[currency] = (totals[currency] || 0) + amount;
+      return totals;
+    },
+    {}
+  );
+  const confirmedLeadsEarnedTotals = Object.entries(confirmedLeadsTotalsByCurrency).sort(
+    ([currencyA], [currencyB]) => currencyA.localeCompare(currencyB)
+  );
+
   const eventMatchesSearch = (event: any) => {
     const search = eventSearchQuery.trim().toLowerCase();
     if (!search) return true;
@@ -2490,7 +2515,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
                     <div className="text-gray-400 text-sm">Total leads</div>
                     <div className="text-2xl font-bold text-white">{bookingLeads.length}</div>
@@ -2504,8 +2529,24 @@ export default function AdminPage() {
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
                     <div className="text-gray-400 text-sm">Confirmed</div>
                     <div className="text-2xl font-bold text-green-400">
-                      {bookingLeads.filter((lead) => lead.status === 'confirmed').length}
+                      {confirmedBookingLeads.length}
                     </div>
+                  </div>
+                  <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+                    <div className="text-gray-400 text-sm">Total earned</div>
+                    {confirmedLeadsEarnedTotals.length === 0 ? (
+                      <div className="text-2xl font-bold text-green-400">
+                        {formatEventPrice(0, DEFAULT_CURRENCY)}
+                      </div>
+                    ) : (
+                      <div className="space-y-1 mt-1">
+                        {confirmedLeadsEarnedTotals.map(([currency, total]) => (
+                          <div key={currency} className="text-2xl font-bold text-green-400 leading-tight">
+                            {formatEventPrice(total, currency)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
                     <div className="text-gray-400 text-sm">Matching search</div>

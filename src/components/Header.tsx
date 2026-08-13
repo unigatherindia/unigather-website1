@@ -3,15 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, LogIn, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Users, Calendar, Info, Mail, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import AuthModal from '@/components/auth/AuthModal';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
 
@@ -44,14 +42,6 @@ const Header: React.FC = () => {
 
   return (
     <>
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)}
-        />
-      )}
-
       <header 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled 
@@ -160,15 +150,7 @@ const Header: React.FC = () => {
                     <span className="font-medium">Sign Out</span>
                   </button>
                 </>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors duration-300"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span className="font-medium">Sign In</span>
-                </button>
-              )}
+              ) : null}
             </motion.div>
           )}
 
@@ -251,18 +233,7 @@ const Header: React.FC = () => {
                       <span className="font-medium">Sign Out</span>
                     </button>
                   </>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setShowAuthModal(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex items-center justify-center space-x-3 px-4 py-3 w-full rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-all duration-300"
-                  >
-                    <LogIn className="w-5 h-5" />
-                    <span className="font-medium">Sign In</span>
-                  </button>
-                )}
+                ) : null}
               </motion.div>
             </div>
           </motion.div>
