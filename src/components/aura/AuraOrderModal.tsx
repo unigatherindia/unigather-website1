@@ -692,7 +692,7 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
                 <div>
                   <h3 className="font-aura-display text-2xl text-white mb-2">Thank you</h3>
                   <p className="text-gray-400 text-sm max-w-sm mx-auto leading-relaxed">
-                    Your aura is on its way. A confirmation has been sent to your email.
+                    Your fragrance is on its way. A confirmation has been sent to your email.
                   </p>
                 </div>
                 <p className="text-[11px] tracking-[0.2em] uppercase text-aura-gold/80">

@@ -4,9 +4,28 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import {
+  canShowAuraPromoThisTabVisit,
+  clearLegacyAuraPromoStorage,
+  markAuraPromoShownThisTabVisit,
+} from '@/lib/aura-promo-visit';
 
-const SESSION_KEY = 'unigather_aura_promo_dismissed';
+function PromoCloseIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
 
 const POSTER_SRC = '/media/the-aura-poster.jpg';
 
@@ -17,12 +36,16 @@ const AuraPromoPopup: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
-    if (typeof window === 'undefined') return;
-    if (sessionStorage.getItem(SESSION_KEY) === '1') return;
-
+    clearLegacyAuraPromoStorage();
+    if (!canShowAuraPromoThisTabVisit()) return;
     const t = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    markAuraPromoShownThisTabVisit();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -48,12 +71,12 @@ const AuraPromoPopup: React.FC = () => {
   }, [open]);
 
   const dismiss = () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
+    markAuraPromoShownThisTabVisit();
     setOpen(false);
   };
 
   const goToAura = () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
+    markAuraPromoShownThisTabVisit();
     setOpen(false);
     router.push('/buy-your-aura');
   };
@@ -83,17 +106,20 @@ const AuraPromoPopup: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 12 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative w-full max-w-[min(100%,22rem)] sm:max-w-lg md:max-w-xl my-auto shrink-0"
+            className="relative w-full max-w-[min(100%,22rem)] sm:max-w-lg md:max-w-xl my-auto shrink-0 pt-1 pr-1"
           >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                dismiss();
+              }}
+              className="absolute right-0 top-0 z-[80] grid h-12 w-12 min-h-[48px] min-w-[48px] place-items-center rounded-full border-2 border-[#D4AF37] bg-[#1a1a1a] p-0 text-white shadow-lg touch-manipulation hover:border-[#FFD700] hover:bg-black transition-colors"
+              aria-label="Close and stay on home page"
+            >
+              <PromoCloseIcon />
+            </button>
             <div className="relative rounded-lg sm:rounded-sm overflow-hidden ring-1 ring-aura-gold/40 shadow-[0_24px_80px_-12px_rgba(212,175,55,0.35)]">
-              <button
-                type="button"
-                onClick={dismiss}
-                className="absolute top-2 right-2 z-30 w-11 h-11 flex items-center justify-center rounded-full bg-black/85 border border-white/20 text-gray-300 hover:text-white hover:border-aura-gold/50 active:bg-black transition-colors shadow-lg touch-manipulation"
-                aria-label="Close and stay on home page"
-              >
-                <X className="w-5 h-5" />
-              </button>
               <button
                 type="button"
                 onClick={goToAura}
@@ -119,9 +145,7 @@ const AuraPromoPopup: React.FC = () => {
               </button>
             </div>
 
-            <p className="text-center text-[10px] sm:text-[11px] text-gray-500 mt-2 sm:mt-3 px-2 leading-relaxed">
-              
-            </p>
+            
           </motion.div>
         </motion.div>
       )}
