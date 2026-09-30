@@ -574,13 +574,13 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
                   </div>
                   <div>
                     <FieldLabel>Street address</FieldLabel>
-                    <div className="aura-field rounded-sm flex gap-3 px-4 py-3">
-                      <MapPin className="w-4 h-4 text-aura-gold/50 shrink-0 mt-0.5" strokeWidth={1.5} />
-                      <textarea
+                    <div className="aura-field rounded-sm flex items-center gap-3 px-4 py-3">
+                      <MapPin className="w-4 h-4 text-aura-gold/50 shrink-0" strokeWidth={1.5} />
+                      <input
+                        type="text"
                         value={form.address}
                         onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                        rows={2}
-                        className="flex-1 text-white aura-touch-input placeholder:text-gray-600 resize-none min-h-[72px]"
+                        className="flex-1 min-w-0 text-white aura-touch-input placeholder:text-gray-600"
                         placeholder="House no., street, landmark, area"
                         autoComplete="street-address"
                       />
@@ -601,14 +601,14 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
                   </div>
                 </div>
 
-                <label className="flex items-start gap-3 cursor-pointer group touch-manipulation">
+                <label className="flex items-center gap-2.5 cursor-pointer group touch-manipulation min-h-[44px]">
                   <input
                     type="checkbox"
                     checked={form.terms}
                     onChange={(e) => setForm((f) => ({ ...f, terms: e.target.checked }))}
-                    className="mt-1 w-5 h-5 shrink-0 rounded border-gray-600 bg-transparent text-aura-gold focus:ring-aura-gold/30"
+                    className="m-0 w-5 h-5 shrink-0 rounded border-gray-600 bg-transparent text-aura-gold focus:ring-aura-gold/30"
                   />
-                  <span className="text-xs text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors">
+                  <span className="min-w-0 text-[10px] sm:text-xs text-gray-500 leading-tight group-hover:text-gray-400 transition-colors whitespace-nowrap">
                     I agree that the product you are buying is not refundable.
                   </span>
                 </label>
