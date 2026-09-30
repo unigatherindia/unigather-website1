@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
@@ -13,6 +13,12 @@ import {
   FileText,
   Trash2,
   Plus,
+  RefreshCw,
+  UserCircle,
+  Mail,
+  Phone,
+  MapPin,
+  IndianRupee,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
@@ -28,6 +34,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
+import { formatEventPrice } from '@/lib/formatPrice';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import {
   auraProductToForm,
   defaultAuraProductForm,
@@ -35,7 +43,80 @@ import {
   type AuraProductFormState,
 } from '@/types/aura-product';
 
-type SubTab = 'products' | 'orders' | 'leads';
+type SubTab = 'leads' | 'products' | 'orders';
+
+type AuraLeadRecord = {
+  id: string;
+  status?: string;
+  productTitle?: string;
+  quantity?: number;
+  amountQuoted?: number;
+  amountPaid?: number;
+  currency?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPincode?: string;
+  bookingId?: string;
+  orderId?: string;
+  paymentId?: string;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+};
+
+function mapAuraLeadDocs(docs: QueryDocumentSnapshot[]): AuraLeadRecord[] {
+  return docs.map((docSnapshot) => {
+    const data = docSnapshot.data();
+    const createdAt =
+      data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+    const updatedAt =
+      data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
+    return { id: docSnapshot.id, ...data, createdAt, updatedAt };
+  });
+}
+
+function formatAuraTimestamp(value?: Date | null) {
+  if (!value) return '—';
+  try {
+    return value.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return value.toISOString();
+  }
+}
+
+function getAuraLeadStatusStyles(status?: string) {
+  switch (status) {
+    case 'confirmed':
+      return 'bg-green-500/20 text-green-400 border-green-500/30';
+    case 'payment_order_created':
+      return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    case 'payment_cancelled':
+    case 'payment_verification_failed':
+    case 'payment_error':
+      return 'bg-red-500/20 text-red-400 border-red-500/30';
+    default:
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+  }
+}
+
+function formatAuraLeadStatus(status?: string) {
+  const raw = (status || 'payment_not_started').replace(/_/g, ' ');
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function parseAuraAmount(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/,/g, '').trim();
+    if (!cleaned) return 0;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -97,16 +178,21 @@ function TextArea({
 }
 
 export default function AuraAdminPanel() {
-  const [subTab, setSubTab] = useState<SubTab>('products');
+  const [subTab, setSubTab] = useState<SubTab>('leads');
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<AuraLeadRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AuraProductFormState>(defaultAuraProductForm());
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [search, setSearch] = useState('');
+  const [leadSearchQuery, setLeadSearchQuery] = useState('');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
+  const [isBulkDeletingLeads, setIsBulkDeletingLeads] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   const patchForm = (patch: Partial<AuraProductFormState>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -154,7 +240,8 @@ export default function AuraAdminPanel() {
       } catch {
         snap = await getDocs(collection(db, 'auraProductLeads'));
       }
-      setLeads(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setLeads(mapAuraLeadDocs(snap.docs));
+      setSelectedLeadIds([]);
     } finally {
       setLoading(false);
     }
@@ -240,13 +327,148 @@ export default function AuraAdminPanel() {
     loadProducts();
   };
 
-  const deleteLead = async (id: string) => {
-    if (!db || !confirm('Delete this lead?')) return;
-    await deleteDoc(doc(db, 'auraProductLeads', id));
-    loadLeads();
+  const deleteProduct = async (id: string, title?: string) => {
+    if (!db) return;
+    const label = title?.trim() || 'this product';
+    if (
+      !window.confirm(
+        `Permanently delete "${label}"? This removes it from Firestore and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setDeletingProductId(id);
+    try {
+      await deleteDoc(doc(db, 'auraProducts', id));
+      if (editingId === id) startNew();
+      toast.success('Product deleted');
+      loadProducts();
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProducts.');
+      } else {
+        toast.error(error?.message || 'Failed to delete product');
+      }
+    } finally {
+      setDeletingProductId(null);
+    }
   };
 
-  const filterText = search.trim().toLowerCase();
+  const handleDeleteLead = async (lead: AuraLeadRecord) => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+    const leadLabel = lead.customerName || lead.productTitle || 'this lead';
+    if (
+      !window.confirm(`Delete ${leadLabel} from Aura leads? This will only remove the lead record.`)
+    ) {
+      return;
+    }
+    setDeletingLeadId(lead.id);
+    try {
+      await deleteDoc(doc(db, 'auraProductLeads', lead.id));
+      setLeads((prev) => prev.filter((item) => item.id !== lead.id));
+      setSelectedLeadIds((prev) => prev.filter((id) => id !== lead.id));
+      toast.success('Aura lead deleted successfully.');
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProductLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to delete lead.');
+      }
+    } finally {
+      setDeletingLeadId(null);
+    }
+  };
+
+  const handleDeleteSelectedLeads = async () => {
+    if (!db || selectedLeadIds.length === 0) return;
+    const count = selectedLeadIds.length;
+    if (
+      !window.confirm(
+        `Delete ${count} Aura lead${count === 1 ? '' : 's'}? This will only remove the lead records.`
+      )
+    ) {
+      return;
+    }
+    setIsBulkDeletingLeads(true);
+    try {
+      await Promise.all(
+        selectedLeadIds.map((leadId) => deleteDoc(doc(db, 'auraProductLeads', leadId)))
+      );
+      setLeads((prev) => prev.filter((item) => !selectedLeadIds.includes(item.id)));
+      setSelectedLeadIds([]);
+      toast.success(`${count} Aura lead${count === 1 ? '' : 's'} deleted successfully.`);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProductLeads.');
+      } else {
+        toast.error(error?.message || 'Failed to delete selected leads.');
+      }
+    } finally {
+      setIsBulkDeletingLeads(false);
+    }
+  };
+
+  const filteredLeads = useMemo(() => {
+    const search = leadSearchQuery.trim().toLowerCase();
+    if (!search) return leads;
+    return leads.filter((lead) =>
+      [
+        lead.customerName,
+        lead.customerEmail,
+        lead.customerPhone,
+        lead.productTitle,
+        lead.status,
+        lead.bookingId,
+        lead.orderId,
+        lead.paymentId,
+        lead.shippingCity,
+        lead.shippingState,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search))
+    );
+  }, [leads, leadSearchQuery]);
+
+  const confirmedLeads = useMemo(
+    () => leads.filter((lead) => lead.status === 'confirmed'),
+    [leads]
+  );
+
+  const confirmedAuraEarnedTotals = useMemo(() => {
+    const totals = confirmedLeads.reduce<Record<string, number>>((acc, lead) => {
+      const currency = String(lead.currency || DEFAULT_CURRENCY).toUpperCase();
+      const amount = parseAuraAmount(lead.amountPaid ?? lead.amountQuoted ?? 0);
+      acc[currency] = (acc[currency] || 0) + amount;
+      return acc;
+    }, {});
+    return Object.entries(totals).sort(([a], [b]) => a.localeCompare(b));
+  }, [confirmedLeads]);
+
+  const filteredLeadIds = filteredLeads.map((lead) => lead.id);
+  const allFilteredLeadsSelected =
+    filteredLeadIds.length > 0 && filteredLeadIds.every((id) => selectedLeadIds.includes(id));
+
+  const toggleLeadSelection = (leadId: string) => {
+    setSelectedLeadIds((prev) =>
+      prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const toggleSelectAllFilteredLeads = () => {
+    if (allFilteredLeadsSelected) {
+      setSelectedLeadIds((prev) => prev.filter((id) => !filteredLeadIds.includes(id)));
+      return;
+    }
+    setSelectedLeadIds((prev) => Array.from(new Set([...prev, ...filteredLeadIds])));
+  };
+
+  const orderFilterText = orderSearchQuery.trim().toLowerCase();
   const activeProducts = products.filter((p) => p.status !== 'archived');
 
   return (
@@ -254,9 +476,9 @@ export default function AuraAdminPanel() {
       <div className="flex flex-wrap gap-2">
         {(
           [
-            { id: 'products' as SubTab, label: 'Aura Products', icon: Sparkles },
-            { id: 'orders' as SubTab, label: 'Orders', icon: ShoppingBag },
-            { id: 'leads' as SubTab, label: 'Leads', icon: FileText },
+            { id: 'leads' as SubTab, label: 'Aura Leads', icon: FileText },
+            { id: 'products' as SubTab, label: 'Products', icon: Sparkles },
+            { id: 'orders' as SubTab, label: 'Paid orders', icon: ShoppingBag },
           ] as const
         ).map(({ id, label, icon: Icon }) => (
           <button
@@ -549,10 +771,23 @@ export default function AuraAdminPanel() {
                         <Edit className="w-4 h-4" />
                       </button>
                       {p.status !== 'archived' && (
-                        <button type="button" onClick={() => archiveProduct(p.id)} className="p-2 text-gray-400 hover:text-red-400" title="Archive">
+                        <button type="button" onClick={() => archiveProduct(p.id)} className="p-2 text-gray-400 hover:text-amber-400" title="Archive">
                           <Archive className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => deleteProduct(p.id, p.title)}
+                        disabled={deletingProductId === p.id}
+                        className="p-2 text-gray-400 hover:text-red-400 disabled:opacity-50"
+                        title="Delete permanently"
+                      >
+                        {deletingProductId === p.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </li>
                 ))}
@@ -564,23 +799,43 @@ export default function AuraAdminPanel() {
 
       {subTab === 'orders' && (
         <div className="bg-dark-800 rounded-2xl border border-gray-700 p-6">
-          <div className="flex gap-2 mb-4">
-            <Search className="w-5 h-5 text-gray-500 mt-2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search orders..."
-              className="flex-1 px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white"
-            />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Paid orders</h2>
+              <p className="text-gray-400">Confirmed Aura purchases recorded after successful payment.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  placeholder="Search orders..."
+                  className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full sm:w-72"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => loadOrders()}
+                disabled={loading}
+                className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
           {loading ? (
-            <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
+              <p className="text-gray-400">Loading orders...</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {orders
                 .filter((o) => {
-                  if (!filterText) return true;
-                  return JSON.stringify(o).toLowerCase().includes(filterText);
+                  if (!orderFilterText) return true;
+                  return JSON.stringify(o).toLowerCase().includes(orderFilterText);
                 })
                 .map((o) => (
                   <div key={o.id} className="p-4 rounded-xl bg-dark-700/50 border border-gray-700 text-sm">
@@ -607,27 +862,278 @@ export default function AuraAdminPanel() {
 
       {subTab === 'leads' && (
         <div className="bg-dark-800 rounded-2xl border border-gray-700 p-6">
-          {loading ? (
-            <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
-          ) : (
-            <div className="space-y-3">
-              {leads.map((l) => (
-                <div key={l.id} className="p-4 rounded-xl bg-dark-700/50 border border-gray-700 text-sm flex justify-between gap-4">
-                  <div>
-                    <p className="text-white">{l.customerName}</p>
-                    <p className="text-gray-400">
-                      {l.customerEmail} · {l.customerPhone}
-                    </p>
-                    <p className="text-gray-500">
-                      {l.productTitle} · {l.status}
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => deleteLead(l.id)} className="text-red-400 p-2">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Aura Leads</h2>
+              <p className="text-gray-400">
+                All Buy Your Aura checkout submissions appear here before and after payment.
+              </p>
             </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={leadSearchQuery}
+                  onChange={(e) => setLeadSearchQuery(e.target.value)}
+                  placeholder="Search leads..."
+                  className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full sm:w-72"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => loadLeads()}
+                disabled={loading}
+                className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+              <div className="text-gray-400 text-sm">Total leads</div>
+              <div className="text-2xl font-bold text-white">{leads.length}</div>
+            </div>
+            <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+              <div className="text-gray-400 text-sm">Not paid yet</div>
+              <div className="text-2xl font-bold text-amber-300">
+                {leads.filter((lead) => lead.status !== 'confirmed').length}
+              </div>
+            </div>
+            <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+              <div className="text-gray-400 text-sm">Confirmed</div>
+              <div className="text-2xl font-bold text-green-400">{confirmedLeads.length}</div>
+            </div>
+            <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+              <div className="text-gray-400 text-sm">Total earned</div>
+              {confirmedAuraEarnedTotals.length === 0 ? (
+                <div className="text-2xl font-bold text-green-400">
+                  {formatEventPrice(0, DEFAULT_CURRENCY)}
+                </div>
+              ) : (
+                <div className="space-y-1 mt-1">
+                  {confirmedAuraEarnedTotals.map(([currency, total]) => (
+                    <div key={currency} className="text-2xl font-bold text-green-400 leading-tight">
+                      {formatEventPrice(total, currency)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-dark-700 rounded-xl border border-gray-600 p-4">
+              <div className="text-gray-400 text-sm">Matching search</div>
+              <div className="text-2xl font-bold text-primary-400">{filteredLeads.length}</div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
+              <p className="text-gray-400">Loading Aura leads...</p>
+            </div>
+          ) : filteredLeads.length === 0 ? (
+            <div className="text-center py-12 bg-dark-700/40 rounded-xl border border-gray-700">
+              <FileText className="w-14 h-14 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No Aura leads found</h3>
+              <p className="text-gray-400">
+                When someone starts Buy Your Aura checkout, their details will appear here before payment.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
+                <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredLeadsSelected}
+                    onChange={toggleSelectAllFilteredLeads}
+                    disabled={isBulkDeletingLeads}
+                    className="rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                  />
+                  <span>
+                    Select all ({filteredLeads.length})
+                    {selectedLeadIds.length > 0 && (
+                      <span className="text-primary-400 ml-1">· {selectedLeadIds.length} selected</span>
+                    )}
+                  </span>
+                </label>
+                {selectedLeadIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedLeads}
+                    disabled={isBulkDeletingLeads}
+                    className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isBulkDeletingLeads ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isBulkDeletingLeads
+                        ? 'Deleting...'
+                        : `Delete selected (${selectedLeadIds.length})`}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {filteredLeads.map((lead) => {
+                  const leadAmount = lead.amountPaid ?? lead.amountQuoted ?? 0;
+                  const leadCurrency = lead.currency || DEFAULT_CURRENCY;
+                  const isDeleting = deletingLeadId === lead.id;
+                  const isSelected = selectedLeadIds.includes(lead.id);
+
+                  return (
+                    <div
+                      key={lead.id}
+                      className={`bg-dark-800 rounded-xl border p-5 transition-colors ${
+                        isSelected
+                          ? 'border-primary-500/60 ring-1 ring-primary-500/30'
+                          : 'border-gray-700 hover:border-primary-500/50'
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+                        <div className="min-w-0 flex gap-3">
+                          <label className="flex items-start pt-1 cursor-pointer flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleLeadSelection(lead.id)}
+                              disabled={isBulkDeletingLeads || isDeleting}
+                              className="mt-0.5 rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                              aria-label={`Select ${lead.customerName || lead.productTitle || 'lead'}`}
+                            />
+                          </label>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span
+                                className={`px-2.5 py-1 rounded-full border text-xs font-medium ${getAuraLeadStatusStyles(lead.status)}`}
+                              >
+                                {formatAuraLeadStatus(lead.status)}
+                              </span>
+                              <span className="px-2.5 py-1 rounded-full bg-dark-700 border border-gray-600 text-gray-300 text-xs">
+                                {lead.status === 'confirmed' ? 'Paid' : 'Payment required'}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-white break-words">
+                              {lead.productTitle || 'Untitled product'}
+                            </h3>
+                            {lead.quantity != null && (
+                              <p className="text-sm text-gray-400">Quantity: {lead.quantity}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row lg:flex-col sm:items-center lg:items-end gap-3 text-left lg:text-right">
+                          <div>
+                            <div className="text-sm text-gray-400">Captured</div>
+                            <div className="text-white text-sm">{formatAuraTimestamp(lead.createdAt)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLead(lead)}
+                            disabled={isDeleting}
+                            className="px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete Aura lead"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                            <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <UserCircle className="w-4 h-4" />
+                            <span>Customer</span>
+                          </h4>
+                          <div>
+                            <span className="text-gray-400">Name: </span>
+                            <span className="text-white break-words">{lead.customerName || '—'}</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-white break-all">{lead.customerEmail || '—'}</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-white break-words">{lead.customerPhone || '—'}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <IndianRupee className="w-4 h-4" />
+                            <span>Order</span>
+                          </h4>
+                          <div>
+                            <span className="text-gray-400">Amount: </span>
+                            <span className="text-green-400 font-semibold">
+                              {formatEventPrice(leadAmount as number | string, leadCurrency)}
+                            </span>
+                          </div>
+                          {lead.bookingId && (
+                            <div>
+                              <span className="text-gray-400">Booking ID: </span>
+                              <span className="text-white font-mono text-xs break-all">{lead.bookingId}</span>
+                            </div>
+                          )}
+                          {lead.orderId && (
+                            <div>
+                              <span className="text-gray-400">Order ID: </span>
+                              <span className="text-white font-mono text-xs break-all">{lead.orderId}</span>
+                            </div>
+                          )}
+                          {lead.paymentId && (
+                            <div>
+                              <span className="text-gray-400">Payment ID: </span>
+                              <span className="text-white font-mono text-xs break-all">{lead.paymentId}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <MapPin className="w-4 h-4" />
+                            <span>Delivery</span>
+                          </h4>
+                          {lead.shippingAddress ? (
+                            <div className="text-white break-words">{lead.shippingAddress}</div>
+                          ) : (
+                            <div className="text-gray-500">No address yet.</div>
+                          )}
+                          {(lead.shippingCity || lead.shippingState || lead.shippingPincode) && (
+                            <div className="text-gray-400 break-words">
+                              {[lead.shippingCity, lead.shippingState, lead.shippingPincode]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-gray-400">Last update: </span>
+                            <span className="text-white">{formatAuraTimestamp(lead.updatedAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-700 text-sm text-gray-400">
+                Showing {filteredLeads.length} lead{filteredLeads.length === 1 ? '' : 's'}
+                {leadSearchQuery.trim() ? ' matching search' : ''}
+              </div>
+            </>
           )}
         </div>
       )}
