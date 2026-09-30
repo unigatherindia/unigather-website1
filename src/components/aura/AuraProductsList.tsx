@@ -40,8 +40,15 @@ const AuraProductsList: React.FC = () => {
     );
   }
 
+  const gridClass =
+    products.length === 1
+      ? 'grid grid-cols-1 gap-8 max-w-md sm:max-w-lg md:max-w-xl mx-auto'
+      : products.length === 2
+        ? 'grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto'
+        : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto';
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
+    <div className={gridClass}>
       {products.map((product, index) => (
         <AuraProductCard key={product.id} product={product} index={index} />
       ))}
