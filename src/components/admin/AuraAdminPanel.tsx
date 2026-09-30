@@ -67,7 +67,7 @@ type AuraLeadRecord = {
   updatedAt?: Date | null;
 };
 
-function mapAuraLeadDocs(docs: QueryDocumentSnapshot[]): AuraLeadRecord[] {
+function mapFirestoreTimestamps(docs: QueryDocumentSnapshot[]) {
   return docs.map((docSnapshot) => {
     const data = docSnapshot.data();
     const createdAt =
@@ -76,6 +76,60 @@ function mapAuraLeadDocs(docs: QueryDocumentSnapshot[]): AuraLeadRecord[] {
       data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : null);
     return { id: docSnapshot.id, ...data, createdAt, updatedAt };
   });
+}
+
+function mapAuraLeadDocs(docs: QueryDocumentSnapshot[]): AuraLeadRecord[] {
+  return mapFirestoreTimestamps(docs) as AuraLeadRecord[];
+}
+
+type AuraOrderRecord = {
+  id: string;
+  bookingId?: string;
+  productTitle?: string;
+  status?: string;
+  quantity?: number;
+  amountPaid?: number;
+  currency?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPincode?: string;
+  orderId?: string;
+  paymentId?: string;
+  adminNotes?: string;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+};
+
+type AuraOrderEditDraft = {
+  adminNotes: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingPincode: string;
+};
+
+function orderToEditDraft(order: AuraOrderRecord): AuraOrderEditDraft {
+  return {
+    adminNotes: order.adminNotes || '',
+    customerName: order.customerName || '',
+    customerEmail: order.customerEmail || '',
+    customerPhone: order.customerPhone || '',
+    shippingAddress: order.shippingAddress || '',
+    shippingCity: order.shippingCity || '',
+    shippingState: order.shippingState || '',
+    shippingPincode: order.shippingPincode || '',
+  };
+}
+
+function mapAuraOrderDocs(docs: QueryDocumentSnapshot[]): AuraOrderRecord[] {
+  return mapFirestoreTimestamps(docs) as AuraOrderRecord[];
 }
 
 function formatAuraTimestamp(value?: Date | null) {
@@ -180,7 +234,7 @@ function TextArea({
 export default function AuraAdminPanel() {
   const [subTab, setSubTab] = useState<SubTab>('leads');
   const [products, setProducts] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<AuraOrderRecord[]>([]);
   const [leads, setLeads] = useState<AuraLeadRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -193,6 +247,12 @@ export default function AuraAdminPanel() {
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
   const [isBulkDeletingLeads, setIsBulkDeletingLeads] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [isBulkDeletingOrders, setIsBulkDeletingOrders] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [orderEdits, setOrderEdits] = useState<Record<string, AuraOrderEditDraft>>({});
+  const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
 
   const patchForm = (patch: Partial<AuraProductFormState>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -224,7 +284,10 @@ export default function AuraAdminPanel() {
       } catch {
         snap = await getDocs(collection(db, 'auraProductOrders'));
       }
-      setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setOrders(mapAuraOrderDocs(snap.docs));
+      setSelectedOrderIds([]);
+      setEditingOrderId(null);
+      setOrderEdits({});
     } finally {
       setLoading(false);
     }
@@ -468,7 +531,169 @@ export default function AuraAdminPanel() {
     setSelectedLeadIds((prev) => Array.from(new Set([...prev, ...filteredLeadIds])));
   };
 
-  const orderFilterText = orderSearchQuery.trim().toLowerCase();
+  const filteredOrders = useMemo(() => {
+    const search = orderSearchQuery.trim().toLowerCase();
+    if (!search) return orders;
+    return orders.filter((order) =>
+      [
+        order.bookingId,
+        order.productTitle,
+        order.customerName,
+        order.customerEmail,
+        order.customerPhone,
+        order.paymentId,
+        order.orderId,
+        order.shippingCity,
+        order.shippingState,
+        order.adminNotes,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search))
+    );
+  }, [orders, orderSearchQuery]);
+
+  const filteredOrderIds = filteredOrders.map((order) => order.id);
+  const allFilteredOrdersSelected =
+    filteredOrderIds.length > 0 && filteredOrderIds.every((id) => selectedOrderIds.includes(id));
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const toggleSelectAllFilteredOrders = () => {
+    if (allFilteredOrdersSelected) {
+      setSelectedOrderIds((prev) => prev.filter((id) => !filteredOrderIds.includes(id)));
+      return;
+    }
+    setSelectedOrderIds((prev) => Array.from(new Set([...prev, ...filteredOrderIds])));
+  };
+
+  const startEditOrder = (order: AuraOrderRecord) => {
+    setEditingOrderId(order.id);
+    setOrderEdits((prev) => ({ ...prev, [order.id]: orderToEditDraft(order) }));
+  };
+
+  const cancelEditOrder = (orderId: string) => {
+    setEditingOrderId((current) => (current === orderId ? null : current));
+    setOrderEdits((prev) => {
+      const next = { ...prev };
+      delete next[orderId];
+      return next;
+    });
+  };
+
+  const patchOrderEdit = (orderId: string, patch: Partial<AuraOrderEditDraft>) => {
+    setOrderEdits((prev) => ({
+      ...prev,
+      [orderId]: { ...(prev[orderId] || orderToEditDraft({ id: orderId })), ...patch },
+    }));
+  };
+
+  const handleSaveOrder = async (orderId: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+    const draft = orderEdits[orderId];
+    if (!draft) return;
+
+    setSavingOrderId(orderId);
+    try {
+      const payload = {
+        adminNotes: draft.adminNotes.trim(),
+        customerName: draft.customerName.trim(),
+        customerEmail: draft.customerEmail.trim(),
+        customerPhone: draft.customerPhone.trim(),
+        shippingAddress: draft.shippingAddress.trim(),
+        shippingCity: draft.shippingCity.trim(),
+        shippingState: draft.shippingState.trim(),
+        shippingPincode: draft.shippingPincode.trim(),
+        updatedAt: Timestamp.now(),
+      };
+      await updateDoc(doc(db, 'auraProductOrders', orderId), payload);
+      setOrders((prev) =>
+        prev.map((order) => (order.id === orderId ? { ...order, ...payload, updatedAt: new Date() } : order))
+      );
+      cancelEditOrder(orderId);
+      toast.success('Order saved');
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProductOrders.');
+      } else {
+        toast.error(error?.message || 'Failed to save order');
+      }
+    } finally {
+      setSavingOrderId(null);
+    }
+  };
+
+  const handleDeleteOrder = async (order: AuraOrderRecord) => {
+    if (!db) {
+      toast.error('Firebase is not initialized.');
+      return;
+    }
+    const label = order.bookingId || order.productTitle || 'this order';
+    if (
+      !window.confirm(
+        `Delete ${label} from paid orders? This only removes the admin record, not the Razorpay payment.`
+      )
+    ) {
+      return;
+    }
+    setDeletingOrderId(order.id);
+    try {
+      await deleteDoc(doc(db, 'auraProductOrders', order.id));
+      setOrders((prev) => prev.filter((item) => item.id !== order.id));
+      setSelectedOrderIds((prev) => prev.filter((id) => id !== order.id));
+      if (editingOrderId === order.id) cancelEditOrder(order.id);
+      toast.success('Order deleted');
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProductOrders.');
+      } else {
+        toast.error(error?.message || 'Failed to delete order');
+      }
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  const handleDeleteSelectedOrders = async () => {
+    if (!db || selectedOrderIds.length === 0) return;
+    const count = selectedOrderIds.length;
+    if (
+      !window.confirm(
+        `Delete ${count} paid order record${count === 1 ? '' : 's'}? Razorpay payments are not affected.`
+      )
+    ) {
+      return;
+    }
+    setIsBulkDeletingOrders(true);
+    try {
+      await Promise.all(
+        selectedOrderIds.map((orderId) => deleteDoc(doc(db, 'auraProductOrders', orderId)))
+      );
+      setOrders((prev) => prev.filter((item) => !selectedOrderIds.includes(item.id)));
+      setSelectedOrderIds([]);
+      setEditingOrderId(null);
+      setOrderEdits({});
+      toast.success(`${count} order${count === 1 ? '' : 's'} deleted`);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Update Firestore rules for auraProductOrders.');
+      } else {
+        toast.error(error?.message || 'Failed to delete selected orders');
+      }
+    } finally {
+      setIsBulkDeletingOrders(false);
+    }
+  };
+
   const activeProducts = products.filter((p) => p.status !== 'archived');
 
   return (
@@ -830,32 +1055,303 @@ export default function AuraAdminPanel() {
               <Loader2 className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
               <p className="text-gray-400">Loading orders...</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {orders
-                .filter((o) => {
-                  if (!orderFilterText) return true;
-                  return JSON.stringify(o).toLowerCase().includes(orderFilterText);
-                })
-                .map((o) => (
-                  <div key={o.id} className="p-4 rounded-xl bg-dark-700/50 border border-gray-700 text-sm">
-                    <div className="flex flex-wrap justify-between gap-2 mb-2">
-                      <span className="text-amber-400 font-mono">{o.bookingId}</span>
-                      <span className="text-green-400">{o.status}</span>
-                    </div>
-                    <p className="text-white font-medium">{o.productTitle}</p>
-                    <p className="text-gray-400">
-                      {o.customerName} · {o.customerEmail} · {o.customerPhone}
-                    </p>
-                    <p className="text-gray-500 mt-1">
-                      Qty {o.quantity} · ₹{o.amountPaid} · {o.shippingCity}, {o.shippingState}{' '}
-                      {o.shippingPincode}
-                    </p>
-                    <p className="text-gray-600 text-xs mt-1">{o.shippingAddress}</p>
-                    {o.paymentId && <p className="text-gray-600 text-xs">Payment: {o.paymentId}</p>}
-                  </div>
-                ))}
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-12 bg-dark-700/40 rounded-xl border border-gray-700">
+              <ShoppingBag className="w-14 h-14 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No paid orders found</h3>
+              <p className="text-gray-400">Confirmed Aura checkouts will appear here after payment.</p>
             </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 bg-dark-700/50 rounded-xl border border-gray-600">
+                <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredOrdersSelected}
+                    onChange={toggleSelectAllFilteredOrders}
+                    disabled={isBulkDeletingOrders}
+                    className="rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                  />
+                  <span>
+                    Select all ({filteredOrders.length})
+                    {selectedOrderIds.length > 0 && (
+                      <span className="text-primary-400 ml-1">· {selectedOrderIds.length} selected</span>
+                    )}
+                  </span>
+                </label>
+                {selectedOrderIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedOrders}
+                    disabled={isBulkDeletingOrders}
+                    className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isBulkDeletingOrders ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isBulkDeletingOrders
+                        ? 'Deleting...'
+                        : `Delete selected (${selectedOrderIds.length})`}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {filteredOrders.map((order) => {
+                  const isEditing = editingOrderId === order.id;
+                  const draft = orderEdits[order.id];
+                  const isDeleting = deletingOrderId === order.id;
+                  const isSaving = savingOrderId === order.id;
+                  const isSelected = selectedOrderIds.includes(order.id);
+                  const amount = order.amountPaid ?? 0;
+                  const currency = order.currency || DEFAULT_CURRENCY;
+
+                  return (
+                    <div
+                      key={order.id}
+                      className={`bg-dark-800 rounded-xl border p-5 transition-colors ${
+                        isSelected
+                          ? 'border-primary-500/60 ring-1 ring-primary-500/30'
+                          : 'border-gray-700 hover:border-primary-500/50'
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+                        <div className="min-w-0 flex gap-3">
+                          <label className="flex items-start pt-1 cursor-pointer flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleOrderSelection(order.id)}
+                              disabled={isBulkDeletingOrders || isDeleting}
+                              className="mt-0.5 rounded border-gray-600 bg-dark-700 text-primary-500 focus:ring-primary-500/30 disabled:opacity-50"
+                              aria-label={`Select order ${order.bookingId || order.id}`}
+                            />
+                          </label>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span
+                                className={`px-2.5 py-1 rounded-full border text-xs font-medium ${getAuraLeadStatusStyles(order.status)}`}
+                              >
+                                {formatAuraLeadStatus(order.status || 'confirmed')}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-amber-400 font-mono break-all">
+                              {order.bookingId || '—'}
+                            </h3>
+                            <p className="text-white font-medium mt-1">{order.productTitle || 'Aura product'}</p>
+                            {order.quantity != null && (
+                              <p className="text-sm text-gray-400">Quantity: {order.quantity}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row lg:flex-col sm:items-center lg:items-end gap-2 text-left lg:text-right">
+                          <div>
+                            <div className="text-sm text-gray-400">Paid</div>
+                            <div className="text-white text-sm">{formatAuraTimestamp(order.createdAt)}</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 justify-end">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveOrder(order.id)}
+                                  disabled={isSaving}
+                                  className="px-3 py-2 bg-primary-500/20 border border-primary-500/40 rounded-lg text-primary-300 hover:bg-primary-500/30 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                                >
+                                  {isSaving ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Save className="w-4 h-4" />
+                                  )}
+                                  <span>{isSaving ? 'Saving…' : 'Save'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => cancelEditOrder(order.id)}
+                                  disabled={isSaving}
+                                  className="px-3 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-700 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => startEditOrder(order)}
+                                className="px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:border-primary-500/40 hover:text-white transition-colors flex items-center justify-center space-x-2"
+                              >
+                                <Edit className="w-4 h-4" />
+                                <span>Edit</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOrder(order)}
+                              disabled={isDeleting || isEditing}
+                              className="px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                              <span>{isDeleting ? 'Deleting…' : 'Delete'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <UserCircle className="w-4 h-4" />
+                            <span>Customer</span>
+                          </h4>
+                          {isEditing && draft ? (
+                            <div className="space-y-2">
+                              <TextInput
+                                value={draft.customerName}
+                                onChange={(v) => patchOrderEdit(order.id, { customerName: v })}
+                                placeholder="Name"
+                              />
+                              <TextInput
+                                value={draft.customerEmail}
+                                onChange={(v) => patchOrderEdit(order.id, { customerEmail: v })}
+                                placeholder="Email"
+                              />
+                              <TextInput
+                                value={draft.customerPhone}
+                                onChange={(v) => patchOrderEdit(order.id, { customerPhone: v })}
+                                placeholder="Phone"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="text-gray-400">Name: </span>
+                                <span className="text-white break-words">{order.customerName || '—'}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Mail className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-white break-all">{order.customerEmail || '—'}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Phone className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-white break-words">{order.customerPhone || '—'}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <IndianRupee className="w-4 h-4" />
+                            <span>Payment</span>
+                          </h4>
+                          <div>
+                            <span className="text-gray-400">Amount: </span>
+                            <span className="text-green-400 font-semibold">
+                              {formatEventPrice(amount as number | string, currency)}
+                            </span>
+                          </div>
+                          {order.orderId && (
+                            <div>
+                              <span className="text-gray-400">Order ID: </span>
+                              <span className="text-white font-mono text-xs break-all">{order.orderId}</span>
+                            </div>
+                          )}
+                          {order.paymentId && (
+                            <div>
+                              <span className="text-gray-400">Payment ID: </span>
+                              <span className="text-white font-mono text-xs break-all">{order.paymentId}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <h4 className="text-primary-400 font-semibold flex items-center space-x-2">
+                            <MapPin className="w-4 h-4" />
+                            <span>Delivery</span>
+                          </h4>
+                          {isEditing && draft ? (
+                            <div className="space-y-2">
+                              <TextArea
+                                value={draft.shippingAddress}
+                                onChange={(v) => patchOrderEdit(order.id, { shippingAddress: v })}
+                                rows={2}
+                                placeholder="Street address"
+                              />
+                              <TextInput
+                                value={draft.shippingCity}
+                                onChange={(v) => patchOrderEdit(order.id, { shippingCity: v })}
+                                placeholder="City"
+                              />
+                              <TextInput
+                                value={draft.shippingState}
+                                onChange={(v) => patchOrderEdit(order.id, { shippingState: v })}
+                                placeholder="State"
+                              />
+                              <TextInput
+                                value={draft.shippingPincode}
+                                onChange={(v) => patchOrderEdit(order.id, { shippingPincode: v })}
+                                placeholder="PIN code"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              {order.shippingAddress ? (
+                                <div className="text-white break-words">{order.shippingAddress}</div>
+                              ) : (
+                                <div className="text-gray-500">No address on file.</div>
+                              )}
+                              {(order.shippingCity || order.shippingState || order.shippingPincode) && (
+                                <div className="text-gray-400 break-words">
+                                  {[order.shippingCity, order.shippingState, order.shippingPincode]
+                                    .filter(Boolean)
+                                    .join(', ')}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          <div>
+                            <span className="text-gray-400">Last update: </span>
+                            <span className="text-white">{formatAuraTimestamp(order.updatedAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-700/80">
+                        <h4 className="text-primary-400 font-semibold flex items-center space-x-2 text-sm mb-2">
+                          <FileText className="w-4 h-4" />
+                          <span>Admin notes</span>
+                        </h4>
+                        {isEditing && draft ? (
+                          <TextArea
+                            value={draft.adminNotes}
+                            onChange={(v) => patchOrderEdit(order.id, { adminNotes: v })}
+                            rows={3}
+                            placeholder="Internal notes (fulfillment, courier, follow-up…)"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-400 whitespace-pre-wrap">
+                            {order.adminNotes?.trim() || 'No admin notes yet. Click Edit to add notes or update delivery details.'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-700 text-sm text-gray-400">
+                Showing {filteredOrders.length} order{filteredOrders.length === 1 ? '' : 's'}
+                {orderSearchQuery.trim() ? ' matching search' : ''}
+              </div>
+            </>
           )}
         </div>
       )}
