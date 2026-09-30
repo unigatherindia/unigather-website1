@@ -9,7 +9,6 @@ import AboutSection from '@/components/home/AboutSection';
 
 // Lazy load components that are below the fold
 const StatsSection = lazy(() => import('@/components/home/StatsSection'));
-const VideoSection = lazy(() => import('@/components/home/VideoSection'));
 const GallerySection = lazy(() => import('@/components/home/GallerySection'));
 const TestimonialSection = lazy(() => import('@/components/home/TestimonialSection'));
 const CTASection = lazy(() => import('@/components/home/CTASection'));
@@ -32,9 +31,6 @@ export default function HomePage() {
       <AboutSection />
       <Suspense fallback={<SectionLoader />}>
         <StatsSection />
-      </Suspense>
-      <Suspense fallback={<SectionLoader />}>
-        <VideoSection />
       </Suspense>
       <Suspense fallback={<SectionLoader />}>
         <TestimonialSection />
