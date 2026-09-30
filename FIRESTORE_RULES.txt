@@ -40,6 +40,19 @@ service cloud.firestore {
     match /bookingLeads/{leadId} {
       allow read, write: if true;
     }
+
+    match /auraProducts/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /auraProductLeads/{leadId} {
+      allow read, write: if true;
+    }
+
+    match /auraProductOrders/{orderId} {
+      allow read, write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

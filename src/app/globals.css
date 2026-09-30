@@ -115,6 +115,26 @@ a {
   background: #ea580c;
 }
 
+/* Admin / long forms: thin neutral scrollbar (avoid loud orange bar in panels) */
+.admin-panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #52525b #27272a;
+}
+.admin-panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.admin-panel-scroll::-webkit-scrollbar-track {
+  background: #27272a;
+  border-radius: 3px;
+}
+.admin-panel-scroll::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border-radius: 3px;
+}
+.admin-panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
 /* Ticket price chips: Android WebKit can show a tiny orange horizontal scrollbar thumb
    (matches our global ::-webkit-scrollbar-thumb) next to nowrap text — hide it here. */
 .event-ticket-prices,
@@ -151,9 +171,152 @@ a {
   background-clip: text;
 }
 
+.gradient-text-aura {
+  background: linear-gradient(135deg, #D4AF37 0%, #FFD700 50%, #B8860B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.aura-brush-btn {
+  background: linear-gradient(135deg, #b8922e 0%, #d4af37 40%, #c9a227 100%);
+  color: #0a0a0a;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 32px rgba(212, 175, 55, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.aura-brush-btn:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 10px 36px rgba(212, 175, 55, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.aura-modal-shell {
+  background: linear-gradient(165deg, rgba(18, 18, 18, 0.92) 0%, rgba(0, 0, 0, 0.96) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 32px 80px -16px rgba(0, 0, 0, 0.85),
+    0 0 60px -20px rgba(212, 175, 55, 0.15);
+}
+
+.aura-field {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.aura-field:focus-within {
+  border-color: rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.04);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.08);
+}
+
+.aura-field input,
+.aura-field textarea {
+  background: transparent;
+  outline: none;
+}
+
+/* iOS: 16px+ inputs avoid focus zoom; safe areas for notches / home indicator */
+.aura-touch-input {
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  .aura-touch-input {
+    font-size: 0.875rem;
+  }
+}
+
+.pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.aura-page-bg {
+  background-color: #000;
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(212, 175, 55, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 50%, rgba(212, 175, 55, 0.04), transparent 50%);
+}
+
+.font-aura-display {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.aura-gold-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.55), transparent);
+}
+
+.aura-price-plaque {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.18) 0%, rgba(0, 0, 0, 0.6) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 215, 0, 0.12);
+}
+
 /* Glowing effect */
 .glow-effect {
   box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+}
+
+.hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 1.125rem 1.75rem;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 600;
+  border-radius: 9999px;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+.hero-cta-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .hero-cta {
+    width: auto;
+    min-width: 12.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .hero-cta {
+    min-height: 3.5rem;
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  .hero-cta-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }
 
 .glow-effect:hover {
@@ -188,12 +351,17 @@ a {
     font-size: 1.125rem;
   }
   
-  /* Larger CTA buttons on mobile */
-  .group.bg-gradient-to-r {
-    min-height: 56px;
-    padding: 1.125rem 1.75rem !important;
-    font-size: 1.25rem;
+  /* Hero CTAs — same size for Events + Buy Your Aura on mobile */
+  a.hero-cta {
+    min-height: 3.5rem;
+    padding: 1.125rem 1.75rem;
+    font-size: 1.125rem;
     max-width: 100%;
+  }
+
+  a.hero-cta .hero-cta-icon {
+    width: 1.375rem;
+    height: 1.375rem;
   }
   
   /* Better input sizing */

@@ -20,6 +20,13 @@ module.exports = {
           800: '#9a3412',
           900: '#7c2d12',
         },
+        aura: {
+          gold: '#D4AF37',
+          'gold-light': '#FFD700',
+          'gold-dark': '#B8860B',
+          black: '#000000',
+          charcoal: '#0a0a0a',
+        },
         dark: {
           50: '#fafafa',
           100: '#f4f4f5',

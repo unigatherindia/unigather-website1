@@ -4,6 +4,7 @@ import React, { Suspense, lazy } from 'react';
 import Layout from '@/components/Layout';
 import ChatBot from '@/components/ChatBot';
 import HeroSection from '@/components/home/HeroSection';
+import AuraPromoPopup from '@/components/aura/AuraPromoPopup';
 import AboutSection from '@/components/home/AboutSection';
 
 // Lazy load components that are below the fold
@@ -23,6 +24,7 @@ const SectionLoader = () => (
 export default function HomePage() {
   return (
     <Layout>
+      <AuraPromoPopup />
       <HeroSection />
       <Suspense fallback={<SectionLoader />}>
         <GallerySection />

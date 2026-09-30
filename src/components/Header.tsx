@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Users, Calendar, Info, Mail, LogOut, User, LayoutDashboard } from 'lucide-react';
+import PerfumeBottleIcon from '@/components/icons/PerfumeBottleIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +26,7 @@ const Header: React.FC = () => {
   const navigationItems = [
     { name: 'Home', href: '/', icon: Users },
     { name: 'Events', href: '/events', icon: Calendar },
+    { name: 'Buy Your Aura', href: '/buy-your-aura', icon: PerfumeBottleIcon },
     { name: 'About Us', href: '/about', icon: Info },
     { name: 'Contact', href: '/contact', icon: Mail },
   ];

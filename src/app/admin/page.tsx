@@ -10,8 +10,9 @@ import {
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
   Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
-  Archive, RefreshCw
+  Archive, RefreshCw, Sparkles
 } from 'lucide-react';
+import AuraAdminPanel from '@/components/admin/AuraAdminPanel';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import {
@@ -50,7 +51,7 @@ const toAdminDate = (value: any): Date | null => {
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'leads' | 'events' | 'about'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura'>('upload');
 
   // Check admin authentication on mount
   useEffect(() => {
@@ -1609,6 +1610,7 @@ export default function AdminPage() {
     { id: 'leads', label: 'Booking Leads', icon: FileText },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'about', label: 'About Us', icon: UserCircle },
+    { id: 'aura', label: 'Buy Your Aura', icon: Sparkles },
   ];
 
   const filteredBookingLeads = bookingLeads.filter((lead) => {
@@ -3271,6 +3273,10 @@ export default function AdminPage() {
           )}
 
           {/* About Us Section */}
+          {activeTab === 'aura' && (
+            <AuraAdminPanel />
+          )}
+
           {activeTab === 'about' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}

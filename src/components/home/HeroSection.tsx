@@ -5,6 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Users, Calendar, Heart, ArrowRight, Play } from 'lucide-react';
+import PerfumeBottleIcon from '@/components/icons/PerfumeBottleIcon';
 
 const HeroSection: React.FC = () => {
   const stats = [
@@ -65,14 +66,25 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-12 w-full sm:w-auto max-w-sm sm:max-w-none mx-auto lg:mx-0"
+                className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-12 w-full sm:max-w-none mx-auto lg:mx-0 px-1 sm:px-0"
               >
                 <Link
                   href="/events"
-                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-6 py-4 text-base sm:px-6 sm:py-3 sm:text-base md:px-8 md:py-4 md:text-lg rounded-full font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center justify-center w-full sm:w-auto overflow-hidden"
+                  className="hero-cta group box-border border-2 border-transparent bg-gradient-to-r from-primary-500 to-primary-400 text-white hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
                 >
                   Join Our Events
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="hero-cta-icon ml-2 shrink-0 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link
+                  href="/buy-your-aura"
+                  className="hero-cta group relative box-border border-2 border-aura-gold/45 bg-black/40 text-aura-gold-light hover:border-aura-gold hover:shadow-[0_0_28px_rgba(212,175,55,0.25)] active:scale-[0.98] transition-all duration-300"
+                >
+                  <span
+                    className="absolute inset-0 bg-gradient-to-r from-aura-gold/15 via-transparent to-aura-gold/10 opacity-80 group-hover:opacity-100 transition-opacity rounded-full pointer-events-none"
+                    aria-hidden
+                  />
+                  <PerfumeBottleIcon className="hero-cta-icon mr-2 relative z-10 text-aura-gold group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="relative z-10 whitespace-nowrap">Buy Your Aura</span>
                 </Link>
               </motion.div>
 
