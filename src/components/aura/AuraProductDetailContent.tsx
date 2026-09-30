@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import ChatBot from '@/components/ChatBot';
 import AuraProductShowcase from '@/components/aura/AuraProductShowcase';
 import AuraOrderModal from '@/components/aura/AuraOrderModal';
 import {
@@ -105,8 +104,6 @@ export default function AuraProductDetailContent() {
       {checkoutOpen && product && (
         <AuraOrderModal product={product} onClose={() => setCheckoutOpen(false)} />
       )}
-
-      <ChatBot />
     </Layout>
   );
 }

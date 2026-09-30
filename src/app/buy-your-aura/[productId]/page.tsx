@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import ChatBot from '@/components/ChatBot';
 import AuraProductDetailContent from '@/components/aura/AuraProductDetailContent';
 
 function DetailFallback() {
@@ -15,7 +14,6 @@ function DetailFallback() {
           <p className="text-gray-500 text-sm mt-4">Loading fragrance…</p>
         </div>
       </section>
-      <ChatBot />
     </Layout>
   );
 }

@@ -10,11 +10,11 @@ import { getAuraProductSoldOut } from '@/lib/aura-products-client';
 interface Props {
   product: AuraProduct;
   index: number;
+  onBuyNow?: (product: AuraProduct) => void;
 }
 
-const AuraProductCard: React.FC<Props> = ({ product, index }) => {
+const AuraProductCard: React.FC<Props> = ({ product, index, onBuyNow }) => {
   const href = `/buy-your-aura/${product.id}`;
-  const buyHref = `${href}?checkout=1`;
   const soldOut = getAuraProductSoldOut(product);
 
   return (
@@ -47,9 +47,17 @@ const AuraProductCard: React.FC<Props> = ({ product, index }) => {
         <span className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm rounded-sm border border-gray-800 bg-gray-900/80 text-gray-500 uppercase tracking-wide">
           Unavailable
         </span>
+      ) : onBuyNow ? (
+        <button
+          type="button"
+          onClick={() => onBuyNow(product)}
+          className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm aura-brush-btn rounded-sm touch-manipulation"
+        >
+          Buy now
+        </button>
       ) : (
         <Link
-          href={buyHref}
+          href={`${href}?checkout=1`}
           className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm aura-brush-btn rounded-sm touch-manipulation"
         >
           Buy now

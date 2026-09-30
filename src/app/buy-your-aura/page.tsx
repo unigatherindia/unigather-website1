@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Layout from '@/components/Layout';
-import ChatBot from '@/components/ChatBot';
 import AuraHero from '@/components/aura/AuraHero';
 import AuraProductsList from '@/components/aura/AuraProductsList';
 
@@ -15,7 +14,6 @@ export default function BuyYourAuraPage() {
           <AuraProductsList />
         </div>
       </section>
-      <ChatBot />
     </Layout>
   );
 }

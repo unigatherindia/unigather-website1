@@ -6,10 +6,13 @@ import toast from 'react-hot-toast';
 import { loadAuraProducts } from '@/lib/aura-products-client';
 import type { AuraProduct } from '@/types/aura-product';
 import AuraProductCard from './AuraProductCard';
+import AuraOrderModal from './AuraOrderModal';
+import { getAuraProductSoldOut } from '@/lib/aura-products-client';
 
 const AuraProductsList: React.FC = () => {
   const [products, setProducts] = useState<AuraProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [checkoutProduct, setCheckoutProduct] = useState<AuraProduct | null>(null);
 
   useEffect(() => {
     loadAuraProducts()
@@ -47,12 +50,30 @@ const AuraProductsList: React.FC = () => {
         ? 'grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto'
         : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto';
 
+  const handleBuyNow = (product: AuraProduct) => {
+    if (getAuraProductSoldOut(product)) {
+      toast.error('This edition is unavailable.');
+      return;
+    }
+    setCheckoutProduct(product);
+  };
+
   return (
-    <div className={gridClass}>
-      {products.map((product, index) => (
-        <AuraProductCard key={product.id} product={product} index={index} />
-      ))}
-    </div>
+    <>
+      <div className={gridClass}>
+        {products.map((product, index) => (
+          <AuraProductCard
+            key={product.id}
+            product={product}
+            index={index}
+            onBuyNow={handleBuyNow}
+          />
+        ))}
+      </div>
+      {checkoutProduct && (
+        <AuraOrderModal product={checkoutProduct} onClose={() => setCheckoutProduct(null)} />
+      )}
+    </>
   );
 };
 
