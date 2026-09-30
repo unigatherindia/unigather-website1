@@ -10,10 +10,9 @@ import { getAuraProductSoldOut } from '@/lib/aura-products-client';
 interface Props {
   product: AuraProduct;
   index: number;
-  onBuyNow?: (product: AuraProduct) => void;
 }
 
-const AuraProductCard: React.FC<Props> = ({ product, index, onBuyNow }) => {
+const AuraProductCard: React.FC<Props> = ({ product, index }) => {
   const href = `/buy-your-aura/${product.id}`;
   const soldOut = getAuraProductSoldOut(product);
 
@@ -47,20 +46,12 @@ const AuraProductCard: React.FC<Props> = ({ product, index, onBuyNow }) => {
         <span className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm rounded-sm border border-gray-800 bg-gray-900/80 text-gray-500 uppercase tracking-wide">
           Unavailable
         </span>
-      ) : onBuyNow ? (
-        <button
-          type="button"
-          onClick={() => onBuyNow(product)}
-          className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm aura-brush-btn rounded-sm touch-manipulation"
-        >
-          Buy now
-        </button>
       ) : (
         <Link
-          href={`${href}?checkout=1`}
-          className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm aura-brush-btn rounded-sm touch-manipulation"
+          href={href}
+          className="mt-4 w-full min-h-[48px] flex items-center justify-center py-3 text-sm aura-brush-btn rounded-sm touch-manipulation tracking-wide"
         >
-          Buy now
+          Shop now
         </Link>
       )}
     </motion.article>

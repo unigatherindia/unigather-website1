@@ -29,17 +29,36 @@ interface Props {
 const AuraProductShowcase: React.FC<Props> = ({ product, index, onBuy, soldOut }) => {
   const buyPlaqueRef = useRef<HTMLDivElement>(null);
   const [showMobileBuyBar, setShowMobileBuyBar] = useState(false);
+
   useEffect(() => {
-    const el = buyPlaqueRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        setShowMobileBuyBar(!entry.isIntersecting && !soldOut);
-      },
-      { threshold: 0, rootMargin: '0px 0px -72px 0px' }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    let frameId: number | null = null;
+
+    const updateBuyBar = () => {
+      if (frameId !== null) return;
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        const purchaseSection = buyPlaqueRef.current;
+        if (!purchaseSection) return;
+
+        // Show the shortcut only while the real purchase controls are below
+        // the viewport. This prevents the fixed bar following the user over
+        // the purchase section and footer.
+        const purchaseSectionIsBelow =
+          purchaseSection.getBoundingClientRect().top > window.innerHeight;
+        setShowMobileBuyBar(purchaseSectionIsBelow && !soldOut);
+      });
+    };
+
+    updateBuyBar();
+    window.addEventListener('scroll', updateBuyBar, { passive: true });
+    window.addEventListener('resize', updateBuyBar);
+
+    return () => {
+      window.removeEventListener('scroll', updateBuyBar);
+      window.removeEventListener('resize', updateBuyBar);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+    };
   }, [soldOut]);
 
   const currency = product.currency || DEFAULT_CURRENCY;

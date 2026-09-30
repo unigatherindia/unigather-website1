@@ -11,7 +11,6 @@ import {
   CreditCard,
   Check,
   AlertCircle,
-  X,
   ShieldCheck,
   ChevronDown,
 } from 'lucide-react';
@@ -184,7 +183,7 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
       return false;
     }
     if (!form.terms) {
-      toast.error('Please accept the terms');
+      toast.error('Please confirm the non-refundable product agreement');
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
@@ -373,7 +372,7 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-6 isolation-isolate">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -392,33 +391,42 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
         aria-modal="true"
         aria-labelledby="aura-checkout-title"
       >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-[max(0.625rem,env(safe-area-inset-top,0px))] sm:right-5 sm:top-4 z-[60] grid h-12 w-12 min-h-[48px] min-w-[48px] place-items-center rounded-full border-2 border-[#D4AF37] bg-[#1a1a1a] p-0 text-white shadow-lg transition-colors touch-manipulation hover:border-[#FFD700] hover:bg-black"
+          aria-label="Close checkout"
+        >
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            className="absolute left-1/2 top-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+
         {/* Header */}
-        <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-white/5">
-          <div className="flex items-start justify-between gap-3 sm:gap-4">
-            <div className="flex gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="w-12 h-16 sm:w-16 sm:h-20 shrink-0 overflow-hidden ring-1 ring-aura-gold/25">
-                <img src={product.image} alt="" className="w-full h-full object-cover" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] tracking-[0.2em] sm:tracking-[0.35em] uppercase text-aura-gold/80 mb-1">
-                  Private checkout
-                </p>
-                <h2 id="aura-checkout-title" className="font-aura-display text-xl sm:text-3xl text-white break-words leading-tight">
-                  {product.title}
-                </h2>
-                {product.volume && (
-                  <p className="text-gray-500 text-sm mt-1">{product.volume} · unigather Fragrance</p>
-                )}
-              </div>
+        <div className="shrink-0 relative px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-white/5">
+          <div className="flex items-start gap-3 sm:gap-4 pr-14 sm:pr-16 pt-1">
+            <div className="w-12 h-16 sm:w-16 sm:h-20 shrink-0 overflow-hidden ring-1 ring-aura-gold/25">
+              <img src={product.image} alt="" className="w-full h-full object-cover" />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full border border-white/10 text-gray-400 hover:text-white hover:border-aura-gold/30 transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] tracking-[0.2em] sm:tracking-[0.35em] uppercase text-aura-gold/80 mb-1">
+                Private checkout
+              </p>
+              <h2 id="aura-checkout-title" className="font-aura-display text-xl sm:text-3xl text-white break-words leading-tight">
+                {product.title}
+              </h2>
+              {product.volume && (
+                <p className="text-gray-500 text-sm mt-1">{product.volume} · unigather Fragrance</p>
+              )}
+            </div>
           </div>
 
           {/* Steps */}
@@ -601,15 +609,7 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
                     className="mt-1 w-5 h-5 shrink-0 rounded border-gray-600 bg-transparent text-aura-gold focus:ring-aura-gold/30"
                   />
                   <span className="text-xs text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors">
-                    I agree to the{' '}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-aura-gold/80 underline-offset-2 hover:underline">
-                      terms
-                    </a>{' '}
-                    and{' '}
-                    <a href="/refund" target="_blank" rel="noopener noreferrer" className="text-aura-gold/80 underline-offset-2 hover:underline">
-                      refund policy
-                    </a>
-                    , and confirm my delivery details are correct.
+                    I agree that the product you are buying is not refundable.
                   </span>
                 </label>
 
