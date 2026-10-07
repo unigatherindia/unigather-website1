@@ -392,6 +392,8 @@ export async function POST(request: NextRequest) {
         age: normalizedBookingDetails.age || '',
         dietaryRestrictions: normalizedBookingDetails.dietaryRestrictions || '',
         experience: normalizedBookingDetails.experience || '',
+        giftClaimed: normalizedBookingDetails.giftClaimed === true,
+        giftDelivery: normalizedBookingDetails.giftDelivery || null,
         createdAt: FieldValue.serverTimestamp(),
         status: 'confirmed',
         confirmedBy: 'text-booking-api',

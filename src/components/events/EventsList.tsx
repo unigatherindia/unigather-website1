@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Clock, Star, 
-  ChevronRight, ChevronDown, Ticket, Loader2, Users
+  ChevronRight, ChevronDown, Ticket, Loader2, Users, Gift, Sparkles
 } from 'lucide-react';
 import BookingModal from './BookingModal';
 import { db } from '@/lib/firebase';
@@ -57,6 +57,7 @@ interface Event {
   country?: string;
   countryCode?: string;
   currency?: string;
+  freeGiftEnabled?: boolean;
 }
 
 const EventsList: React.FC = () => {
@@ -180,6 +181,7 @@ const EventsList: React.FC = () => {
             country: data.country,
             countryCode: data.countryCode,
             currency: resolveEventCurrency(data),
+            freeGiftEnabled: data.freeGiftEnabled === true,
           };
         });
 
@@ -412,6 +414,27 @@ const EventsList: React.FC = () => {
                   />
                   <span>{isExpanded ? 'See Less' : 'See More'}</span>
                 </button>
+
+                {event.freeGiftEnabled && (
+                  <div className="relative mb-4 overflow-hidden rounded-xl border border-primary-500/35 bg-gradient-to-r from-primary-500/15 via-primary-500/10 to-amber-400/5 px-3.5 py-3">
+                    <div className="absolute -right-4 -top-5 h-16 w-16 rounded-full bg-primary-500/15 blur-xl" />
+                    <div className="relative flex items-center gap-3">
+                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-amber-400 text-white shadow-lg shadow-primary-500/20">
+                        <Gift className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary-300">
+                          <Sparkles className="h-3 w-3" />
+                          Complimentary
+                        </div>
+                        <p className="mt-0.5 text-sm font-semibold text-white">Free gift with booking</p>
+                      </div>
+                      <span className="rounded-full border border-primary-400/30 bg-primary-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary-200">
+                        Free
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pricing */}
                 {(() => {

@@ -129,6 +129,12 @@ export interface PaymentBookingDetails {
   age?: string;
   dietaryRestrictions?: string;
   experience?: string;
+  giftClaimed?: boolean;
+  giftDelivery?: {
+    address: string;
+    pinCode: string;
+    location: string;
+  } | null;
 }
 
 export interface TrustedTicketPrice {
@@ -227,11 +233,33 @@ export function normalizePaymentBookingDetails(details: unknown): PaymentBooking
   }
 
   const raw = details as Record<string, unknown>;
+  const giftClaimed = raw.giftClaimed === true;
+  const rawGiftDelivery =
+    raw.giftDelivery && typeof raw.giftDelivery === 'object'
+      ? (raw.giftDelivery as Record<string, unknown>)
+      : null;
+  const giftDelivery = giftClaimed && rawGiftDelivery
+    ? {
+        address: typeof rawGiftDelivery.address === 'string' ? rawGiftDelivery.address.trim() : '',
+        pinCode: typeof rawGiftDelivery.pinCode === 'string' ? rawGiftDelivery.pinCode.trim() : '',
+        location: typeof rawGiftDelivery.location === 'string' ? rawGiftDelivery.location.trim() : '',
+      }
+    : null;
+
+  if (
+    giftClaimed &&
+    (!giftDelivery?.address || !giftDelivery.pinCode || !giftDelivery.location)
+  ) {
+    throw new PaymentValidationError('Complete gift delivery details are required');
+  }
+
   return {
     age: typeof raw.age === 'string' ? raw.age.trim() : '',
     dietaryRestrictions:
       typeof raw.dietaryRestrictions === 'string' ? raw.dietaryRestrictions.trim() : '',
     experience: typeof raw.experience === 'string' ? raw.experience.trim() : '',
+    giftClaimed,
+    giftDelivery,
   };
 }
 

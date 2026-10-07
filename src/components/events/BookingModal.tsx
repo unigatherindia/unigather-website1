@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { 
   User, Mail, Phone, Calendar, MapPin,
-  CreditCard, Check, AlertCircle, Users, Clock
+  CreditCard, Check, AlertCircle, Users, Clock, Gift, Home, Sparkles, Truck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +53,7 @@ interface Event {
   duration: string;
   highlights: string[];
   currency?: string;
+  freeGiftEnabled?: boolean;
 }
 
 interface BookingModalProps {
@@ -72,6 +73,12 @@ interface BookingForm {
   terms: boolean;
 }
 
+interface GiftDeliveryForm {
+  address: string;
+  pinCode: string;
+  location: string;
+}
+
 const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -86,6 +93,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     emailSent?: boolean;
   } | null>(null);
   const [bookingLeadDocId, setBookingLeadDocId] = useState<string | null>(null);
+  const [giftClaimed, setGiftClaimed] = useState(false);
+  const [showGiftForm, setShowGiftForm] = useState(false);
+  const [giftDelivery, setGiftDelivery] = useState<GiftDeliveryForm>({
+    address: '',
+    pinCode: '',
+    location: '',
+  });
   const [whatsAppUrl, setWhatsAppUrl] = useState<string>('');
   const [retrySeconds, setRetrySeconds] = useState(0);
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -351,6 +365,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     });
   };
 
+  const getGiftBookingDetails = () => ({
+    giftClaimed,
+    giftDelivery: giftClaimed ? giftDelivery : null,
+  });
+
   const saveBookingLead = async (status = 'payment_not_started') => {
     if (!db) {
       throw new Error('Firestore is not initialized');
@@ -374,6 +393,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       age: bookingForm.age,
       dietaryRestrictions: bookingForm.dietaryRestrictions,
       experience: bookingForm.experience,
+      ...getGiftBookingDetails(),
       status,
       source: 'booking_popup',
       userId: user?.uid || null,
@@ -444,7 +464,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
       const price = getPriceForTicketType(bookingForm.ticketType);
       const rupees = parseNumericPriceRupee(price);
-      if (rupees !== undefined) {
+      if (event.freeGiftEnabled) {
+        setStep(2);
+        setIsLoading(false);
+      } else if (rupees !== undefined) {
         setStep(2);
         setIsLoading(false);
       } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
@@ -471,7 +494,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         const leadDocId = await saveBookingLead('payment_not_started');
         const price = getPriceForTicketType(bookingForm.ticketType);
         const rupees = parseNumericPriceRupee(price);
-        if (rupees !== undefined) {
+        if (event.freeGiftEnabled) {
+          setStep(2);
+          setIsLoading(false);
+        } else if (rupees !== undefined) {
           setStep(2);
           setIsLoading(false);
         } else if (typeof price === 'string' && price.trim() !== '' && !isSoldOut(price)) {
@@ -488,7 +514,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
   };
 
   // Handle booking for text prices (skip payment)
-  const handleTextPriceBooking = async (leadDocId = bookingLeadDocId) => {
+  const handleTextPriceBooking = async (
+    leadDocId = bookingLeadDocId,
+    giftDetails = getGiftBookingDetails()
+  ) => {
     setIsLoading(true);
     
     try {
@@ -510,6 +539,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             age: bookingForm.age,
             dietaryRestrictions: bookingForm.dietaryRestrictions,
             experience: bookingForm.experience,
+            ...giftDetails,
           },
         }),
       });
@@ -555,7 +585,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         toast.success('Booking confirmed! (Email delivery may be delayed)');
       }
 
-      setStep(3);
+      setStep(event.freeGiftEnabled ? 4 : 3);
       setIsLoading(false);
     } catch (error: any) {
       console.error('Booking error:', error);
@@ -606,6 +636,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               age: bookingForm.age,
               dietaryRestrictions: bookingForm.dietaryRestrictions,
               experience: bookingForm.experience,
+              ...getGiftBookingDetails(),
             },
           }),
         });
@@ -733,7 +764,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
               const whatsappUrl = createCustomerBookingConfirmation(whatsappDetails);
               setWhatsAppUrl(whatsappUrl);
 
-              setStep(3);
+              setStep(event.freeGiftEnabled ? 4 : 3);
               setIsLoading(false);
             } else {
               throw new Error(verifyData?.message || 'Payment verification failed');
@@ -797,6 +828,51 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         : rawSelectedPrice;
   const isSelectedPriceSoldOut =
     rawSelectedPrice !== undefined && isSoldOut(rawSelectedPrice);
+  const paymentStep = event.freeGiftEnabled ? 3 : 2;
+  const confirmationStep = event.freeGiftEnabled ? 4 : 3;
+
+  const continueAfterGift = async (claimed: boolean) => {
+    if (claimed) {
+      if (!giftDelivery.address.trim() || !giftDelivery.pinCode.trim() || !giftDelivery.location.trim()) {
+        toast.error('Please enter your address, PIN code, and location to claim the gift.');
+        return;
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9 -]{2,9}$/.test(giftDelivery.pinCode.trim())) {
+        toast.error('Please enter a valid PIN or postal code.');
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    const giftUpdates = {
+      giftClaimed: claimed,
+      giftDelivery: claimed
+        ? {
+            address: giftDelivery.address.trim(),
+            pinCode: giftDelivery.pinCode.trim(),
+            location: giftDelivery.location.trim(),
+          }
+        : null,
+    };
+
+    try {
+      await updateBookingLead(giftUpdates);
+      setGiftClaimed(claimed);
+      setShowGiftForm(false);
+
+      const price = getPriceForTicketType(bookingForm.ticketType);
+      if (parseNumericPriceRupee(price) !== undefined) {
+        setStep(paymentStep);
+      } else {
+        await handleTextPriceBooking(bookingLeadDocId, giftUpdates);
+      }
+    } catch (error: any) {
+      console.error('Error saving gift choice:', error);
+      toast.error(error?.message || 'Could not save your gift details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const customPartSum = Object.values(event.customParticipantCounts || {}).reduce(
     (a, b) => a + (typeof b === 'number' ? b : 0),
     0
@@ -806,11 +882,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
     event.currentParticipants.female +
     (event.currentParticipants.couple || 0) +
     customPartSum;
-  const progressSteps = [
-    { number: 1, label: 'Details' },
-    { number: 2, label: 'Payment' },
-    { number: 3, label: 'Confirm' },
-  ];
+  const progressSteps = event.freeGiftEnabled
+    ? [
+        { number: 1, label: 'Details' },
+        { number: 2, label: 'Gift' },
+        { number: 3, label: 'Payment' },
+        { number: 4, label: 'Confirm' },
+      ]
+    : [
+        { number: 1, label: 'Details' },
+        { number: 2, label: 'Payment' },
+        { number: 3, label: 'Confirm' },
+      ];
 
   const formActionsClassName =
     'shrink-0 flex gap-3 border-t border-gray-700 bg-dark-800 px-4 sm:px-6 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]';
@@ -843,7 +926,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-700 p-4 sm:p-6">
           <div className="flex-1 min-w-0">
             <h2 id="booking-modal-title" className="text-lg sm:text-2xl font-bold text-white truncate">
-              {step === 1 ? 'Book Event' : step === 2 ? 'Payment' : 'Booking Confirmed'}
+              {step === 1
+                ? 'Book Event'
+                : event.freeGiftEnabled && step === 2
+                  ? 'Claim Your Free Gift'
+                  : step === paymentStep
+                    ? 'Payment'
+                    : 'Booking Confirmed'}
             </h2>
             <p className="text-gray-400 text-xs sm:text-sm truncate">{event.title}</p>
           </div>
@@ -860,10 +949,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
 
         {/* Progress Steps */}
         <div className="shrink-0 border-b border-gray-700 px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-3 text-center">
+          <div
+            className={`grid text-center ${
+              event.freeGiftEnabled ? 'grid-cols-4' : 'grid-cols-3'
+            }`}
+          >
             {progressSteps.map(({ number, label }) => (
               <div key={number} className="relative flex flex-col items-center">
-                {number < 3 && (
+                {number < progressSteps.length && (
                   <div
                     className={`absolute left-1/2 top-3.5 sm:top-4 h-0.5 w-full transition-colors ${
                       number < step ? 'bg-primary-500' : 'bg-dark-600'
@@ -1124,8 +1217,178 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           </form>
         )}
 
+        {/* Free gift offer */}
+        {event.freeGiftEnabled && step === 2 && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
+              <div className="relative overflow-hidden rounded-3xl border border-primary-500/30 bg-gradient-to-br from-primary-500/25 via-primary-500/10 to-amber-300/5 px-5 py-7 text-center shadow-xl shadow-black/10">
+                <div className="absolute -left-10 -top-12 h-28 w-28 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-14 -right-8 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
+                <div className="relative">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-amber-400 text-white shadow-lg shadow-primary-500/30 ring-1 ring-white/20">
+                    <Gift className="h-8 w-8" />
+                  </div>
+                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary-400/30 bg-primary-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-200">
+                    <Sparkles className="h-3 w-3" />
+                    A little something for you
+                  </div>
+                  <h3 className="text-xl font-bold text-white sm:text-2xl">Claim your free gift</h3>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-300">
+                  Share your delivery details and we will send your complimentary sample to you.
+                  </p>
+                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+                    <Truck className="h-4 w-4 text-primary-400" />
+                    <span>Delivered to your doorstep</span>
+                    <span className="h-1 w-1 rounded-full bg-gray-600" />
+                    <span>No extra charge</span>
+                  </div>
+                </div>
+              </div>
+
+              {giftClaimed && !showGiftForm ? (
+                <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5">
+                  <div className="flex items-center gap-3 border-b border-emerald-500/20 px-4 py-3.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </span>
+                    <div>
+                      <div className="font-semibold text-emerald-200">Gift claimed successfully</div>
+                      <div className="text-xs text-emerald-200/60">We have saved your delivery details</div>
+                    </div>
+                  </div>
+                  <div className="px-4 py-4">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-300" />
+                      <p className="text-sm leading-relaxed text-gray-200">
+                        {giftDelivery.address}, {giftDelivery.location} – {giftDelivery.pinCode}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowGiftForm(true)}
+                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary-400 transition-colors hover:text-primary-300"
+                    >
+                      Edit delivery details
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              ) : showGiftForm ? (
+                <div className="mt-5 space-y-4 rounded-2xl border border-gray-700 bg-dark-700/60 p-4 sm:p-5">
+                  <div className="flex items-center gap-3 border-b border-gray-700 pb-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-400">
+                      <Truck className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h4 className="font-semibold text-white">Where should we send it?</h4>
+                      <p className="text-xs text-gray-400">Enter a complete and deliverable address</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-300">House / Full Address *</label>
+                    <div className="relative">
+                      <Home className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                      <textarea
+                        value={giftDelivery.address}
+                        onChange={(e) => setGiftDelivery((prev) => ({ ...prev, address: e.target.value }))}
+                        rows={3}
+                        className="w-full rounded-lg border border-gray-600 bg-dark-700 py-3 pl-10 pr-4 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                        placeholder="House number, street, area"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-300">PIN / Postal Code *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={giftDelivery.pinCode}
+                        onChange={(e) => setGiftDelivery((prev) => ({ ...prev, pinCode: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-600 bg-dark-700 px-4 py-3 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                        placeholder="160001"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-300">Location / City *</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={giftDelivery.location}
+                          onChange={(e) => setGiftDelivery((prev) => ({ ...prev, location: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-600 bg-dark-700 py-3 pl-10 pr-4 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                          placeholder="City or locality"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-gray-400">
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Optional gift · Your ticket price stays the same</span>
+                </div>
+              )}
+            </div>
+
+            <div className={formActionsClassName}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGiftForm(false);
+                  setStep(1);
+                }}
+                disabled={isLoading}
+                className="basis-[30%] rounded-xl bg-dark-600 py-4 font-semibold text-white transition-colors hover:bg-dark-500 disabled:opacity-50"
+              >
+                Back
+              </button>
+              {giftClaimed && !showGiftForm ? (
+                <button
+                  type="button"
+                  onClick={() => continueAfterGift(true)}
+                  disabled={isLoading}
+                  className="basis-[70%] rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 py-4 font-semibold text-white shadow-lg shadow-primary-500/20 transition-all hover:-translate-y-0.5 hover:shadow-primary-500/30 disabled:opacity-50"
+                >
+                  Continue to Payment →
+                </button>
+              ) : showGiftForm ? (
+                <button
+                  type="button"
+                  onClick={() => continueAfterGift(true)}
+                  disabled={isLoading}
+                  className="basis-[70%] rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 py-4 font-semibold text-white shadow-lg shadow-primary-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                >
+                  {isLoading ? 'Saving...' : 'Save Gift & Continue'}
+                </button>
+              ) : (
+                <div className="flex basis-[70%] gap-2">
+                  <button
+                    type="button"
+                    onClick={() => continueAfterGift(false)}
+                    disabled={isLoading}
+                    className="flex-1 rounded-xl border border-gray-600 bg-dark-600 px-3 py-4 text-sm font-semibold text-gray-200 transition-colors hover:bg-dark-500 disabled:opacity-50"
+                  >
+                    No Thanks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowGiftForm(true)}
+                    disabled={isLoading}
+                    className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 px-3 py-4 text-sm font-semibold text-white shadow-lg shadow-primary-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                  >
+                    <Gift className="h-4 w-4" />
+                    Claim Gift
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Step 2: Payment */}
-        {step === 2 && (
+        {step === paymentStep && (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
               {/* Booking Summary */}
@@ -1176,7 +1439,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
             <div className={`${formActionsClassName} space-x-4`}>
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(event.freeGiftEnabled ? 2 : 1)}
                 className="flex-1 rounded-xl bg-dark-600 px-6 py-3 font-medium text-white transition-colors hover:bg-dark-500"
               >
                 Back
@@ -1209,7 +1472,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         )}
 
         {/* Step 3: Confirmation */}
-        {step === 3 && (
+        {step === confirmationStep && (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 text-center sm:p-6 [-webkit-overflow-scrolling:touch]">
               <motion.div

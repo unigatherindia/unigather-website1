@@ -39,7 +39,7 @@ function syncBookingLeadPaymentOrder(
     .catch(() => undefined);
 }
 
-function buildReusedOrderResponse(
+async function buildReusedOrderResponse(
   orderIntent: {
     internalOrderId: string;
     bookingId: string;
@@ -49,8 +49,21 @@ function buildReusedOrderResponse(
     currency: string;
   },
   razorpayConfig: ReturnType<typeof getServerRazorpayConfig>,
-  bookingLeadId: string | null
+  bookingLeadId: string | null,
+  bookingDetails: ReturnType<typeof normalizePaymentBookingDetails>
 ) {
+  await adminDb
+    .collection(PAYMENT_COLLECTIONS.orders)
+    .doc(orderIntent.internalOrderId)
+    .set(
+      {
+        bookingLeadId,
+        bookingDetails,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
   syncBookingLeadPaymentOrder(bookingLeadId, {
     status: 'payment_order_created',
     internalOrderId: orderIntent.internalOrderId,
@@ -150,7 +163,8 @@ export async function POST(request: NextRequest) {
             currency: String(existingData.currency),
           },
           razorpayConfig,
-          normalizedBookingLeadId
+          normalizedBookingLeadId,
+          normalizedBookingDetails
         );
       }
     }
@@ -250,7 +264,12 @@ export async function POST(request: NextRequest) {
     orderPersisted = !orderIntent.reused;
 
     if (orderIntent.reused) {
-      return buildReusedOrderResponse(orderIntent, razorpayConfig, normalizedBookingLeadId);
+      return buildReusedOrderResponse(
+        orderIntent,
+        razorpayConfig,
+        normalizedBookingLeadId,
+        normalizedBookingDetails
+      );
     }
 
     const razorpay = new Razorpay({

@@ -331,6 +331,13 @@ export async function confirmBookingAfterPayment(
       dietaryRestrictions:
         input.legacy?.dietaryRestrictions || asString(bookingDetails.dietaryRestrictions),
       experience: input.legacy?.experience || asString(bookingDetails.experience),
+      giftClaimed: bookingDetails.giftClaimed === true,
+      giftDelivery:
+        bookingDetails.giftClaimed === true &&
+        bookingDetails.giftDelivery &&
+        typeof bookingDetails.giftDelivery === 'object'
+          ? bookingDetails.giftDelivery
+          : null,
       createdAt: new Date(),
       status: 'confirmed',
       confirmedBy: input.source,

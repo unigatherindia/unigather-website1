@@ -10,7 +10,7 @@ import {
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
   Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
-  Archive, RefreshCw, Sparkles
+  Archive, RefreshCw, Sparkles, Gift
 } from 'lucide-react';
 import AuraAdminPanel from '@/components/admin/AuraAdminPanel';
 import toast from 'react-hot-toast';
@@ -108,6 +108,7 @@ export default function AdminPage() {
     maxCapacity: '',
     duration: '',
     difficulty: 'Easy',
+    freeGiftEnabled: false,
     imageFile: null as File | null,
     imageUrl: '',
   });
@@ -509,7 +510,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleEventFormChange = (field: string, value: string | File | null) => {
+  const handleEventFormChange = (field: string, value: string | boolean | File | null) => {
     if (field === 'imageFile') {
       setEventForm(prev => ({ ...prev, imageFile: value as File | null }));
     } else {
@@ -652,6 +653,7 @@ export default function AdminPage() {
         maxCapacity: parseInt(formData.maxCapacity) || 0,
         duration: formData.duration,
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
+        freeGiftEnabled: formData.freeGiftEnabled,
         // Default values for new events
         currentParticipants: {
           male: 0,
@@ -696,6 +698,7 @@ export default function AdminPage() {
         maxCapacity: '',
         duration: '',
         difficulty: 'Easy',
+        freeGiftEnabled: false,
         imageFile: null,
         imageUrl: '',
       });
@@ -1076,6 +1079,18 @@ export default function AdminPage() {
             {lead.dietaryRestrictions && (
               <div><span className="text-gray-400">Dietary: </span><span className="text-white break-words">{lead.dietaryRestrictions}</span></div>
             )}
+            {lead.giftClaimed && lead.giftDelivery && (
+              <div className="rounded-lg border border-primary-500/30 bg-primary-500/10 p-3">
+                <div className="mb-1 flex items-center gap-2 font-semibold text-primary-300">
+                  <Gift className="h-4 w-4" />
+                  Gift delivery
+                </div>
+                <div className="text-white break-words">{lead.giftDelivery.address}</div>
+                <div className="text-white break-words">
+                  {lead.giftDelivery.location} · {lead.giftDelivery.pinCode}
+                </div>
+              </div>
+            )}
             {lead.failureReason && (
               <div><span className="text-gray-400">Payment note: </span><span className="text-red-300 break-words">{lead.failureReason}</span></div>
             )}
@@ -1429,6 +1444,7 @@ export default function AdminPage() {
       maxCapacity: event.maxCapacity?.toString() || '',
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
+      freeGiftEnabled: event.freeGiftEnabled === true,
       imageFile: null,
       imageUrl: event.image || '',
     });
@@ -1503,6 +1519,7 @@ export default function AdminPage() {
         maxCapacity: parseInt(eventForm.maxCapacity) || 0,
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
+        freeGiftEnabled: eventForm.freeGiftEnabled,
         image: imageUrl,
         updatedAt: Timestamp.now()
       };
@@ -1526,6 +1543,7 @@ export default function AdminPage() {
         maxCapacity: '',
         duration: '',
         difficulty: 'Easy',
+        freeGiftEnabled: false,
         imageFile: null,
         imageUrl: '',
       });
@@ -1625,6 +1643,9 @@ export default function AdminPage() {
       lead.ticketLabel,
       lead.status,
       lead.bookingId,
+      lead.giftDelivery?.address,
+      lead.giftDelivery?.location,
+      lead.giftDelivery?.pinCode,
     ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(search));
@@ -2237,6 +2258,26 @@ export default function AdminPage() {
                       />
                     </div>
 
+                    <div className="md:col-span-2">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-600 bg-dark-700 p-4">
+                        <input
+                          type="checkbox"
+                          checked={eventForm.freeGiftEnabled}
+                          onChange={(e) => handleEventFormChange('freeGiftEnabled', e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-gray-600 bg-dark-800 text-primary-500 focus:ring-primary-500"
+                        />
+                        <span>
+                          <span className="flex items-center gap-2 font-medium text-white">
+                            <Gift className="h-4 w-4 text-primary-400" />
+                            Enable free gift claim
+                          </span>
+                          <span className="mt-1 block text-sm text-gray-400">
+                            Attendees will be offered a free gift and can provide delivery details before payment.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
                         Location *
@@ -2452,6 +2493,7 @@ export default function AdminPage() {
                             maxCapacity: '',
                             duration: '',
                             difficulty: 'Easy',
+                            freeGiftEnabled: false,
                             imageFile: null,
                             imageUrl: '',
                           });
