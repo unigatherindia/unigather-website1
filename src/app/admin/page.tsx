@@ -39,6 +39,25 @@ import {
   resolveEventCurrency,
 } from '@/constants/countries';
 import { formatEventPrice, getCurrencyLabel } from '@/lib/formatPrice';
+import {
+  DEFAULT_FREE_GIFT_PROMO_HIGHLIGHTS,
+  DEFAULT_FREE_GIFT_PROMO_SUBTITLE,
+  DEFAULT_FREE_GIFT_PROMO_TITLE,
+} from '@/constants/event-gift-promo';
+
+const buildFreeGiftPromoHighlightsPayload = (h1: string, h2: string, h3: string): string[] =>
+  [h1, h2, h3].map((s) => s.trim()).filter(Boolean);
+
+const parseFreeGiftPromoHighlightFields = (event: {
+  freeGiftPromoHighlights?: unknown;
+}): { h1: string; h2: string; h3: string } => {
+  const arr = Array.isArray(event.freeGiftPromoHighlights) ? event.freeGiftPromoHighlights : [];
+  return {
+    h1: typeof arr[0] === 'string' ? arr[0] : '',
+    h2: typeof arr[1] === 'string' ? arr[1] : '',
+    h3: typeof arr[2] === 'string' ? arr[2] : '',
+  };
+};
 
 const toAdminDate = (value: any): Date | null => {
   if (!value) return null;
@@ -111,6 +130,11 @@ export default function AdminPage() {
     freeGiftEnabled: false,
     freeGiftImageUrl: '',
     freeGiftImageFile: null as File | null,
+    freeGiftPromoTitle: '',
+    freeGiftPromoSubtitle: '',
+    freeGiftPromoHighlight1: '',
+    freeGiftPromoHighlight2: '',
+    freeGiftPromoHighlight3: '',
     imageFile: null as File | null,
     imageUrl: '',
   });
@@ -671,6 +695,13 @@ export default function AdminPage() {
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
         freeGiftEnabled: formData.freeGiftEnabled,
         freeGiftImageUrl: formData.freeGiftEnabled ? freeGiftImageUrl : '',
+        freeGiftPromoTitle: formData.freeGiftPromoTitle.trim(),
+        freeGiftPromoSubtitle: formData.freeGiftPromoSubtitle.trim(),
+        freeGiftPromoHighlights: buildFreeGiftPromoHighlightsPayload(
+          formData.freeGiftPromoHighlight1,
+          formData.freeGiftPromoHighlight2,
+          formData.freeGiftPromoHighlight3
+        ),
         // Default values for new events
         currentParticipants: {
           male: 0,
@@ -718,6 +749,11 @@ export default function AdminPage() {
         freeGiftEnabled: false,
         freeGiftImageUrl: '',
         freeGiftImageFile: null,
+        freeGiftPromoTitle: '',
+        freeGiftPromoSubtitle: '',
+        freeGiftPromoHighlight1: '',
+        freeGiftPromoHighlight2: '',
+        freeGiftPromoHighlight3: '',
         imageFile: null,
         imageUrl: '',
       });
@@ -1466,6 +1502,17 @@ export default function AdminPage() {
       freeGiftEnabled: event.freeGiftEnabled === true,
       freeGiftImageUrl: typeof event.freeGiftImageUrl === 'string' ? event.freeGiftImageUrl : '',
       freeGiftImageFile: null,
+      freeGiftPromoTitle: typeof event.freeGiftPromoTitle === 'string' ? event.freeGiftPromoTitle : '',
+      freeGiftPromoSubtitle:
+        typeof event.freeGiftPromoSubtitle === 'string' ? event.freeGiftPromoSubtitle : '',
+      ...(() => {
+        const { h1, h2, h3 } = parseFreeGiftPromoHighlightFields(event);
+        return {
+          freeGiftPromoHighlight1: h1,
+          freeGiftPromoHighlight2: h2,
+          freeGiftPromoHighlight3: h3,
+        };
+      })(),
       imageFile: null,
       imageUrl: event.image || '',
     });
@@ -1555,6 +1602,13 @@ export default function AdminPage() {
         difficulty: eventForm.difficulty,
         freeGiftEnabled: eventForm.freeGiftEnabled,
         freeGiftImageUrl: eventForm.freeGiftEnabled ? freeGiftImageUrl : '',
+        freeGiftPromoTitle: eventForm.freeGiftPromoTitle.trim(),
+        freeGiftPromoSubtitle: eventForm.freeGiftPromoSubtitle.trim(),
+        freeGiftPromoHighlights: buildFreeGiftPromoHighlightsPayload(
+          eventForm.freeGiftPromoHighlight1,
+          eventForm.freeGiftPromoHighlight2,
+          eventForm.freeGiftPromoHighlight3
+        ),
         image: imageUrl,
         updatedAt: Timestamp.now()
       };
@@ -1581,6 +1635,11 @@ export default function AdminPage() {
         freeGiftEnabled: false,
         freeGiftImageUrl: '',
         freeGiftImageFile: null,
+        freeGiftPromoTitle: '',
+        freeGiftPromoSubtitle: '',
+        freeGiftPromoHighlight1: '',
+        freeGiftPromoHighlight2: '',
+        freeGiftPromoHighlight3: '',
         imageFile: null,
         imageUrl: '',
       });
@@ -2316,7 +2375,57 @@ export default function AdminPage() {
                     </div>
 
                     {eventForm.freeGiftEnabled && (
-                      <div className="md:col-span-2 rounded-xl border border-primary-500/25 bg-dark-700/80 p-4 space-y-3">
+                      <div className="md:col-span-2 rounded-xl border border-primary-500/25 bg-dark-700/80 p-4 space-y-4">
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-white">Complimentary gift card copy</p>
+                          <p className="text-xs text-gray-400">
+                            Shown on event cards and in the booking flow. Leave blank to use site defaults.
+                          </p>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-medium text-gray-300">Headline</label>
+                            <input
+                              type="text"
+                              value={eventForm.freeGiftPromoTitle}
+                              onChange={(e) => handleEventFormChange('freeGiftPromoTitle', e.target.value)}
+                              className="w-full px-4 py-2.5 bg-dark-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                              placeholder={DEFAULT_FREE_GIFT_PROMO_TITLE}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-medium text-gray-300">Subtext</label>
+                            <input
+                              type="text"
+                              value={eventForm.freeGiftPromoSubtitle}
+                              onChange={(e) => handleEventFormChange('freeGiftPromoSubtitle', e.target.value)}
+                              className="w-full px-4 py-2.5 bg-dark-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                              placeholder={DEFAULT_FREE_GIFT_PROMO_SUBTITLE}
+                            />
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            {[1, 2, 3].map((n) => {
+                              const key = `freeGiftPromoHighlight${n}` as
+                                | 'freeGiftPromoHighlight1'
+                                | 'freeGiftPromoHighlight2'
+                                | 'freeGiftPromoHighlight3';
+                              const defaultHighlight = DEFAULT_FREE_GIFT_PROMO_HIGHLIGHTS[n - 1] ?? '';
+                              return (
+                                <div key={key}>
+                                  <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                                    Highlight {n}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={eventForm[key]}
+                                    onChange={(e) => handleEventFormChange(key, e.target.value)}
+                                    className="w-full px-3 py-2 bg-dark-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                                    placeholder={defaultHighlight}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
                         <p className="text-sm font-medium text-white">Complimentary gift card image</p>
                         <p className="text-xs text-gray-400">
                           Upload the fragrance promo image shown on event cards (bottle on rock). Leave empty to use
@@ -2586,6 +2695,11 @@ export default function AdminPage() {
                             freeGiftEnabled: false,
                             freeGiftImageUrl: '',
                             freeGiftImageFile: null,
+                            freeGiftPromoTitle: '',
+                            freeGiftPromoSubtitle: '',
+                            freeGiftPromoHighlight1: '',
+                            freeGiftPromoHighlight2: '',
+                            freeGiftPromoHighlight3: '',
                             imageFile: null,
                             imageUrl: '',
                           });

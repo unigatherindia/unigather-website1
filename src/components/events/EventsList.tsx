@@ -60,6 +60,9 @@ interface Event {
   currency?: string;
   freeGiftEnabled?: boolean;
   freeGiftImageUrl?: string;
+  freeGiftPromoTitle?: string;
+  freeGiftPromoSubtitle?: string;
+  freeGiftPromoHighlights?: string[];
 }
 
 const EventsList: React.FC = () => {
@@ -186,6 +189,13 @@ const EventsList: React.FC = () => {
             freeGiftEnabled: data.freeGiftEnabled === true,
             freeGiftImageUrl:
               typeof data.freeGiftImageUrl === 'string' ? data.freeGiftImageUrl : undefined,
+            freeGiftPromoTitle:
+              typeof data.freeGiftPromoTitle === 'string' ? data.freeGiftPromoTitle : undefined,
+            freeGiftPromoSubtitle:
+              typeof data.freeGiftPromoSubtitle === 'string' ? data.freeGiftPromoSubtitle : undefined,
+            freeGiftPromoHighlights: Array.isArray(data.freeGiftPromoHighlights)
+              ? data.freeGiftPromoHighlights.filter((h: unknown) => typeof h === 'string')
+              : undefined,
           };
         });
 
@@ -422,6 +432,9 @@ const EventsList: React.FC = () => {
                 {event.freeGiftEnabled && (
                   <EventFreeGiftPromo
                     freeGiftImageUrl={event.freeGiftImageUrl}
+                    freeGiftPromoTitle={event.freeGiftPromoTitle}
+                    freeGiftPromoSubtitle={event.freeGiftPromoSubtitle}
+                    freeGiftPromoHighlights={event.freeGiftPromoHighlights}
                     compact={!isExpanded}
                   />
                 )}

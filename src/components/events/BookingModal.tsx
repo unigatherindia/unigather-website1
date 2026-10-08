@@ -56,6 +56,9 @@ interface Event {
   currency?: string;
   freeGiftEnabled?: boolean;
   freeGiftImageUrl?: string;
+  freeGiftPromoTitle?: string;
+  freeGiftPromoSubtitle?: string;
+  freeGiftPromoHighlights?: string[];
 }
 
 interface BookingModalProps {
@@ -1223,7 +1226,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         {event.freeGiftEnabled && step === 2 && (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
-              <EventFreeGiftPromo freeGiftImageUrl={event.freeGiftImageUrl} />
+              <EventFreeGiftPromo
+                freeGiftImageUrl={event.freeGiftImageUrl}
+                freeGiftPromoTitle={event.freeGiftPromoTitle}
+                freeGiftPromoSubtitle={event.freeGiftPromoSubtitle}
+                freeGiftPromoHighlights={event.freeGiftPromoHighlights}
+              />
               <p className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-gray-300">
                 Share your delivery details and we will send your complimentary fragrance to you — no extra
                 charge.
