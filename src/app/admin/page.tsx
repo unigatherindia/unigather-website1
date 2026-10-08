@@ -109,6 +109,8 @@ export default function AdminPage() {
     duration: '',
     difficulty: 'Easy',
     freeGiftEnabled: false,
+    freeGiftImageUrl: '',
+    freeGiftImageFile: null as File | null,
     imageFile: null as File | null,
     imageUrl: '',
   });
@@ -121,6 +123,7 @@ export default function AdminPage() {
   type CustomTicketFormRow = { id: string; label: string; price: string };
   const [customTicketRows, setCustomTicketRows] = useState<CustomTicketFormRow[]>([]);
   const [uploadingEventImage, setUploadingEventImage] = useState(false);
+  const [uploadingGiftPromoImage, setUploadingGiftPromoImage] = useState(false);
 
   const newCustomTicketId = () =>
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -628,6 +631,19 @@ export default function AdminPage() {
         }
       }
 
+      let freeGiftImageUrl = formData.freeGiftImageUrl.trim();
+      if (formData.freeGiftEnabled && formData.freeGiftImageFile) {
+        try {
+          setUploadingGiftPromoImage(true);
+          freeGiftImageUrl = await handleEventImageUpload(formData.freeGiftImageFile);
+        } catch (uploadError: any) {
+          console.error('Error uploading gift promo image:', uploadError);
+          toast.error('Failed to upload gift promo image.');
+        } finally {
+          setUploadingGiftPromoImage(false);
+        }
+      }
+
       const customOpts = buildCustomTicketPayload();
       const customCounts = mergeCustomParticipantCounts(customOpts, undefined);
       const country =
@@ -654,6 +670,7 @@ export default function AdminPage() {
         duration: formData.duration,
         difficulty: formData.difficulty as 'Easy' | 'Moderate' | 'Challenging',
         freeGiftEnabled: formData.freeGiftEnabled,
+        freeGiftImageUrl: formData.freeGiftEnabled ? freeGiftImageUrl : '',
         // Default values for new events
         currentParticipants: {
           male: 0,
@@ -699,6 +716,8 @@ export default function AdminPage() {
         duration: '',
         difficulty: 'Easy',
         freeGiftEnabled: false,
+        freeGiftImageUrl: '',
+        freeGiftImageFile: null,
         imageFile: null,
         imageUrl: '',
       });
@@ -1445,6 +1464,8 @@ export default function AdminPage() {
       duration: event.duration || '',
       difficulty: event.difficulty || 'Easy',
       freeGiftEnabled: event.freeGiftEnabled === true,
+      freeGiftImageUrl: typeof event.freeGiftImageUrl === 'string' ? event.freeGiftImageUrl : '',
+      freeGiftImageFile: null,
       imageFile: null,
       imageUrl: event.image || '',
     });
@@ -1489,6 +1510,19 @@ export default function AdminPage() {
         }
       }
 
+      let freeGiftImageUrl = eventForm.freeGiftImageUrl.trim();
+      if (eventForm.freeGiftEnabled && eventForm.freeGiftImageFile) {
+        try {
+          setUploadingGiftPromoImage(true);
+          freeGiftImageUrl = await handleEventImageUpload(eventForm.freeGiftImageFile);
+        } catch (uploadError: any) {
+          console.error('Error uploading gift promo image:', uploadError);
+          toast.error('Failed to upload gift promo image.');
+        } finally {
+          setUploadingGiftPromoImage(false);
+        }
+      }
+
       const customOpts = buildCustomTicketPayload();
       const prevEvent = events.find((ev) => ev.id === editingEvent);
       const prevCustomCounts =
@@ -1520,6 +1554,7 @@ export default function AdminPage() {
         duration: eventForm.duration,
         difficulty: eventForm.difficulty,
         freeGiftEnabled: eventForm.freeGiftEnabled,
+        freeGiftImageUrl: eventForm.freeGiftEnabled ? freeGiftImageUrl : '',
         image: imageUrl,
         updatedAt: Timestamp.now()
       };
@@ -1544,6 +1579,8 @@ export default function AdminPage() {
         duration: '',
         difficulty: 'Easy',
         freeGiftEnabled: false,
+        freeGiftImageUrl: '',
+        freeGiftImageFile: null,
         imageFile: null,
         imageUrl: '',
       });
@@ -2278,6 +2315,59 @@ export default function AdminPage() {
                       </label>
                     </div>
 
+                    {eventForm.freeGiftEnabled && (
+                      <div className="md:col-span-2 rounded-xl border border-primary-500/25 bg-dark-700/80 p-4 space-y-3">
+                        <p className="text-sm font-medium text-white">Complimentary gift card image</p>
+                        <p className="text-xs text-gray-400">
+                          Upload the fragrance promo image shown on event cards (bottle on rock). Leave empty to use
+                          the site default.
+                        </p>
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-600 bg-dark-800 px-4 py-5 hover:border-primary-500/50">
+                          <span className="text-sm text-gray-400">Click to upload promo image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              handleEventFormChange('freeGiftImageFile', file);
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () =>
+                                  handleEventFormChange('freeGiftImageUrl', reader.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        {uploadingGiftPromoImage && (
+                          <p className="text-xs text-primary-400">Uploading gift promo image…</p>
+                        )}
+                        <input
+                          type="url"
+                          value={
+                            eventForm.freeGiftImageUrl.startsWith('data:')
+                              ? ''
+                              : eventForm.freeGiftImageUrl
+                          }
+                          onChange={(e) => handleEventFormChange('freeGiftImageUrl', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-dark-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
+                          placeholder="Or paste image URL (e.g. from Upload tab / Cloudinary)"
+                        />
+                        {(eventForm.freeGiftImageUrl || eventForm.freeGiftImageFile) && (
+                          <img
+                            src={
+                              eventForm.freeGiftImageFile
+                                ? URL.createObjectURL(eventForm.freeGiftImageFile)
+                                : eventForm.freeGiftImageUrl
+                            }
+                            alt="Gift promo preview"
+                            className="mx-auto max-h-40 rounded-lg border border-gray-600 object-contain"
+                          />
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
                         Location *
@@ -2494,6 +2584,8 @@ export default function AdminPage() {
                             duration: '',
                             difficulty: 'Easy',
                             freeGiftEnabled: false,
+                            freeGiftImageUrl: '',
+                            freeGiftImageFile: null,
                             imageFile: null,
                             imageUrl: '',
                           });

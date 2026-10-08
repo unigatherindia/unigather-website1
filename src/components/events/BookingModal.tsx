@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { 
   User, Mail, Phone, Calendar, MapPin,
-  CreditCard, Check, AlertCircle, Users, Clock, Gift, Home, Sparkles, Truck
+  CreditCard, Check, AlertCircle, Users, Clock, Gift, Home, Truck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +17,7 @@ import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { formatEventDate } from '@/lib/formatEventDate';
 import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import EventFreeGiftPromo from './EventFreeGiftPromo';
 
 // Extend Window interface for Razorpay
 declare global {
@@ -54,6 +55,7 @@ interface Event {
   highlights: string[];
   currency?: string;
   freeGiftEnabled?: boolean;
+  freeGiftImageUrl?: string;
 }
 
 interface BookingModalProps {
@@ -1221,29 +1223,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         {event.freeGiftEnabled && step === 2 && (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 [-webkit-overflow-scrolling:touch]">
-              <div className="relative overflow-hidden rounded-3xl border border-primary-500/30 bg-gradient-to-br from-primary-500/25 via-primary-500/10 to-amber-300/5 px-5 py-7 text-center shadow-xl shadow-black/10">
-                <div className="absolute -left-10 -top-12 h-28 w-28 rounded-full bg-primary-400/20 blur-3xl" />
-                <div className="absolute -bottom-14 -right-8 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
-                <div className="relative">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-amber-400 text-white shadow-lg shadow-primary-500/30 ring-1 ring-white/20">
-                    <Gift className="h-8 w-8" />
-                  </div>
-                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary-400/30 bg-primary-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-200">
-                    <Sparkles className="h-3 w-3" />
-                    A little something for you
-                  </div>
-                  <h3 className="text-xl font-bold text-white sm:text-2xl">Claim your free gift</h3>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-300">
-                  Share your delivery details and we will send your complimentary sample to you.
-                  </p>
-                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-                    <Truck className="h-4 w-4 text-primary-400" />
-                    <span>Delivered to your doorstep</span>
-                    <span className="h-1 w-1 rounded-full bg-gray-600" />
-                    <span>No extra charge</span>
-                  </div>
-                </div>
-              </div>
+              <EventFreeGiftPromo freeGiftImageUrl={event.freeGiftImageUrl} />
+              <p className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-gray-300">
+                Share your delivery details and we will send your complimentary fragrance to you — no extra
+                charge.
+              </p>
 
               {giftClaimed && !showGiftForm ? (
                 <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5">
