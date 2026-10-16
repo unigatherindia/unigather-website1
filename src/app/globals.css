@@ -280,17 +280,28 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   width: 100%;
   min-height: 3.5rem;
-  padding: 1.125rem 1.75rem;
-  font-size: 1.125rem;
-  line-height: 1.3;
+  max-height: 3.5rem;
+  padding: 0 1.25rem;
+  font-size: clamp(0.8125rem, 2.6vw, 1.125rem);
+  line-height: 1.2;
   font-weight: 600;
   border-radius: 9999px;
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.hero-cta-label {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .hero-cta-icon {
@@ -299,23 +310,49 @@ a {
   flex-shrink: 0;
 }
 
+@layer components {
+  .hero-cta-primary {
+    @apply box-border border-2 border-transparent bg-gradient-to-r from-primary-500 to-primary-400 text-white hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect;
+  }
+
+  .hero-cta-outline {
+    @apply box-border border-2 border-gray-600 bg-transparent text-white hover:border-primary-400 hover:text-primary-400 transition-all duration-300;
+  }
+}
+
 @media (min-width: 640px) {
   .hero-cta {
-    width: auto;
-    min-width: 12.5rem;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 1.75rem;
+    font-size: 1.0625rem;
   }
 }
 
 @media (min-width: 768px) {
   .hero-cta {
     min-height: 3.5rem;
-    padding: 1rem 2rem;
+    max-height: 3.5rem;
+    padding: 0 2rem;
     font-size: 1.125rem;
   }
 
   .hero-cta-icon {
     width: 1.5rem;
     height: 1.5rem;
+  }
+
+  .hero-cta-label {
+    text-overflow: clip;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-cta {
+    width: auto;
+    min-width: 12.5rem;
+    max-width: 100%;
   }
 }
 
@@ -351,12 +388,13 @@ a {
     font-size: 1.125rem;
   }
   
-  /* Hero CTAs — same size for Events + Buy Your Aura on mobile */
+  /* Hero CTAs — equal-height pills on mobile (font size locked so hero text can scale up) */
   a.hero-cta {
     min-height: 3.5rem;
-    padding: 1.125rem 1.75rem;
-    font-size: 1.125rem;
+    max-height: 3.5rem;
+    padding: 0 1rem;
     max-width: 100%;
+    font-size: 0.8125rem;
   }
 
   a.hero-cta .hero-cta-icon {

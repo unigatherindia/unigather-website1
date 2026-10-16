@@ -97,7 +97,7 @@ const ChatBot: React.FC = () => {
       let canned: string | null = null;
       if (/(how .*join.*event|join our events|events|event|join an event)/i.test(lower)) {
         canned =
-          'Visit our website and locate the "Join Our Events" thumbnail.\n\n' +
+          'Visit our website and tap "Explore Events" on the home page.\n\n' +
           'Open the events page and browse the events listed.\n\n' +
           'Select the event you want to join.\n\n' +
           'Complete the booking to secure your spot.';

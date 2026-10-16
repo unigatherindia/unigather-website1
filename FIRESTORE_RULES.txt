@@ -53,6 +53,25 @@ service cloud.firestore {
     match /auraProductOrders/{orderId} {
       allow read, write: if true;
     }
+
+    // One-on-one meetup waitlist (public form writes, admin reads)
+    match /oneOnOneMeetupLeads/{leadId} {
+      allow read, write: if true;
+    }
+
+    match /beyondHellosConfig/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /auraHomePromoConfig/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /beyondHellosBookings/{bookingId} {
+      allow read, write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

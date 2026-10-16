@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
+import HeroCtaLink from '@/components/ui/HeroCtaLink';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
+import {
+  GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS,
+  GROUP_STRANGERS_MEETUP_LABEL,
+} from '@/constants/group-strangers-meetup';
 import { motion } from 'framer-motion';
 import { 
   Users, Heart, Target, Star, Award, Clock, 
@@ -416,21 +422,17 @@ export default function AboutPage() {
               Whether you're new to the city or just looking to expand your social circle, 
               you'll find your place in our welcoming community.
             </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center items-stretch sm:items-center max-w-lg mx-auto sm:max-w-none">
+              <HeroCtaLink
+                href="/events"
+                icon={GroupStrangersMeetupIcon}
+                iconClassName={GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS}
               >
-                Join Our Next Event
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 border-2 border-gray-600 text-white rounded-full font-semibold text-lg hover:border-primary-400 hover:text-primary-400 transition-all duration-300"
-              >
+                {GROUP_STRANGERS_MEETUP_LABEL}
+              </HeroCtaLink>
+              <HeroCtaLink href="/contact" variant="outline" showArrow={false}>
                 Contact Us
-              </motion.button>
+              </HeroCtaLink>
             </div>
           </motion.div>
         </div>

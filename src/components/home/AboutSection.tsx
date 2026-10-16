@@ -3,6 +3,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Target, Heart, Zap, Award, Globe } from 'lucide-react';
+import HeroCtaLink from '@/components/ui/HeroCtaLink';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
+import {
+  GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS,
+  GROUP_STRANGERS_MEETUP_LABEL,
+} from '@/constants/group-strangers-meetup';
 
 const AboutSection: React.FC = () => {
   const features = [
@@ -187,7 +193,7 @@ const AboutSection: React.FC = () => {
           })}
         </motion.div>
 
-        {/* CTA: Join Our Events */}
+        {/* CTA: Explore Events */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -195,13 +201,14 @@ const AboutSection: React.FC = () => {
           viewport={{ once: true }}
           className="mt-12 text-center"
         >
-          <a
+          <HeroCtaLink
             href="/events"
-            className="inline-flex items-center space-x-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 text-white font-semibold hover:from-primary-600 hover:to-primary-500 transition-all duration-300 shadow-md"
+            icon={GroupStrangersMeetupIcon}
+            iconClassName={GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS}
+            className="mx-auto sm:mx-0 w-full sm:w-auto max-w-md"
           >
-            <span>Join Our Events</span>
-            <span className="text-white">→</span>
-          </a>
+            {GROUP_STRANGERS_MEETUP_LABEL}
+          </HeroCtaLink>
         </motion.div>
       </div>
     </section>

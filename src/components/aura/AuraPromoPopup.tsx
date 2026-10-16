@@ -10,6 +10,15 @@ import {
   clearLegacyAuraPromoStorage,
   markAuraPromoShownThisTabVisit,
 } from '@/lib/aura-promo-visit';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import {
+  AURA_HOME_PROMO_CONFIG_COLLECTION,
+  AURA_HOME_PROMO_CONFIG_DOC_ID,
+  DEFAULT_AURA_HOME_PROMO_CONFIG,
+  parseAuraHomePromoConfig,
+  type AuraHomePromoConfig,
+} from '@/types/aura-promo-config';
 
 function PromoCloseIcon() {
   return (
@@ -29,18 +38,55 @@ function PromoCloseIcon() {
 
 const POSTER_SRC = '/media/the-aura-poster.jpg';
 
+const posterImgClass =
+  'w-full max-h-[min(62dvh,520px)] sm:max-h-[min(72dvh,640px)] md:max-h-[min(78dvh,720px)] object-contain object-center mx-auto';
+
 const AuraPromoPopup: React.FC = () => {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [config, setConfig] = useState<AuraHomePromoConfig>(DEFAULT_AURA_HOME_PROMO_CONFIG);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     clearLegacyAuraPromoStorage();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadConfig() {
+      if (!db) {
+        if (!cancelled) setConfigLoaded(true);
+        return;
+      }
+      try {
+        const snap = await getDoc(
+          doc(db, AURA_HOME_PROMO_CONFIG_COLLECTION, AURA_HOME_PROMO_CONFIG_DOC_ID)
+        );
+        if (!cancelled) {
+          setConfig(parseAuraHomePromoConfig(snap.data()));
+        }
+      } catch (error) {
+        console.error('Aura home promo config:', error);
+      } finally {
+        if (!cancelled) setConfigLoaded(true);
+      }
+    }
+
+    loadConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!configLoaded || !config.popupEnabled) return;
     if (!canShowAuraPromoThisTabVisit()) return;
     const t = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [configLoaded, config.popupEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -120,32 +166,49 @@ const AuraPromoPopup: React.FC = () => {
               <PromoCloseIcon />
             </button>
             <div className="relative rounded-lg sm:rounded-sm overflow-hidden ring-1 ring-aura-gold/40 shadow-[0_24px_80px_-12px_rgba(212,175,55,0.35)]">
-              <button
-                type="button"
-                onClick={goToAura}
-                className="group block w-full text-left touch-manipulation hover:ring-aura-gold/70 active:scale-[0.99] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-gold focus-visible:ring-inset"
-              >
-                <div className="relative bg-black">
-                  <img
-                    src={POSTER_SRC}
-                    alt="The Aura — unigather Fragrance limited edition"
-                    className="w-full max-h-[min(62dvh,520px)] sm:max-h-[min(72dvh,640px)] md:max-h-[min(78dvh,720px)] object-contain object-center mx-auto"
-                    sizes="(max-width: 640px) 92vw, 480px"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent pt-10 sm:pt-16 pb-3 sm:pb-4 px-3 sm:px-6 pointer-events-none">
-                    <p className="text-[9px] sm:text-[10px] tracking-[0.25em] sm:tracking-[0.3em] uppercase text-aura-gold/90 mb-1.5 sm:mb-2 flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                      Limited edition
-                    </p>
-                    <p className="font-aura-display text-base sm:text-xl md:text-2xl text-white leading-snug group-hover:text-aura-gold-light transition-colors">
-                      Tap to explore Buy Your Aura
-                    </p>
+              {config.ctaEnabled ? (
+                <button
+                  type="button"
+                  onClick={goToAura}
+                  className="group block w-full text-left touch-manipulation hover:ring-aura-gold/70 active:scale-[0.99] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-gold focus-visible:ring-inset"
+                >
+                  <div className="relative bg-black">
+                    <img
+                      src={POSTER_SRC}
+                      alt="The Aura — unigather Fragrance limited edition"
+                      className={posterImgClass}
+                      sizes="(max-width: 640px) 92vw, 480px"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent pt-10 sm:pt-16 pb-3 sm:pb-4 px-3 sm:px-6 pointer-events-none">
+                      <p className="text-[9px] sm:text-[10px] tracking-[0.25em] sm:tracking-[0.3em] uppercase text-aura-gold/90 mb-1.5 sm:mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                        Limited edition
+                      </p>
+                      <p className="font-aura-display text-base sm:text-xl md:text-2xl text-white leading-snug group-hover:text-aura-gold-light transition-colors">
+                        {config.ctaLabel}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                <div className="relative block w-full text-left">
+                  <div className="relative bg-black">
+                    <img
+                      src={POSTER_SRC}
+                      alt="The Aura — unigather Fragrance limited edition"
+                      className={posterImgClass}
+                      sizes="(max-width: 640px) 92vw, 480px"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent pt-10 sm:pt-16 pb-3 sm:pb-4 px-3 sm:px-6 pointer-events-none">
+                      <p className="text-[9px] sm:text-[10px] tracking-[0.25em] sm:tracking-[0.3em] uppercase text-aura-gold/90 flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                        Limited edition
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </button>
+              )}
             </div>
-
-            
           </motion.div>
         </motion.div>
       )}

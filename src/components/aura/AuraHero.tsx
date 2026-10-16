@@ -18,7 +18,7 @@ const AuraHero: React.FC = () => {
             unigather Fragrance
           </p>
           <h1 className="font-aura-display text-4xl sm:text-5xl md:text-6xl text-white leading-[1.1] mb-5">
-            Buy Your <span className="gradient-text-aura italic">Aura</span>
+            Buy Your <span className="gradient-text-aura italic">Fragrance</span>
           </h1>
           <p className="text-gray-400 text-base md:text-lg leading-relaxed max-w-xl">
             Tap a fragrance to explore every detail from our atelier — then buy when you&apos;re ready.

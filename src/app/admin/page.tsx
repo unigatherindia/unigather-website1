@@ -10,9 +10,10 @@ import {
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
   Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
-  Archive, RefreshCw, Sparkles, Gift
+  Archive, RefreshCw, Sparkles, Gift, HeartHandshake
 } from 'lucide-react';
 import AuraAdminPanel from '@/components/admin/AuraAdminPanel';
+import OneOnOneMeetupAdminPanel from '@/components/admin/OneOnOneMeetupAdminPanel';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import {
@@ -44,6 +45,7 @@ import {
   DEFAULT_FREE_GIFT_PROMO_SUBTITLE,
   DEFAULT_FREE_GIFT_PROMO_TITLE,
 } from '@/constants/event-gift-promo';
+import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 
 const buildFreeGiftPromoHighlightsPayload = (h1: string, h2: string, h3: string): string[] =>
   [h1, h2, h3].map((s) => s.trim()).filter(Boolean);
@@ -70,7 +72,9 @@ const toAdminDate = (value: any): Date | null => {
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura'>('upload');
+  const [activeTab, setActiveTab] = useState<
+    'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura' | 'oneOnOne'
+  >('upload');
 
   // Check admin authentication on mount
   useEffect(() => {
@@ -1724,7 +1728,8 @@ export default function AdminPage() {
     { id: 'leads', label: 'Booking Leads', icon: FileText },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'about', label: 'About Us', icon: UserCircle },
-    { id: 'aura', label: 'Buy Your Aura', icon: Sparkles },
+    { id: 'aura', label: 'Buy Your Fragrance', icon: Sparkles },
+    { id: 'oneOnOne', label: ONE_ON_ONE_MEETUP_LABEL, icon: HeartHandshake },
   ];
 
   const filteredBookingLeads = bookingLeads.filter((lead) => {
@@ -3524,6 +3529,8 @@ export default function AdminPage() {
           {activeTab === 'aura' && (
             <AuraAdminPanel />
           )}
+
+          {activeTab === 'oneOnOne' && <OneOnOneMeetupAdminPanel />}
 
           {activeTab === 'about' && (
             <motion.div

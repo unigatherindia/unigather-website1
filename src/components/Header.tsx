@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Users, Calendar, Info, Mail, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Users, Info, Mail, LogOut, User, LayoutDashboard, HeartHandshake } from 'lucide-react';
 import PerfumeBottleIcon from '@/components/icons/PerfumeBottleIcon';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
+import { GROUP_STRANGERS_MEETUP_NAV_LABEL } from '@/constants/group-strangers-meetup';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,10 +26,21 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navigationItems = [
+  const navigationItems: {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    iconClassName?: string;
+  }[] = [
     { name: 'Home', href: '/', icon: Users },
-    { name: 'Events', href: '/events', icon: Calendar },
-    { name: 'Buy Your Aura', href: '/buy-your-aura', icon: PerfumeBottleIcon },
+    {
+      name: GROUP_STRANGERS_MEETUP_NAV_LABEL,
+      href: '/events',
+      icon: GroupStrangersMeetupIcon,
+      iconClassName: 'w-[1.15rem] h-3 shrink-0',
+    },
+    { name: ONE_ON_ONE_MEETUP_LABEL, href: '/one-on-one-meetup', icon: HeartHandshake },
+    { name: 'Buy your Fragrance', href: '/buy-your-aura', icon: PerfumeBottleIcon },
     { name: 'About Us', href: '/about', icon: Info },
     { name: 'Contact', href: '/contact', icon: Mail },
   ];
@@ -62,19 +76,19 @@ const Header: React.FC = () => {
           >
             <Link href="/" className="flex items-center space-x-3 group">
               <div className={`rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${
-                isAuthPage ? 'w-16 h-16 md:w-20 md:h-20' : 'w-10 h-10'
+                isAuthPage ? 'w-16 h-16 md:w-20 md:h-20' : 'w-12 h-12 md:w-10 md:h-10'
               }`}>
                 <img 
                   src="/media/logo-new.png" 
                   alt="Unigather Logo" 
                   className={`object-contain rounded-lg ${
-                    isAuthPage ? 'w-16 h-16 md:w-20 md:h-20' : 'w-10 h-10'
+                    isAuthPage ? 'w-16 h-16 md:w-20 md:h-20' : 'w-12 h-12 md:w-10 md:h-10'
                   }`}
                 />
               </div>
               <div>
                 <h1 className={`font-bold gradient-text ${
-                  isAuthPage ? 'text-2xl md:text-3xl lg:text-4xl' : 'text-xl md:text-2xl'
+                  isAuthPage ? 'text-2xl md:text-3xl lg:text-4xl' : 'text-[1.375rem] md:text-2xl'
                 }`} style={{ fontFamily: 'Inter, Arial, sans-serif', letterSpacing: '0.01em' }}>
                   Unigather
                 </h1>
@@ -109,7 +123,7 @@ const Header: React.FC = () => {
                         : 'text-gray-300 hover:text-primary-400 hover:bg-primary-500/5'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={item.iconClassName ?? 'w-4 h-4'} />
                     <span className="font-medium">{item.name}</span>
                     {isActive && (
                       <motion.div
@@ -201,7 +215,7 @@ const Header: React.FC = () => {
                           : 'text-gray-300 hover:text-primary-400 hover:bg-primary-500/5'
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className={item.iconClassName ?? 'w-5 h-5'} />
                       <span className="font-medium">{item.name}</span>
                     </Link>
                   </motion.div>

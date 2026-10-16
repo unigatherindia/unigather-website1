@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
@@ -19,7 +20,9 @@ import {
   Phone,
   MapPin,
   IndianRupee,
+  LayoutPanelTop,
 } from 'lucide-react';
+import AuraHomePromoSettings from '@/components/admin/AuraHomePromoSettings';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import {
@@ -41,9 +44,12 @@ import {
   defaultAuraProductForm,
   formToAuraProductPayload,
   type AuraProductFormState,
+  type AuraProduct,
 } from '@/types/aura-product';
 
-type SubTab = 'leads' | 'products' | 'orders';
+type SubTab = 'leads' | 'products' | 'orders' | 'homePopup';
+
+type AuraCatalogProduct = Partial<AuraProduct> & { id: string };
 
 type AuraLeadRecord = {
   id: string;
@@ -233,7 +239,7 @@ function TextArea({
 
 export default function AuraAdminPanel() {
   const [subTab, setSubTab] = useState<SubTab>('leads');
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<AuraCatalogProduct[]>([]);
   const [orders, setOrders] = useState<AuraOrderRecord[]>([]);
   const [leads, setLeads] = useState<AuraLeadRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -268,7 +274,9 @@ export default function AuraAdminPanel() {
       } catch {
         snap = await getDocs(collection(db, 'auraProducts'));
       }
-      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setProducts(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AuraCatalogProduct)
+      );
     } finally {
       setLoading(false);
     }
@@ -381,7 +389,7 @@ export default function AuraAdminPanel() {
   };
 
   const archiveProduct = async (id: string) => {
-    if (!db || !confirm('Archive this product? It will hide from Buy Your Aura.')) return;
+    if (!db || !confirm('Archive this product? It will hide from Buy Your Fragrance.')) return;
     await updateDoc(doc(db, 'auraProducts', id), {
       status: 'archived',
       updatedAt: Timestamp.now(),
@@ -704,6 +712,7 @@ export default function AuraAdminPanel() {
             { id: 'leads' as SubTab, label: 'Aura Leads', icon: FileText },
             { id: 'products' as SubTab, label: 'Products', icon: Sparkles },
             { id: 'orders' as SubTab, label: 'Paid orders', icon: ShoppingBag },
+            { id: 'homePopup' as SubTab, label: 'Home popup', icon: LayoutPanelTop },
           ] as const
         ).map(({ id, label, icon: Icon }) => (
           <button
@@ -721,6 +730,8 @@ export default function AuraAdminPanel() {
           </button>
         ))}
       </div>
+
+      {subTab === 'homePopup' && <AuraHomePromoSettings />}
 
       {subTab === 'products' && (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] gap-6 xl:gap-8 items-start">
@@ -922,10 +933,13 @@ export default function AuraAdminPanel() {
                 <TextInput value={form.imageUrl} onChange={(v) => patchForm({ imageUrl: v })} />
               </div>
               {(form.imageUrl || imageFile) && (
-                <img
+                <Image
                   src={imageFile ? URL.createObjectURL(imageFile) : form.imageUrl}
                   alt="Preview"
-                  className="h-32 rounded-xl object-cover border border-gray-600"
+                  width={256}
+                  height={128}
+                  unoptimized
+                  className="h-32 w-auto rounded-xl object-cover border border-gray-600"
                 />
               )}
             </section>
@@ -955,7 +969,7 @@ export default function AuraAdminPanel() {
           <div className="bg-dark-800 rounded-2xl border border-gray-700 p-5 sm:p-6 xl:sticky xl:top-24">
             <h3 className="text-lg font-semibold text-white mb-1">Your catalog</h3>
             <p className="text-xs text-gray-500 mb-4">
-              {activeProducts.length} live on Buy Your Aura
+              {activeProducts.length} live on Buy Your Fragrance
             </p>
             {loading ? (
               <Loader2 className="w-6 h-6 animate-spin text-primary-400" />
@@ -974,9 +988,12 @@ export default function AuraAdminPanel() {
                         : 'bg-dark-700/50 border-gray-700'
                     }`}
                   >
-                    <img
+                    <Image
                       src={p.image || '/media/the-aura-poster.jpg'}
                       alt={p.title || 'Product'}
+                      width={64}
+                      height={64}
+                      unoptimized
                       className="w-16 h-16 rounded-lg object-cover shrink-0 bg-dark-900"
                     />
                     <div className="flex-1 min-w-0">
@@ -1362,7 +1379,7 @@ export default function AuraAdminPanel() {
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">Aura Leads</h2>
               <p className="text-gray-400">
-                All Buy Your Aura checkout submissions appear here before and after payment.
+                All Buy your Fragrance checkout submissions appear here before and after payment.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -1435,7 +1452,8 @@ export default function AuraAdminPanel() {
               <FileText className="w-14 h-14 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No Aura leads found</h3>
               <p className="text-gray-400">
-                When someone starts Buy Your Aura checkout, their details will appear here before payment.
+                When someone starts Buy your Fragrance checkout, their details will appear here before
+                payment.
               </p>
             </div>
           ) : (

@@ -33,7 +33,7 @@ const AuraProductsList: React.FC = () => {
         <Sparkles className="w-12 h-12 text-aura-gold/60 mx-auto mb-6" />
         <h3 className="font-aura-display text-2xl text-white mb-3">Collection arriving soon</h3>
         <p className="text-gray-500 leading-relaxed">
-          Add fragrances in Admin → Buy Your Aura. They will appear here as cards — tap one to see
+          Add fragrances in Admin → Buy Your Fragrance. They will appear here as cards — tap one to see
           full details and order.
         </p>
       </div>

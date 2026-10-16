@@ -2,10 +2,16 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Heart, ArrowRight, Play } from 'lucide-react';
+import { Users, Calendar, Heart, HeartHandshake } from 'lucide-react';
 import PerfumeBottleIcon from '@/components/icons/PerfumeBottleIcon';
+import HeroCtaLink from '@/components/ui/HeroCtaLink';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
+import {
+  GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS,
+  GROUP_STRANGERS_MEETUP_LABEL,
+} from '@/constants/group-strangers-meetup';
+import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 
 const HeroSection: React.FC = () => {
   const stats = [
@@ -29,18 +35,18 @@ const HeroSection: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Column - Text Content */}
-            <div className="text-center lg:text-left w-full max-w-full overflow-hidden px-2 sm:px-0">
+            <div className="text-center lg:text-left w-full max-w-full min-w-0 px-2 sm:px-0">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
                 className="mb-6"
               >
-                <span className="inline-flex items-center px-3 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-xs sm:text-sm font-medium mb-4 mx-auto lg:mx-0 max-w-max">
-                  <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+                <span className="inline-flex items-center px-3 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-sm sm:text-sm font-medium mb-4 mx-auto lg:mx-0 max-w-max">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
                   <span className="whitespace-nowrap">Welcome to Unigather</span>
                 </span>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight px-2 sm:px-0">
+                <h1 className="text-[2.125rem] leading-[1.15] sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold px-2 sm:px-0 sm:leading-tight">
                   <span className="gradient-text block">Gathering Minds</span>
                   <span className="text-white block">Uniting Hearts</span>
                 </h1>
@@ -50,15 +56,15 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-sm sm:text-base md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 px-4 sm:px-0"
-                style={{ 
-                  wordWrap: 'break-word', 
+                className="text-base leading-relaxed sm:text-base md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0 px-4 sm:px-0"
+                style={{
+                  wordWrap: 'break-word',
                   overflowWrap: 'break-word',
                   maxWidth: '100%',
-                  width: '100%'
+                  width: '100%',
                 }}
               >
-                Turn strangers into lifelong friends through exciting events and meaningful connections. 
+                Turn strangers into lifelong friends through exciting events and meaningful connections.
                 Every gathering is a new beginning, every stranger a potential best friend.
               </motion.p>
 
@@ -66,26 +72,21 @@ const HeroSection: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-12 w-full sm:max-w-none mx-auto lg:mx-0 px-1 sm:px-0"
+                className="flex flex-col gap-3 justify-center lg:justify-start mb-12 w-full max-w-md lg:max-w-none mx-auto lg:mx-0"
               >
-                <Link
+                <HeroCtaLink
                   href="/events"
-                  className="hero-cta group box-border border-2 border-transparent bg-gradient-to-r from-primary-500 to-primary-400 text-white hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
+                  icon={GroupStrangersMeetupIcon}
+                  iconClassName={GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS}
                 >
-                  Join Our Events
-                  <ArrowRight className="hero-cta-icon ml-2 shrink-0 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/buy-your-aura"
-                  className="hero-cta group relative box-border border-2 border-aura-gold/45 bg-black/40 text-aura-gold-light hover:border-aura-gold hover:shadow-[0_0_28px_rgba(212,175,55,0.25)] active:scale-[0.98] transition-all duration-300"
-                >
-                  <span
-                    className="absolute inset-0 bg-gradient-to-r from-aura-gold/15 via-transparent to-aura-gold/10 opacity-80 group-hover:opacity-100 transition-opacity rounded-full pointer-events-none"
-                    aria-hidden
-                  />
-                  <PerfumeBottleIcon className="hero-cta-icon mr-2 relative z-10 text-aura-gold group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="relative z-10 whitespace-nowrap">Buy Your Aura</span>
-                </Link>
+                  {GROUP_STRANGERS_MEETUP_LABEL}
+                </HeroCtaLink>
+                <HeroCtaLink href="/one-on-one-meetup" icon={HeartHandshake}>
+                  {ONE_ON_ONE_MEETUP_LABEL}
+                </HeroCtaLink>
+                <HeroCtaLink href="/buy-your-aura" icon={PerfumeBottleIcon}>
+                  Buy Your Fragrance
+                </HeroCtaLink>
               </motion.div>
 
               {/* Stats */}
@@ -103,12 +104,10 @@ const HeroSection: React.FC = () => {
                     transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
                     className="text-center"
                   >
-                    <div className="text-2xl md:text-3xl font-bold gradient-text mb-1">
+                    <div className="text-[1.625rem] md:text-3xl font-bold gradient-text mb-1">
                       {stat.number}
                     </div>
-                    <div className="text-sm text-gray-400">
-                      {stat.label}
-                    </div>
+                    <div className="text-[0.9375rem] md:text-sm text-gray-400">{stat.label}</div>
                   </motion.div>
                 ))}
               </motion.div>
@@ -125,7 +124,10 @@ const HeroSection: React.FC = () => {
                 {/* Main Circle */}
                 <div className="relative w-96 h-96 mx-auto">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full opacity-20 animate-pulse"></div>
-                  <div className="absolute inset-4 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full opacity-40 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                  <div
+                    className="absolute inset-4 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full opacity-40 animate-pulse"
+                    style={{ animationDelay: '0.5s' }}
+                  ></div>
                   <div className="absolute inset-8 bg-gradient-to-r from-primary-500 to-primary-400 rounded-full opacity-60 flex items-center justify-center">
                     <div className="text-center text-white">
                       <Users className="w-16 h-16 mx-auto mb-4" />

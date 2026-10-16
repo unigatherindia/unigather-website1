@@ -3,6 +3,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { Users, Calendar, MapPin, Star, Trophy, Clock } from 'lucide-react';
+import HeroCtaLink from '@/components/ui/HeroCtaLink';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
+import {
+  GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS,
+  GROUP_STRANGERS_MEETUP_LABEL,
+} from '@/constants/group-strangers-meetup';
 
 const StatsSection: React.FC = () => {
   const controls = useAnimation();
@@ -260,15 +266,14 @@ const StatsSection: React.FC = () => {
           <p className="text-lg text-gray-300 mb-6">
             Ready to become part of these amazing statistics?
           </p>
-          <a href="/events">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-primary-500 to-primary-400 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect"
-            >
-              Join Our Next Event
-            </motion.button>
-          </a>
+          <HeroCtaLink
+            href="/events"
+            icon={GroupStrangersMeetupIcon}
+            iconClassName={GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS}
+            className="mx-auto w-full sm:w-auto max-w-md"
+          >
+            {GROUP_STRANGERS_MEETUP_LABEL}
+          </HeroCtaLink>
         </motion.div>
       </div>
     </section>

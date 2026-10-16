@@ -3,7 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Calendar, Users, Heart, Star, Sparkles } from 'lucide-react';
+import { Calendar, Users, Heart, Star, Sparkles } from 'lucide-react';
+import HeroCtaLink from '@/components/ui/HeroCtaLink';
+import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
+import {
+  GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS,
+  GROUP_STRANGERS_MEETUP_LABEL,
+} from '@/constants/group-strangers-meetup';
 import { db } from '@/lib/firebase';
 import { formatEventDate } from '@/lib/formatEventDate';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -170,27 +176,17 @@ const CTASection: React.FC = () => {
               Your next best friend is just one event away.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
-              <Link href="/events">
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="group bg-gradient-to-r from-primary-500 to-primary-400 text-white px-10 py-4 rounded-full font-bold text-lg hover:from-primary-600 hover:to-primary-500 transition-all duration-300 glow-effect flex items-center"
-                >
-                  Join Our Next Event
-                  <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                </motion.button>
-              </Link>
-              
-              <Link href="/about">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-10 py-4 border-2 border-gray-600 text-white rounded-full font-bold text-lg hover:border-primary-400 hover:text-primary-400 transition-all duration-300"
-                >
-                  Learn More
-                </motion.button>
-              </Link>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center items-stretch sm:items-center mb-12 w-full max-w-lg mx-auto sm:max-w-none">
+              <HeroCtaLink
+                href="/events"
+                icon={GroupStrangersMeetupIcon}
+                iconClassName={GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS}
+              >
+                {GROUP_STRANGERS_MEETUP_LABEL}
+              </HeroCtaLink>
+              <HeroCtaLink href="/about" variant="outline" showArrow={false}>
+                Learn More
+              </HeroCtaLink>
             </div>
 
             {/* Trust Indicators */}
