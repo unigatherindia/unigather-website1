@@ -6,4 +6,4 @@ export const GROUP_STRANGERS_MEETUP_NAV_LABEL = 'Explore Events';
 
 /** White three-people icon sizing on orange hero CTAs. */
 export const GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS =
-  'hero-cta-icon shrink-0 text-white group-hover:scale-105 transition-transform !w-[1.625rem] !h-[1.25rem] sm:!w-[1.75rem] sm:!h-[1.375rem]';
+  'hero-cta-icon shrink-0 text-white group-hover:scale-105 transition-transform !w-[2rem] !h-[1.5rem] sm:!w-[1.75rem] sm:!h-[1.375rem]';
