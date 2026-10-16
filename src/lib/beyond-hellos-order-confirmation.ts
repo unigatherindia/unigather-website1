@@ -9,6 +9,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { GENDER_PREFERENCE_OPTIONS } from '@/constants/meetup-options';
 import { getBeyondHellosTicketLabel } from '@/types/beyond-hellos';
 import { ONE_ON_ONE_MEETUP_COLLECTION } from '@/constants/meetup-options';
+import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 import { BEYOND_HELLOS_BOOKINGS_COLLECTION } from '@/types/beyond-hellos';
 import { PAYMENT_COLLECTIONS, createPaymentBookingId } from '@/lib/payment-hardening';
 
@@ -191,7 +192,7 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
       bookingId,
       bookingLeadId: bookingLeadId || null,
       program: 'beyond_hellos',
-      title: asString(orderData.productLabel, 'Beyond Hello\'s'),
+      title: asString(orderData.productLabel, ONE_ON_ONE_MEETUP_LABEL),
       customerName: asString(customer.name),
       customerEmail: asString(customer.email),
       customerPhone: asString(customer.phone),

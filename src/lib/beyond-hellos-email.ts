@@ -1,4 +1,5 @@
 import { formatEventPrice } from '@/lib/formatPrice';
+import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 
 export interface BeyondHellosConfirmationEmailInput {
   customerEmail: string;
@@ -32,7 +33,7 @@ function createBeyondHellosConfirmationHtml(input: BeyondHellosConfirmationEmail
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Beyond Hello's Confirmed - Unigather</title>
+          <title>${ONE_ON_ONE_MEETUP_LABEL} Confirmed - Unigather</title>
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; }
             .container { background-color: #ffffff; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -50,10 +51,10 @@ function createBeyondHellosConfirmationHtml(input: BeyondHellosConfirmationEmail
           <div class="container">
             <div class="header">
               <img src="${logoUrl}" alt="Unigather" class="brand-logo" />
-              <h1>Beyond Hello's — You're booked!</h1>
+              <h1>${ONE_ON_ONE_MEETUP_LABEL} — You're booked!</h1>
             </div>
             <p>Hi ${input.customerName},</p>
-            <p>Thank you for joining <strong>Beyond Hello's</strong>. Your payment was successful and our team will match you with a compatible guest and host in your city.</p>
+            <p>Thank you for joining <strong>${ONE_ON_ONE_MEETUP_LABEL}</strong>. Your payment was successful and our team will match you with a compatible guest and host in your city.</p>
             <div class="booking-details">
               <div class="detail-row"><span class="detail-label">Booking ID:</span><span class="detail-value">${input.bookingId}</span></div>
               <div class="detail-row"><span class="detail-label">Amount paid:</span><span class="detail-value">${amountLabel}</span></div>
@@ -97,7 +98,7 @@ export async function sendBeyondHellosConfirmationEmail(
     body: JSON.stringify({
       from: fromEmail,
       to: [input.customerEmail],
-      subject: `Beyond Hello's confirmed — ${input.bookingId}`,
+      subject: `${ONE_ON_ONE_MEETUP_LABEL} confirmed — ${input.bookingId}`,
       html: createBeyondHellosConfirmationHtml(input),
     }),
   });
