@@ -13,7 +13,7 @@ export type AuraHomePromoConfig = {
 export const DEFAULT_AURA_HOME_PROMO_CONFIG: AuraHomePromoConfig = {
   popupEnabled: true,
   ctaEnabled: true,
-  ctaLabel: 'Tap to explore Buy your Fragrance',
+  ctaLabel: 'Tap to explore Buy Your Fragrance',
 };
 
 export function parseAuraHomePromoConfig(

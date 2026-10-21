@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Loader2, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
@@ -22,6 +23,8 @@ export default function BeyondHellosAdminSettings() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const loadConfig = useCallback(async () => {
     if (!db) {
@@ -58,6 +61,26 @@ export default function BeyondHellosAdminSettings() {
     });
   };
 
+  const uploadCoverImage = async (file: File): Promise<string> => {
+    setIsUploadingCover(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const response = await fetch('/api/upload', { method: 'POST', body: fd });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed');
+      }
+      const url = result.data?.secure_url || result.data?.url;
+      if (!url || typeof url !== 'string') {
+        throw new Error('Upload did not return an image URL');
+      }
+      return url;
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!db) return;
     const male = String(form.price.male).trim();
@@ -73,10 +96,16 @@ export default function BeyondHellosAdminSettings() {
 
     setIsSaving(true);
     try {
+      let imageUrl = form.image.trim();
+      if (coverImageFile) {
+        imageUrl = await uploadCoverImage(coverImageFile);
+      }
+
       await setDoc(
         doc(db, BEYOND_HELLOS_CONFIG_COLLECTION, BEYOND_HELLOS_CONFIG_DOC_ID),
         {
           ...form,
+          image: imageUrl,
           price: { male, female },
           priceMale: male,
           priceFemale: female,
@@ -86,10 +115,11 @@ export default function BeyondHellosAdminSettings() {
         { merge: true }
       );
       toast.success('1 on 1 Meetup settings saved.');
+      setCoverImageFile(null);
       await loadConfig();
     } catch (error) {
       console.error('Save Beyond Hello\'s config:', error);
-      toast.error('Failed to save settings.');
+      toast.error(error instanceof Error ? error.message : 'Failed to save settings.');
     } finally {
       setIsSaving(false);
     }
@@ -262,14 +292,53 @@ export default function BeyondHellosAdminSettings() {
             placeholder="You + match + Unigather host"
           />
         </div>
-        <div className="md:col-span-2">
-          <label className="text-sm text-gray-400 mb-1 block">Cover image URL</label>
-          <input
-            className={inputClass}
-            value={form.image}
-            onChange={(e) => setField('image', e.target.value)}
-            placeholder="https://..."
-          />
+        <div className="md:col-span-2 space-y-3">
+          <label className="text-sm text-gray-400 mb-1 block">Cover image (event card)</label>
+          <label className="flex flex-col items-center justify-center w-full min-h-[120px] border-2 border-dashed border-gray-600 rounded-xl cursor-pointer bg-dark-700/50 hover:border-primary-500/50 transition-colors px-4 py-6">
+            <span className="text-sm text-gray-400 text-center">
+              {isUploadingCover ? 'Uploading…' : 'Click to upload image (PNG, JPG)'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={isUploadingCover || isSaving}
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setCoverImageFile(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {coverImageFile && (
+            <p className="text-xs text-primary-400 truncate">Selected: {coverImageFile.name}</p>
+          )}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Or paste image URL</label>
+            <input
+              className={inputClass}
+              value={form.image}
+              onChange={(e) => {
+                setCoverImageFile(null);
+                setField('image', e.target.value);
+              }}
+              placeholder="https://..."
+              disabled={isUploadingCover || isSaving}
+            />
+          </div>
+          {(coverImageFile || form.image.trim()) && (
+            <div className="relative w-full max-w-sm aspect-[16/10] rounded-xl overflow-hidden border border-gray-600 bg-dark-900">
+              <Image
+                src={
+                  coverImageFile ? URL.createObjectURL(coverImageFile) : form.image.trim()
+                }
+                alt="Cover preview"
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            </div>
+          )}
         </div>
         <div className="md:col-span-2">
           <label className="text-sm text-gray-400 mb-1 block">Highlights (one per line)</label>
@@ -285,7 +354,7 @@ export default function BeyondHellosAdminSettings() {
       <button
         type="button"
         onClick={handleSave}
-        disabled={isSaving}
+        disabled={isSaving || isUploadingCover}
         className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium flex items-center gap-2 disabled:opacity-50"
       >
         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

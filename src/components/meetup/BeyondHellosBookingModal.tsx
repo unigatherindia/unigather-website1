@@ -29,6 +29,9 @@ declare global {
   }
 }
 
+/** Ignore popstate from modal cleanup `history.back()` (e.g. React Strict Mode remount). */
+let meetupBookingModalProgrammaticBackPending = 0;
+
 type Props = {
   config: BeyondHellosConfig;
   onClose: () => void;
@@ -74,6 +77,12 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
   } | null>(null);
   const [retrySeconds, setRetrySeconds] = useState(0);
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stepRef = useRef(step);
+  const onCloseRef = useRef(onClose);
+  const closedFromPopstateRef = useRef(false);
+
+  stepRef.current = step;
+  onCloseRef.current = onClose;
 
   const currency = config.currency;
   const rawTicketPrice = useMemo(
@@ -89,6 +98,41 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
   const isSelectedSoldOut = isTicketSoldOut(rawTicketPrice);
 
   useEffect(() => setMounted(true), []);
+
+  // Hardware / browser back: close modal or previous step — stay on /one-on-one-meetup.
+  useEffect(() => {
+    const pushModalState = () => {
+      window.history.pushState({ meetupBookingModal: true }, '');
+    };
+
+    pushModalState();
+
+    const handlePopState = () => {
+      if (meetupBookingModalProgrammaticBackPending > 0) {
+        meetupBookingModalProgrammaticBackPending--;
+        return;
+      }
+
+      if (stepRef.current > 1) {
+        setStep((current) => Math.max(1, current - 1));
+        pushModalState();
+        return;
+      }
+
+      closedFromPopstateRef.current = true;
+      onCloseRef.current();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      if (!closedFromPopstateRef.current) {
+        meetupBookingModalProgrammaticBackPending++;
+        window.history.back();
+      }
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     const available: BeyondHellosTicketType[] = [];
@@ -378,7 +422,10 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
           }
         },
         modal: {
-          ondismiss: () => setIsLoading(false),
+          ondismiss: () => {
+            setIsLoading(false);
+            toast('Payment cancelled. You can try again when ready.', { icon: '↩️' });
+          },
         },
       };
 
@@ -599,7 +646,7 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
                 onClick={() => setStep(1)}
                 className="w-full text-sm text-gray-400 hover:text-white"
               >
-                Edit details
+                ← Back to your details
               </button>
             </div>
           )}
