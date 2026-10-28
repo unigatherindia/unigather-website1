@@ -3,10 +3,18 @@
  * Handles admin login session management
  */
 
+export type AdminSessionRole = 'admin' | 'developer';
+
 export interface AdminSession {
   isAuthenticated: boolean;
   adminId: string;
   loginTime: string;
+  /** CSV export and other dev-only admin tools */
+  role?: AdminSessionRole;
+}
+
+function normalizeSessionRole(session: AdminSession): AdminSessionRole {
+  return session.role === 'developer' ? 'developer' : 'admin';
 }
 
 /**
@@ -62,5 +70,12 @@ export const getAdminSession = (): AdminSession | null => {
 export const clearAdminSession = (): void => {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem('adminSession');
+};
+
+/** CSV export — developer session only (not regular admin). */
+export const isDeveloperAdminSession = (): boolean => {
+  const session = getAdminSession();
+  if (!session?.isAuthenticated) return false;
+  return normalizeSessionRole(session) === 'developer';
 };
 

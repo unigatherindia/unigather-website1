@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  Download,
   HeartHandshake,
   IndianRupee,
   Loader2,
@@ -34,6 +35,8 @@ import {
   GENDER_PREFERENCE_OPTIONS,
   ONE_ON_ONE_MEETUP_COLLECTION,
 } from '@/constants/meetup-options';
+import { isDeveloperAdminSession } from '@/lib/adminAuth';
+import { csvDateStamp, csvText, downloadSectionedCsv } from '@/lib/csv-download';
 
 type MeetupLeadRecord = {
   id: string;
@@ -182,6 +185,66 @@ export default function OneOnOneMeetupAdminPanel() {
     }
   };
 
+  const exportSubmissionsCsv = () => {
+    if (!isDeveloperAdminSession()) return;
+    if (filteredLeads.length === 0) {
+      toast.error('No submissions to export.');
+      return;
+    }
+
+    const toRow = (lead: MeetupLeadRecord) => [
+      lead.name?.trim() || '',
+      lead.age != null ? String(lead.age) : '',
+      lead.ticketLabel || labelForGender(lead.gender),
+      labelForPreference(lead.genderPreference),
+      csvText(lead.contactInfo),
+      lead.customerEmail?.trim() || '',
+      csvText(lead.customerPhone),
+      [lead.city, lead.location, lead.state].filter(Boolean).join(', '),
+      lead.hobbies?.trim() || '',
+      lead.amountPaid != null
+        ? String(lead.amountPaid)
+        : lead.amountQuoted != null
+          ? String(lead.amountQuoted)
+          : '',
+      lead.currency || 'INR',
+      csvText(lead.bookingId),
+      lead.status || 'pending',
+      formatLeadDate(lead.createdAt),
+    ];
+
+    const paid = filteredLeads.filter((lead) => lead.status === 'confirmed');
+    const unpaid = filteredLeads.filter((lead) => lead.status !== 'confirmed');
+    const headers = [
+      'Name',
+      'Age',
+      'Gender',
+      'Prefers',
+      'Contact',
+      'Email',
+      'Phone',
+      'City',
+      'Hobbies',
+      'Amount',
+      'Currency',
+      'Booking ID',
+      'Status',
+      'Submitted at',
+    ];
+
+    downloadSectionedCsv({
+      filename: `one-on-one-meetup-${csvDateStamp()}.csv`,
+      headers,
+      sections: [
+        { title: 'Paid', rows: paid.map(toRow) },
+        { title: 'Not paid', rows: unpaid.map(toRow) },
+      ],
+    });
+    toast.success(
+      `Exported ${filteredLeads.length} submission${filteredLeads.length === 1 ? '' : 's'} (${paid.length} paid, ${unpaid.length} not paid).`
+    );
+  };
+
   const handleBulkDelete = async () => {
     if (!db || selectedIds.length === 0) return;
     const count = selectedIds.length;
@@ -267,19 +330,32 @@ export default function OneOnOneMeetupAdminPanel() {
                   className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => loadLeads()}
-                disabled={isLoading}
-                className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
+              <div className="flex items-center gap-2">
+                {isDeveloperAdminSession() && (
+                  <button
+                    type="button"
+                    onClick={exportSubmissionsCsv}
+                    disabled={isLoading || filteredLeads.length === 0}
+                    className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </button>
                 )}
-                Refresh
-              </button>
+                <button
+                  type="button"
+                  onClick={() => loadLeads()}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Refresh
+                </button>
+              </div>
             </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

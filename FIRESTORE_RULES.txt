@@ -72,6 +72,22 @@ service cloud.firestore {
     match /beyondHellosBookings/{bookingId} {
       allow read, write: if true;
     }
+
+    // Hidden campaign signup forms (public read config + submit, admin manages)
+    match /strangersGroupMeetupCampaign/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /strangersGroupMeetupLeads/{leadId} {
+      allow read, write: if true;
+    }
+    match /freeOneOnOneMeetupCampaign/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /freeOneOnOneMeetupLeads/{leadId} {
+      allow read, write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

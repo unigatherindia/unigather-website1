@@ -51,21 +51,28 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     
     try {
-      // Check admin credentials
-      if (formData.adminId === ADMIN_CREDENTIALS.adminId && 
-          formData.password === ADMIN_CREDENTIALS.password) {
-        
-        // Store admin session in sessionStorage
+      const developerId = process.env.NEXT_PUBLIC_DEVELOPER_ADMIN_ID?.trim();
+      const developerPassword = process.env.NEXT_PUBLIC_DEVELOPER_ADMIN_PASSWORD?.trim();
+
+      const isDeveloperLogin =
+        Boolean(developerId && developerPassword) &&
+        formData.adminId === developerId &&
+        formData.password === developerPassword;
+
+      const isAdminLogin =
+        formData.adminId === ADMIN_CREDENTIALS.adminId &&
+        formData.password === ADMIN_CREDENTIALS.password;
+
+      if (isDeveloperLogin || isAdminLogin) {
         const adminSession = {
           isAuthenticated: true,
           adminId: formData.adminId,
           loginTime: new Date().toISOString(),
+          role: isDeveloperLogin ? ('developer' as const) : ('admin' as const),
         };
         sessionStorage.setItem('adminSession', JSON.stringify(adminSession));
-        
-        toast.success('Admin login successful!');
-        
-        // Redirect to admin dashboard
+
+        toast.success(isDeveloperLogin ? 'Developer login successful!' : 'Admin login successful!');
         router.push('/admin');
       } else {
         toast.error('Invalid admin credentials. Please try again.');

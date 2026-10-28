@@ -10,10 +10,11 @@ import {
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
   Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
-  Archive, RefreshCw, Sparkles, Gift, HeartHandshake
+  Archive, RefreshCw, Sparkles, Gift, HeartHandshake, Download, Link2
 } from 'lucide-react';
 import AuraAdminPanel from '@/components/admin/AuraAdminPanel';
 import OneOnOneMeetupAdminPanel from '@/components/admin/OneOnOneMeetupAdminPanel';
+import CampaignLandingAdminPanel from '@/components/admin/CampaignLandingAdminPanel';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import {
@@ -30,7 +31,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { deriveParticipantCountsFromEvents } from '@/lib/event-participants';
-import { isAdminAuthenticated, clearAdminSession } from '@/lib/adminAuth';
+import { isAdminAuthenticated, clearAdminSession, isDeveloperAdminSession } from '@/lib/adminAuth';
 import {
   COUNTRIES,
   DEFAULT_COUNTRY_CODE,
@@ -46,6 +47,7 @@ import {
   DEFAULT_FREE_GIFT_PROMO_TITLE,
 } from '@/constants/event-gift-promo';
 import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
+import { csvDateStamp, csvText, downloadSectionedCsv } from '@/lib/csv-download';
 
 const buildFreeGiftPromoHighlightsPayload = (h1: string, h2: string, h3: string): string[] =>
   [h1, h2, h3].map((s) => s.trim()).filter(Boolean);
@@ -73,7 +75,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura' | 'oneOnOne'
+    'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura' | 'oneOnOne' | 'campaignForms'
   >('upload');
 
   // Check admin authentication on mount
@@ -1371,6 +1373,82 @@ export default function AdminPage() {
     );
   };
 
+  const archivedPaymentGroup = (booking: any): 'Paid' | 'Not paid' => {
+    const status = String(booking.status || '').toLowerCase();
+    if (status === 'confirmed' || status === 'paid' || status === 'captured') return 'Paid';
+    if (!status) return 'Paid';
+    return 'Not paid';
+  };
+
+  const exportArchivedBookingsCsv = () => {
+    if (!isDeveloperAdminSession()) return;
+
+    const records = filteredArchivedBookingData.flatMap(({ event, bookings }) =>
+      bookings.map((booking) => ({ event, booking }))
+    );
+    if (records.length === 0) {
+      toast.error('No archived registrations to export.');
+      return;
+    }
+
+    const toRow = (event: any, booking: any) => {
+      const archivedAt = toAdminDate(event.deletedAt);
+      return [
+        event.title || 'Untitled Event',
+        event.location || '',
+        archivedAt ? formatBookingTimestamp(archivedAt) : '',
+        booking.customerName || '',
+        booking.customerEmail || '',
+        csvText(booking.customerPhone),
+        booking.age != null ? String(booking.age) : '',
+        csvText(booking.bookingId),
+        csvText(booking.paymentId),
+        csvText(booking.orderId),
+        booking.amountPaid != null ? String(booking.amountPaid) : '',
+        resolveEventCurrency(event),
+        capitalize(booking.ticketGender || booking.ticketLabel || ''),
+        booking.status || 'confirmed',
+        booking.dietaryRestrictions || '',
+        booking.experience || '',
+        formatBookingTimestamp(booking.createdAt),
+      ];
+    };
+
+    const headers = [
+      'Event',
+      'Location',
+      'Archived at',
+      'Name',
+      'Email',
+      'Phone',
+      'Age',
+      'Booking ID',
+      'Payment ID',
+      'Order ID',
+      'Amount',
+      'Currency',
+      'Ticket type',
+      'Status',
+      'Dietary',
+      'Experience',
+      'Booked at',
+    ];
+    const paid = records.filter(({ booking }) => archivedPaymentGroup(booking) === 'Paid');
+    const unpaid = records.filter(({ booking }) => archivedPaymentGroup(booking) === 'Not paid');
+
+    downloadSectionedCsv({
+      filename: `archived-event-users-${csvDateStamp()}.csv`,
+      headers,
+      sections: [
+        { title: 'Paid', rows: paid.map(({ event, booking }) => toRow(event, booking)) },
+        { title: 'Not paid', rows: unpaid.map(({ event, booking }) => toRow(event, booking)) },
+      ],
+    });
+    toast.success(
+      `Exported ${records.length} archived registration${records.length === 1 ? '' : 's'} (${paid.length} paid, ${unpaid.length} not paid).`
+    );
+  };
+
   const toggleSelectAllFilteredArchivedBookings = () => {
     if (allFilteredArchivedBookingsSelected) {
       setSelectedArchivedBookingIds((prev) =>
@@ -1730,6 +1808,7 @@ export default function AdminPage() {
     { id: 'about', label: 'About Us', icon: UserCircle },
     { id: 'aura', label: 'Buy Your Fragrance', icon: Sparkles },
     { id: 'oneOnOne', label: ONE_ON_ONE_MEETUP_LABEL, icon: HeartHandshake },
+    { id: 'campaignForms', label: 'Campaign Forms', icon: Link2 },
   ];
 
   const filteredBookingLeads = bookingLeads.filter((lead) => {
@@ -3370,6 +3449,19 @@ export default function AdminPage() {
                             className="pl-10 pr-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 w-full sm:w-72"
                           />
                         </div>
+                        {isDeveloperAdminSession() && (
+                          <button
+                            type="button"
+                            onClick={exportArchivedBookingsCsv}
+                            disabled={
+                              isLoadingArchivedBookings || filteredArchivedBookingIds.length === 0
+                            }
+                            className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>Export CSV</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => fetchArchivedBookings()}
                           className="px-4 py-2 bg-dark-700 border border-gray-600 rounded-lg text-gray-300 hover:bg-dark-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
@@ -3531,6 +3623,8 @@ export default function AdminPage() {
           )}
 
           {activeTab === 'oneOnOne' && <OneOnOneMeetupAdminPanel />}
+
+          {activeTab === 'campaignForms' && <CampaignLandingAdminPanel />}
 
           {activeTab === 'about' && (
             <motion.div
