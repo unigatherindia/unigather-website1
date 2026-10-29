@@ -1,9 +1,10 @@
-import { GENDER_PREFERENCE_OPTIONS } from '@/constants/meetup-options';
+import { GENDER_OPTIONS, GENDER_PREFERENCE_OPTIONS } from '@/constants/meetup-options';
 
 export type CampaignLandingSlug = 'strangers-group' | 'free-one-on-one';
 
 export type CampaignFormField =
   | 'name'
+  | 'gender'
   | 'mobile'
   | 'email'
   | 'city'
@@ -12,6 +13,9 @@ export type CampaignFormField =
   | 'contactInfo'
   | 'genderPreference'
   | 'hobbies';
+
+/** Locked on campaign enrollment forms (not editable by users). */
+export const CAMPAIGN_LOCKED_GENDER = 'female' as const;
 
 export type CampaignLandingMeta = {
   slug: CampaignLandingSlug;
@@ -120,7 +124,7 @@ export const CAMPAIGN_LANDING_META: Record<CampaignLandingSlug, CampaignLandingM
     leadsCollection: 'strangersGroupMeetupLeads',
     configCollection: 'strangersGroupMeetupCampaign',
     configDocId: 'default',
-    formFields: ['name', 'mobile', 'email', 'city', 'instagram'],
+    formFields: ['name', 'gender', 'mobile', 'email', 'city', 'instagram'],
   },
   'free-one-on-one': {
     slug: 'free-one-on-one',
@@ -130,7 +134,16 @@ export const CAMPAIGN_LANDING_META: Record<CampaignLandingSlug, CampaignLandingM
     leadsCollection: 'freeOneOnOneMeetupLeads',
     configCollection: 'freeOneOnOneMeetupCampaign',
     configDocId: 'default',
-    formFields: ['name', 'age', 'contactInfo', 'genderPreference', 'hobbies', 'city', 'instagram'],
+    formFields: [
+      'name',
+      'gender',
+      'age',
+      'contactInfo',
+      'genderPreference',
+      'hobbies',
+      'city',
+      'instagram',
+    ],
   },
 };
 
@@ -261,6 +274,7 @@ export function findCampaignCity(
 
 export const CAMPAIGN_FIELD_LABELS: Record<CampaignFormField, string> = {
   name: 'Name',
+  gender: 'Your Gender',
   mobile: 'Mobile Number',
   email: 'Email',
   city: 'City',
@@ -273,4 +287,8 @@ export const CAMPAIGN_FIELD_LABELS: Record<CampaignFormField, string> = {
 
 export function labelForCampaignGenderPreference(value: string) {
   return GENDER_PREFERENCE_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
+
+export function labelForCampaignGender(value: string) {
+  return GENDER_OPTIONS.find((o) => o.value === value)?.label ?? value;
 }

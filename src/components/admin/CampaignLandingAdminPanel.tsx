@@ -36,6 +36,7 @@ import {
   CAMPAIGN_FIELD_LABELS,
   CAMPAIGN_LANDING_META,
   DEFAULT_CAMPAIGN_LANDING_CONFIG,
+  labelForCampaignGender,
   labelForCampaignGenderPreference,
   parseCampaignLandingConfig,
   UNIGATHER_INSTAGRAM_URL,
@@ -55,6 +56,7 @@ type LeadRecord = {
   instagram?: string;
   age?: number;
   contactInfo?: string;
+  gender?: string;
   genderPreference?: string;
   hobbies?: string;
   status?: string;
@@ -218,6 +220,7 @@ export default function CampaignLandingAdminPanel() {
         lead.instagram,
         lead.contactInfo,
         lead.hobbies,
+        lead.gender,
         lead.genderPreference,
         String(lead.age ?? ''),
       ]
@@ -249,6 +252,9 @@ export default function CampaignLandingAdminPanel() {
       formatLeadDate(lead.createdAt),
       ...meta.formFields.map((field) => {
         if (field === 'age') return lead.age != null ? String(lead.age) : '';
+        if (field === 'gender') {
+          return labelForCampaignGender(lead.gender || 'female');
+        }
         if (field === 'genderPreference') {
           return labelForCampaignGenderPreference(lead.genderPreference || '');
         }
@@ -884,7 +890,9 @@ export default function CampaignLandingAdminPanel() {
                           if (field === 'name') return null;
                           let value: string;
                           if (field === 'age') value = lead.age != null ? String(lead.age) : '—';
-                          else if (field === 'genderPreference') {
+                          else if (field === 'gender') {
+                            value = labelForCampaignGender(lead.gender || 'female');
+                          } else if (field === 'genderPreference') {
                             value = labelForCampaignGenderPreference(lead.genderPreference || '') || '—';
                           } else {
                             const raw = String(lead[field as keyof LeadRecord] ?? '—');

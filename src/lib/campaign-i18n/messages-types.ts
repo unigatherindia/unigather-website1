@@ -18,6 +18,8 @@ export type CampaignMessages = {
   submitStrangers: string;
   submitOneOnOne: string;
   fieldName: string;
+  fieldGender: string;
+  genderFemale: string;
   fieldMobile: string;
   fieldEmail: string;
   fieldCity: string;

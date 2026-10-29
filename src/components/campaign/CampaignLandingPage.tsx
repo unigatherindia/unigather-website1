@@ -22,6 +22,7 @@ import {
   campaignLabelClass,
 } from '@/components/campaign/campaign-premium-ui';
 import {
+  CAMPAIGN_LOCKED_GENDER,
   CAMPAIGN_LANDING_META,
   DEFAULT_CAMPAIGN_LANDING_CONFIG,
   findCampaignCity,
@@ -35,7 +36,11 @@ import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
 type FormState = Record<CampaignFormField, string>;
 
 function emptyForm(fields: CampaignFormField[]): FormState {
-  return fields.reduce((acc, field) => ({ ...acc, [field]: '' }), {} as FormState);
+  const state = fields.reduce((acc, field) => ({ ...acc, [field]: '' }), {} as FormState);
+  if (fields.includes('gender')) {
+    state.gender = CAMPAIGN_LOCKED_GENDER;
+  }
+  return state;
 }
 
 type Props = {
@@ -96,6 +101,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     (field: CampaignFormField): string => {
       const map: Record<CampaignFormField, string> = {
         name: messages.fieldName,
+        gender: messages.fieldGender,
         mobile: messages.fieldMobile,
         email: messages.fieldEmail,
         city: messages.fieldCity,
@@ -111,6 +117,7 @@ function CampaignLandingPageInner({ slug }: Props) {
   );
 
   const setField = (field: CampaignFormField, value: string) => {
+    if (field === 'gender') return;
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -270,6 +277,22 @@ function CampaignLandingPageInner({ slug }: Props) {
 
   const renderField = (field: CampaignFormField) => {
     const label = fieldLabel(field);
+
+    if (field === 'gender') {
+      return (
+        <div key={field}>
+          <label className={campaignLabelClass}>{label}</label>
+          <input
+            type="text"
+            value={messages.genderFemale}
+            readOnly
+            disabled
+            aria-readonly="true"
+            className={`${campaignFieldClass} cursor-not-allowed opacity-90`}
+          />
+        </div>
+      );
+    }
 
     if (field === 'genderPreference') {
       return (

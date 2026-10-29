@@ -21,6 +21,8 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   submitStrangers: 'Submit enrollment',
   submitOneOnOne: 'Submit',
   fieldName: 'Name',
+  fieldGender: 'Your Gender',
+  genderFemale: 'Female',
   fieldMobile: 'Mobile Number',
   fieldEmail: 'Email',
   fieldCity: 'City',
