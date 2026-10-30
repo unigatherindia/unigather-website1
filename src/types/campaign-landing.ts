@@ -14,9 +14,6 @@ export type CampaignFormField =
   | 'genderPreference'
   | 'hobbies';
 
-/** Locked on campaign enrollment forms (not editable by users). */
-export const CAMPAIGN_LOCKED_GENDER = 'female' as const;
-
 export type CampaignLandingMeta = {
   slug: CampaignLandingSlug;
   path: string;

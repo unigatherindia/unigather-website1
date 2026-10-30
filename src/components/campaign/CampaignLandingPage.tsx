@@ -22,7 +22,6 @@ import {
   campaignLabelClass,
 } from '@/components/campaign/campaign-premium-ui';
 import {
-  CAMPAIGN_LOCKED_GENDER,
   CAMPAIGN_LANDING_META,
   DEFAULT_CAMPAIGN_LANDING_CONFIG,
   findCampaignCity,
@@ -36,11 +35,7 @@ import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
 type FormState = Record<CampaignFormField, string>;
 
 function emptyForm(fields: CampaignFormField[]): FormState {
-  const state = fields.reduce((acc, field) => ({ ...acc, [field]: '' }), {} as FormState);
-  if (fields.includes('gender')) {
-    state.gender = CAMPAIGN_LOCKED_GENDER;
-  }
-  return state;
+  return fields.reduce((acc, field) => ({ ...acc, [field]: '' }), {} as FormState);
 }
 
 type Props = {
@@ -117,13 +112,16 @@ function CampaignLandingPageInner({ slug }: Props) {
   );
 
   const setField = (field: CampaignFormField, value: string) => {
-    if (field === 'gender') return;
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const validate = (): boolean => {
     if (!form.name.trim()) {
       toast.error(messages.fieldName);
+      return false;
+    }
+    if (meta.formFields.includes('gender') && !form.gender.trim()) {
+      toast.error(messages.fieldGender);
       return false;
     }
     if (meta.formFields.includes('mobile') && !form.mobile.trim()) {
@@ -282,14 +280,16 @@ function CampaignLandingPageInner({ slug }: Props) {
       return (
         <div key={field}>
           <label className={campaignLabelClass}>{label}</label>
-          <input
-            type="text"
-            value={messages.genderFemale}
-            readOnly
-            disabled
-            aria-readonly="true"
-            className={`${campaignFieldClass} cursor-not-allowed opacity-90`}
-          />
+          <select
+            value={form.gender}
+            onChange={(e) => setField(field, e.target.value)}
+            className={`${campaignFieldClass} appearance-none cursor-pointer`}
+            required
+          >
+            <option value="">{messages.selectOption}</option>
+            <option value="male">{messages.genderMale}</option>
+            <option value="female">{messages.genderFemale}</option>
+          </select>
         </div>
       );
     }

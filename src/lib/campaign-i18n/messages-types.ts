@@ -19,6 +19,7 @@ export type CampaignMessages = {
   submitOneOnOne: string;
   fieldName: string;
   fieldGender: string;
+  genderMale: string;
   genderFemale: string;
   fieldMobile: string;
   fieldEmail: string;
