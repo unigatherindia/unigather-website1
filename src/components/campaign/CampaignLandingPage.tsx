@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { CampaignLocaleProvider, useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
 import { useTranslatedCopy } from '@/lib/campaign-i18n/use-translated-copy';
 import type { CampaignFormField } from '@/types/campaign-landing';
+import ChatWithUsCta from '@/components/ChatWithUsCta';
 import CampaignLanguageSelect from '@/components/campaign/CampaignLanguageSelect';
 import FreeOneOnOneEnrollmentModal from '@/components/campaign/FreeOneOnOneEnrollmentModal';
 import StrangersGroupEnrollmentModal from '@/components/campaign/StrangersGroupEnrollmentModal';
@@ -430,6 +431,10 @@ function CampaignLandingPageInner({ slug }: Props) {
             <CampaignPromoCard>{promoText}</CampaignPromoCard>
 
             <CampaignContactPills items={contactPills} />
+
+            <div className="mb-8">
+              <ChatWithUsCta className="w-full" label={messages.chatWithUs} />
+            </div>
 
             <CampaignFormCard
               intro={formIntro}

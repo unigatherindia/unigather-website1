@@ -42,5 +42,6 @@ export type CampaignMessages = {
   modalOneOnOneTitle: string;
   modalClose: string;
   contactQuery: string;
+  chatWithUs: string;
   contactComplaint: string;
 };

@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
+import ChatWithUsCta from '@/components/ChatWithUsCta';
 
 const EventsHero: React.FC = () => {
   return (
@@ -36,6 +37,15 @@ const EventsHero: React.FC = () => {
               Join incredible events designed to bring strangers together and create lasting friendships. 
               Every event is a new opportunity to expand your social circle and discover amazing people.
             </p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+              className="mt-8 flex justify-center px-2"
+            >
+              <ChatWithUsCta className="w-full max-w-md sm:max-w-lg" />
+            </motion.div>
           </motion.div>
 
           {/* Quick Stats */}

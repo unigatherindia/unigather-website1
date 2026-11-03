@@ -88,6 +88,11 @@ service cloud.firestore {
     match /freeOneOnOneMeetupLeads/{leadId} {
       allow read, write: if true;
     }
+
+    match /chatWithUsConfig/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

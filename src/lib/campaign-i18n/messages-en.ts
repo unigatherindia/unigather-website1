@@ -47,5 +47,6 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   modalOneOnOneTitle: 'Enrollment received',
   modalClose: 'Close',
   contactQuery: 'For any query contact',
+  chatWithUs: 'Chat with us',
   contactComplaint: 'For complaints contact',
 };

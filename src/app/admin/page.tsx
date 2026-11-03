@@ -10,11 +10,12 @@ import {
   Search, Edit, Trash2, 
   Save, Camera, Loader2, UserCircle, X,
   Users, ChevronDown, ChevronUp, Mail, Phone, IndianRupee, CheckCircle, Clock,
-  Archive, RefreshCw, Sparkles, Gift, HeartHandshake, Download, Link2
+  Archive, RefreshCw, Sparkles, Gift, HeartHandshake, Download, Link2, MessageCircle
 } from 'lucide-react';
 import AuraAdminPanel from '@/components/admin/AuraAdminPanel';
 import OneOnOneMeetupAdminPanel from '@/components/admin/OneOnOneMeetupAdminPanel';
 import CampaignLandingAdminPanel from '@/components/admin/CampaignLandingAdminPanel';
+import ChatWithUsAdminPanel from '@/components/admin/ChatWithUsAdminPanel';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import {
@@ -75,7 +76,15 @@ export default function AdminPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'upload' | 'create' | 'leads' | 'events' | 'about' | 'aura' | 'oneOnOne' | 'campaignForms'
+    | 'upload'
+    | 'create'
+    | 'leads'
+    | 'events'
+    | 'about'
+    | 'aura'
+    | 'oneOnOne'
+    | 'campaignForms'
+    | 'chatWithUs'
   >('upload');
 
   // Check admin authentication on mount
@@ -1809,6 +1818,7 @@ export default function AdminPage() {
     { id: 'aura', label: 'Buy Your Fragrance', icon: Sparkles },
     { id: 'oneOnOne', label: ONE_ON_ONE_MEETUP_LABEL, icon: HeartHandshake },
     { id: 'campaignForms', label: 'Campaign Forms', icon: Link2 },
+    { id: 'chatWithUs', label: 'Chat with us', icon: MessageCircle },
   ];
 
   const filteredBookingLeads = bookingLeads.filter((lead) => {
@@ -3625,6 +3635,8 @@ export default function AdminPage() {
           {activeTab === 'oneOnOne' && <OneOnOneMeetupAdminPanel />}
 
           {activeTab === 'campaignForms' && <CampaignLandingAdminPanel />}
+
+          {activeTab === 'chatWithUs' && <ChatWithUsAdminPanel />}
 
           {activeTab === 'about' && (
             <motion.div

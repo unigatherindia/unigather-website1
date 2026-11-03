@@ -7,6 +7,7 @@ import BeyondHellosSection from '@/components/meetup/BeyondHellosSection';
 import { motion } from 'framer-motion';
 import { HeartHandshake } from 'lucide-react';
 import { BEYOND_HELLOS_INTRO, ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
+import ChatWithUsCta from '@/components/ChatWithUsCta';
 
 export default function OneOnOneMeetupPage() {
   return (
@@ -33,6 +34,14 @@ export default function OneOnOneMeetupPage() {
               <span className="gradient-text">{ONE_ON_ONE_MEETUP_LABEL}</span>
             </h1>
             <p className="text-lg text-gray-300 leading-relaxed">{BEYOND_HELLOS_INTRO}</p>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="mt-8 flex justify-center px-2"
+            >
+              <ChatWithUsCta className="w-full max-w-md" />
+            </motion.div>
           </motion.div>
         </div>
       </section>

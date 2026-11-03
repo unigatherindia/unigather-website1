@@ -4,6 +4,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Calendar, Heart, HeartHandshake } from 'lucide-react';
+import ChatWithUsCta from '@/components/ChatWithUsCta';
 import PerfumeBottleIcon from '@/components/icons/PerfumeBottleIcon';
 import HeroCtaLink from '@/components/ui/HeroCtaLink';
 import GroupStrangersMeetupIcon from '@/components/icons/GroupStrangersMeetupIcon';
@@ -87,6 +88,7 @@ const HeroSection: React.FC = () => {
                 <HeroCtaLink href="/buy-your-aura" icon={PerfumeBottleIcon}>
                   Buy Your Fragrance
                 </HeroCtaLink>
+                <ChatWithUsCta />
               </motion.div>
 
               {/* Stats */}
