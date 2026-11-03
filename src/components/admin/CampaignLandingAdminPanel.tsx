@@ -396,14 +396,14 @@ export default function CampaignLandingAdminPanel() {
           Hidden signup links (not in site navigation). Edit copy and view submissions below.
         </p>
 
-        <section className="mb-6 p-4 rounded-xl border border-primary-500/25 bg-primary-500/5">
-          <h3 className="text-base font-semibold text-white mb-1">Meetup entry (Male / Female)</h3>
-          <p className="text-sm text-gray-400 mb-3">
-            Share this link in ads or DMs — it is not in site navigation. Male goes to the home
-            page; Female goes to the hidden free one-on-one form. Redirects are fixed in code.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-gray-400">Public URL:</span>
+        <section className="mb-6 p-4 rounded-xl border border-primary-500/25 bg-primary-500/5 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold text-white mb-1">
+              Gender entry → one-on-one (Male / Female)
+            </h3>
+            <p className="text-sm text-gray-400 mb-2">
+              Male → home. Female → hidden free one-on-one form. Not in site navigation.
+            </p>
             <a
               href="/meetup-start"
               target="_blank"
@@ -411,6 +411,24 @@ export default function CampaignLandingAdminPanel() {
               className="text-primary-400 hover:text-primary-300 text-sm font-medium inline-flex items-center gap-1"
             >
               /meetup-start
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+          <div className="h-px bg-white/[0.06]" aria-hidden />
+          <div>
+            <h3 className="text-base font-semibold text-white mb-1">
+              Gender entry → strangers group (Male / Female)
+            </h3>
+            <p className="text-sm text-gray-400 mb-2">
+              Male → home. Female → hidden strangers group form. Not in site navigation.
+            </p>
+            <a
+              href="/meetup-start-strangers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-400 hover:text-primary-300 text-sm font-medium inline-flex items-center gap-1"
+            >
+              /meetup-start-strangers
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
