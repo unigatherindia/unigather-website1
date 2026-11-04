@@ -32,8 +32,9 @@ export function getRazorpayWebhookSecret() {
   return readEnv('RAZORPAY_WEBHOOK_SECRET');
 }
 
+/** Default false: verify-payment confirms booking + sends email unless explicitly "true". */
 export function isWebhookBookingConfirmationEnabled() {
-  return readEnv('USE_WEBHOOK_BOOKING_CONFIRMATION').toLowerCase() !== 'false';
+  return readEnv('USE_WEBHOOK_BOOKING_CONFIRMATION').toLowerCase() === 'true';
 }
 
 /** When false (default), webhook payment_logs only records warnings and errors. */
