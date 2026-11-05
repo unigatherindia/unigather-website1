@@ -38,6 +38,36 @@ function createEmailId(bookingId: string, recipient: string) {
   return crypto.createHash('sha256').update(`aura|${bookingId}|${recipient}`).digest('hex');
 }
 
+async function loadAuraEmailDetails(
+  orderDocId: string
+): Promise<AuraOrderConfirmationEmailInput | null> {
+  const snap = await adminDb.collection('auraProductOrders').doc(orderDocId).get();
+  if (!snap.exists) return null;
+  const d = snap.data() || {};
+  const email = asString(d.customerEmail);
+  if (!email) return null;
+
+  const quantity =
+    typeof d.quantity === 'number' && d.quantity > 0 ? d.quantity : 1;
+  const unitPrice = typeof d.unitPrice === 'number' ? d.unitPrice : 0;
+
+  return {
+    customerEmail: email,
+    customerName: asString(d.customerName, 'Guest'),
+    productTitle: asString(d.productTitle, 'Aura Product'),
+    quantity,
+    unitPrice,
+    amount: typeof d.amountPaid === 'number' ? d.amountPaid : unitPrice * quantity,
+    currency: asString(d.currency, 'INR'),
+    bookingId: asString(d.bookingId),
+    paymentId: asString(d.paymentId),
+    shippingAddress: asString(d.shippingAddress),
+    shippingCity: asString(d.shippingCity),
+    shippingState: asString(d.shippingState),
+    shippingPincode: asString(d.shippingPincode),
+  };
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return typeof error === 'string' ? error : 'Email sending failed';
@@ -294,19 +324,18 @@ export async function confirmAuraOrderAfterPayment(input: ConfirmAuraOrderInput)
     };
   });
 
+  let emailDetails = confirmation.emailDetails;
+  if (!emailDetails && confirmation.auraProductOrderDocId) {
+    emailDetails = await loadAuraEmailDetails(confirmation.auraProductOrderDocId);
+  }
+
   let email: EmailConfirmationResult = { status: 'skipped', reason: 'missing_recipient' };
 
-  if (
-    !confirmation.alreadyConfirmed &&
-    confirmation.emailDetails &&
-    isEmailAfterConfirmationEnabled()
-  ) {
+  if (emailDetails && isEmailAfterConfirmationEnabled()) {
     email = await sendAuraEmailForOrder({
       internalOrderId: input.internalOrderId,
-      emailDetails: confirmation.emailDetails,
+      emailDetails,
     });
-  } else if (confirmation.alreadyConfirmed) {
-    email = { status: 'skipped', reason: 'already_sent' };
   }
 
   return {

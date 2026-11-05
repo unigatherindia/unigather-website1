@@ -137,18 +137,6 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    if (paymentProcessing.duplicate && paymentProcessing.bookingId) {
-      return NextResponse.json({
-        success: true,
-        message: 'Payment already processed',
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        bookingId: paymentProcessing.bookingId,
-        emailSent: false,
-        duplicate: true,
-      });
-    }
-
     const confirmation = await confirmBeyondHellosAfterPayment({
       requestId,
       source: 'verify-beyond-hellos-payment',
@@ -163,6 +151,18 @@ export async function POST(request: NextRequest) {
     const emailSent =
       confirmation.email.status === 'sent' ||
       (confirmation.email.status === 'skipped' && confirmation.email.reason === 'already_sent');
+
+    console.log('verify-beyond-hellos-payment:email', {
+      requestId,
+      bookingId: confirmation.bookingId,
+      emailStatus: confirmation.email.status,
+      emailError:
+        confirmation.email.status === 'failed' ? confirmation.email.error : undefined,
+      emailReason:
+        confirmation.email.status === 'skipped' ? confirmation.email.reason : undefined,
+      emailSent,
+      duplicate: paymentProcessing.duplicate,
+    });
 
     return NextResponse.json({
       success: true,
