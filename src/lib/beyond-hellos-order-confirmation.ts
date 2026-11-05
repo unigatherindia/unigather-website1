@@ -32,6 +32,32 @@ function labelForPreference(value: string) {
   return GENDER_PREFERENCE_OPTIONS.find((o) => o.value === value)?.label ?? value;
 }
 
+async function loadBeyondHellosEmailDetails(
+  bookingDocId: string
+): Promise<BeyondHellosConfirmationEmailInput | null> {
+  const snap = await adminDb.collection(BEYOND_HELLOS_BOOKINGS_COLLECTION).doc(bookingDocId).get();
+  if (!snap.exists) return null;
+  const d = snap.data() || {};
+  const email = asString(d.customerEmail);
+  if (!email) return null;
+
+  const genderPreference = asString(d.genderPreference);
+  return {
+    customerEmail: email,
+    customerName: asString(d.customerName, 'Guest'),
+    bookingId: asString(d.bookingId),
+    paymentId: asString(d.paymentId),
+    amount: typeof d.amountPaid === 'number' ? d.amountPaid : 0,
+    currency: asString(d.currency, 'INR'),
+    city: asString(d.city),
+    genderPreferenceLabel: labelForPreference(genderPreference),
+    ticketLabel: asString(d.ticketLabel),
+    hobbies: asString(d.hobbies),
+    scheduleNote: asString(d.scheduleNote, 'One week after booking'),
+    duration: asString(d.duration, '4pm – 5pm'),
+  };
+}
+
 function createEmailId(bookingId: string, recipient: string) {
   return crypto.createHash('sha256').update(`beyond_hellos|${bookingId}|${recipient}`).digest('hex');
 }
@@ -271,19 +297,18 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
     };
   });
 
+  let emailDetails = confirmation.emailDetails;
+  if (!emailDetails && confirmation.beyondHellosBookingDocId) {
+    emailDetails = await loadBeyondHellosEmailDetails(confirmation.beyondHellosBookingDocId);
+  }
+
   let email: EmailConfirmationResult = { status: 'skipped', reason: 'missing_recipient' };
 
-  if (
-    !confirmation.alreadyConfirmed &&
-    confirmation.emailDetails &&
-    isEmailAfterConfirmationEnabled()
-  ) {
+  if (emailDetails && isEmailAfterConfirmationEnabled()) {
     email = await sendEmailForBooking({
       internalOrderId: input.internalOrderId,
-      emailDetails: confirmation.emailDetails,
+      emailDetails,
     });
-  } else if (confirmation.alreadyConfirmed) {
-    email = { status: 'skipped', reason: 'already_sent' };
   }
 
   return {
