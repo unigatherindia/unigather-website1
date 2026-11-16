@@ -66,15 +66,6 @@ export default function MeetupEntryFunnelPanel() {
               /meetup-start
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
-            <a
-              href={ONE_ON_ONE_FEMALE_FAQ_PATH}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-400 hover:text-primary-300 text-sm font-medium inline-flex items-center gap-1"
-            >
-              {ONE_ON_ONE_FEMALE_FAQ_PATH}
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
           </div>
         </div>
         <button
