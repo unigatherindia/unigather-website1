@@ -11,15 +11,23 @@ import { toRazorpayAscii } from '@/lib/razorpayUtf8';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { GENDER_PREFERENCE_OPTIONS, ONE_ON_ONE_MEETUP_COLLECTION } from '@/constants/meetup-options';
+import { getCountryByCode } from '@/constants/countries';
 import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 import { isTicketSoldOut } from '@/lib/ticket-price-utils';
 import {
+  BEYOND_HELLOS_SUBSCRIPTION_PLANS,
+  getBeyondHellosSubscriptionPlan,
+  getBeyondHellosSubscriptionPriceNumeric,
+  getBeyondHellosSubscriptionPriceRaw,
   getBeyondHellosTicketLabel,
   getBeyondHellosTicketPriceNumeric,
   getBeyondHellosTicketPriceRaw,
+  isBeyondHellosSubscriptionPlanListed,
+  isBeyondHellosSubscriptionPlanPayable,
   isBeyondHellosTicketListed,
   isBeyondHellosTicketPayable,
   type BeyondHellosConfig,
+  type BeyondHellosSubscriptionWeeks,
   type BeyondHellosTicketType,
 } from '@/types/beyond-hellos';
 
@@ -29,11 +37,9 @@ declare global {
   }
 }
 
-/** Ignore popstate from modal cleanup `history.back()` (e.g. React Strict Mode remount). */
-let meetupBookingModalProgrammaticBackPending = 0;
-
 type Props = {
   config: BeyondHellosConfig;
+  configId: string;
   onClose: () => void;
 };
 
@@ -43,6 +49,7 @@ type FormState = {
   email: string;
   phone: string;
   ticketType: BeyondHellosTicketType;
+  subscriptionWeeks: BeyondHellosSubscriptionWeeks;
   genderPreference: string;
   hobbies: string;
   city: string;
@@ -55,13 +62,14 @@ const initialForm: FormState = {
   email: '',
   phone: '',
   ticketType: 'male',
+  subscriptionWeeks: 1,
   genderPreference: '',
   hobbies: '',
   city: '',
   terms: false,
 };
 
-export default function BeyondHellosBookingModal({ config, onClose }: Props) {
+export default function BeyondHellosBookingModal({ config, configId, onClose }: Props) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
@@ -77,64 +85,40 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
   } | null>(null);
   const [retrySeconds, setRetrySeconds] = useState(0);
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stepRef = useRef(step);
-  const onCloseRef = useRef(onClose);
-  const closedFromPopstateRef = useRef(false);
-
-  stepRef.current = step;
-  onCloseRef.current = onClose;
 
   const currency = config.currency;
+  const subscriptionOn = config.subscriptionEnabled;
+  const selectedPlan = subscriptionOn
+    ? getBeyondHellosSubscriptionPlan(form.subscriptionWeeks)
+    : null;
   const rawTicketPrice = useMemo(
-    () => getBeyondHellosTicketPriceRaw(config, form.ticketType),
-    [config, form.ticketType]
+    () =>
+      subscriptionOn
+        ? getBeyondHellosSubscriptionPriceRaw(config, form.subscriptionWeeks)
+        : getBeyondHellosTicketPriceRaw(config, form.ticketType),
+    [config, form.subscriptionWeeks, form.ticketType, subscriptionOn]
   );
   const totalAmount = useMemo(
-    () => getBeyondHellosTicketPriceNumeric(config, form.ticketType),
-    [config, form.ticketType]
+    () =>
+      subscriptionOn
+        ? getBeyondHellosSubscriptionPriceNumeric(config, form.subscriptionWeeks)
+        : getBeyondHellosTicketPriceNumeric(config, form.ticketType),
+    [config, form.subscriptionWeeks, form.ticketType, subscriptionOn]
   );
+  const selectedPriceListed = subscriptionOn
+    ? isBeyondHellosSubscriptionPlanListed(config, form.subscriptionWeeks)
+    : isBeyondHellosTicketListed(config, form.ticketType);
+  const selectedPricePayable = subscriptionOn
+    ? isBeyondHellosSubscriptionPlanPayable(config, form.subscriptionWeeks)
+    : isBeyondHellosTicketPayable(config, form.ticketType);
   const ticketLabel = getBeyondHellosTicketLabel(form.ticketType);
   const ticketPriceDisplay = formatEventPrice(rawTicketPrice, currency);
   const isSelectedSoldOut = isTicketSoldOut(rawTicketPrice);
 
   useEffect(() => setMounted(true), []);
 
-  // Hardware / browser back: close modal or previous step — stay on /one-on-one-meetup.
   useEffect(() => {
-    const pushModalState = () => {
-      window.history.pushState({ meetupBookingModal: true }, '');
-    };
-
-    pushModalState();
-
-    const handlePopState = () => {
-      if (meetupBookingModalProgrammaticBackPending > 0) {
-        meetupBookingModalProgrammaticBackPending--;
-        return;
-      }
-
-      if (stepRef.current > 1) {
-        setStep((current) => Math.max(1, current - 1));
-        pushModalState();
-        return;
-      }
-
-      closedFromPopstateRef.current = true;
-      onCloseRef.current();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      if (!closedFromPopstateRef.current) {
-        meetupBookingModalProgrammaticBackPending++;
-        window.history.back();
-      }
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  useEffect(() => {
+    if (config.subscriptionEnabled) return;
     const available: BeyondHellosTicketType[] = [];
     if (isBeyondHellosTicketListed(config, 'male')) available.push('male');
     if (isBeyondHellosTicketListed(config, 'female')) available.push('female');
@@ -143,6 +127,17 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
       setForm((prev) => ({ ...prev, ticketType: available[0] }));
     }
   }, [config, form.ticketType]);
+
+  useEffect(() => {
+    if (!config.subscriptionEnabled) return;
+    const available = BEYOND_HELLOS_SUBSCRIPTION_PLANS.filter((plan) =>
+      isBeyondHellosSubscriptionPlanListed(config, plan.weeks)
+    );
+    if (available.length === 0) return;
+    if (!available.some((plan) => plan.weeks === form.subscriptionWeeks)) {
+      setForm((prev) => ({ ...prev, subscriptionWeeks: available[0].weeks }));
+    }
+  }, [config, form.subscriptionWeeks]);
 
   useEffect(() => {
     if (user) {
@@ -181,7 +176,7 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
     };
   }, []);
 
-  const setField = (field: keyof FormState, value: string | boolean) => {
+  const setField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -218,13 +213,24 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
       toast.error('Phone must include country code, e.g. +919876543210');
       return false;
     }
-    if (!isBeyondHellosTicketListed(config, form.ticketType)) {
-      toast.error(`${ticketLabel} is not available. Please select another option.`);
-      return false;
-    }
-    if (isSelectedSoldOut) {
-      toast.error(`${ticketLabel} is sold out. Please select another option.`);
-      return false;
+    if (subscriptionOn) {
+      if (!selectedPriceListed) {
+        toast.error('Please choose a 1 week, 2 week, or 4 week plan.');
+        return false;
+      }
+      if (isSelectedSoldOut) {
+        toast.error(`${selectedPlan?.label ?? 'This plan'} is sold out. Please select another plan.`);
+        return false;
+      }
+    } else {
+      if (!isBeyondHellosTicketListed(config, form.ticketType)) {
+        toast.error(`${ticketLabel} is not available. Please select another option.`);
+        return false;
+      }
+      if (isSelectedSoldOut) {
+        toast.error(`${ticketLabel} is sold out. Please select another option.`);
+        return false;
+      }
     }
     if (!form.genderPreference) {
       toast.error('Please select your gender preference');
@@ -265,8 +271,14 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
       amountQuoted: totalAmount ?? ticketPriceDisplay,
       priceDisplay: ticketPriceDisplay,
       paymentRequired: totalAmount !== undefined,
+      subscriptionWeeks: subscriptionOn ? form.subscriptionWeeks : null,
+      subscriptionLabel: subscriptionOn ? selectedPlan?.label ?? null : null,
       currency,
       program: 'beyond_hellos',
+      meetupOfferId: configId,
+      meetupTitle: config.title,
+      countryCode: config.countryCode,
+      country: getCountryByCode(config.countryCode)?.name ?? '',
       status,
       source: 'beyond_hellos_checkout',
       userId: user?.uid || null,
@@ -309,12 +321,9 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
     setIsLoading(true);
     try {
       const leadId = await saveLead('payment_not_started');
-      if (isBeyondHellosTicketPayable(config, form.ticketType) && totalAmount !== undefined) {
+      if (selectedPricePayable && totalAmount !== undefined) {
         setStep(2);
-      } else if (
-        isBeyondHellosTicketListed(config, form.ticketType) &&
-        !isSelectedSoldOut
-      ) {
+      } else if (selectedPriceListed && !isSelectedSoldOut) {
         await handleTextPriceBooking(leadId);
       } else {
         toast.error('No valid ticket price for this option.');
@@ -349,9 +358,11 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
             hobbies: form.hobbies.trim(),
             genderPreference: form.genderPreference,
             ticketType: form.ticketType,
+            subscriptionWeeks: subscriptionOn ? form.subscriptionWeeks : null,
             contactInfo: `${form.phone.trim()} · ${form.email.trim()}`,
             scheduleNote: config.scheduleNote,
             duration: config.duration,
+            configDocId: configId,
           },
         }),
       });
@@ -371,7 +382,11 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
         amount: orderData.amount,
         currency: orderData.currency,
         name: orderData.companyName || 'Unigather',
-        description: toRazorpayAscii(config.title, 250, 'Beyond Hellos'),
+        description: toRazorpayAscii(
+          selectedPlan ? `${config.title} · ${selectedPlan.label}` : config.title,
+          250,
+          'Beyond Hellos'
+        ),
         order_id: orderData.orderId,
         theme: { color: orderData.themeColor || '#f97316' },
         prefill: {
@@ -467,7 +482,8 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
           <div>
             <h2 className="text-lg font-bold text-white">{config.title}</h2>
             <p className="text-xs text-gray-400">
-              Step {step} of 3 · {ticketLabel} · {ticketPriceDisplay}
+              Step {step} of 3 · {ticketLabel}
+              {selectedPlan ? ` · ${selectedPlan.label}` : ''} · {ticketPriceDisplay}
             </p>
           </div>
           <button
@@ -532,9 +548,9 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
                 <label className="text-sm text-gray-300 mb-2 block">Your gender (ticket type) *</label>
                 <div className="grid grid-cols-2 gap-3">
                   {(['male', 'female'] as const).map((type) => {
-                    const listed = isBeyondHellosTicketListed(config, type);
+                    const listed = subscriptionOn || isBeyondHellosTicketListed(config, type);
                     const raw = getBeyondHellosTicketPriceRaw(config, type);
-                    const soldOut = isTicketSoldOut(raw);
+                    const soldOut = !subscriptionOn && isTicketSoldOut(raw);
                     const selected = form.ticketType === type;
                     const label = getBeyondHellosTicketLabel(type);
                     return (
@@ -552,14 +568,47 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
                         <span className={type === 'male' ? 'text-blue-300' : 'text-pink-300'}>
                           {label}
                         </span>
-                        <span className="block text-xs text-gray-400 mt-1">
-                          {formatEventPrice(raw, currency)}
-                        </span>
+                        {!subscriptionOn ? (
+                          <span className="block text-xs text-gray-400 mt-1">
+                            {formatEventPrice(raw, currency)}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
                 </div>
               </div>
+              {subscriptionOn ? (
+                <div>
+                  <label className="text-sm text-gray-300 mb-2 block">Subscription *</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {BEYOND_HELLOS_SUBSCRIPTION_PLANS.map((plan) => {
+                      const listed = isBeyondHellosSubscriptionPlanListed(config, plan.weeks);
+                      const raw = getBeyondHellosSubscriptionPriceRaw(config, plan.weeks);
+                      const soldOut = isTicketSoldOut(raw);
+                      const selected = form.subscriptionWeeks === plan.weeks;
+                      return (
+                        <button
+                          key={plan.key}
+                          type="button"
+                          disabled={!listed || soldOut}
+                          onClick={() => setField('subscriptionWeeks', plan.weeks)}
+                          className={`py-3 px-2 rounded-xl border text-sm font-medium transition-colors ${
+                            selected
+                              ? 'border-primary-500 bg-primary-500/15 text-white'
+                              : 'border-gray-600 bg-dark-700 text-gray-300 hover:border-gray-500'
+                          } ${!listed || soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        >
+                          <span className="block">{plan.label}</span>
+                          <span className="block text-xs text-gray-400 mt-1">
+                            {listed ? formatEventPrice(raw, currency) : 'N/A'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <label className="text-sm text-gray-300 mb-1 block">Gender preference *</label>
                 <select
@@ -624,6 +673,11 @@ export default function BeyondHellosBookingModal({ config, onClose }: Props) {
                 <p>
                   <span className="text-gray-500">Ticket:</span> {ticketLabel}
                 </p>
+                {selectedPlan ? (
+                  <p>
+                    <span className="text-gray-500">Plan:</span> {selectedPlan.label}
+                  </p>
+                ) : null}
                 <p>
                   <span className="text-gray-500">Price:</span> {ticketPriceDisplay}
                 </p>

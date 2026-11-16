@@ -4,10 +4,14 @@ import { getRazorpayCurrency } from '@/lib/razorpay-config';
 import { isTicketSoldOut, parseNumericTicketPrice } from '@/lib/ticket-price-utils';
 import { PaymentValidationError } from '@/lib/payment-hardening';
 import {
+  getBeyondHellosSubscriptionPlan,
+  getBeyondHellosSubscriptionPriceRaw,
   getBeyondHellosTicketLabel,
   getBeyondHellosTicketPriceRaw,
+  isBeyondHellosSubscriptionPlanListed,
   isBeyondHellosTicketListed,
   type BeyondHellosConfig,
+  type BeyondHellosSubscriptionWeeks,
   type BeyondHellosTicketType,
 } from '@/types/beyond-hellos';
 
@@ -16,10 +20,14 @@ export function createBeyondHellosOrderDedupeKey(input: {
   customerPhone: string;
   city: string;
   ticketType: BeyondHellosTicketType;
+  configDocId: string;
+  subscriptionPlan: string;
 }) {
   const payload = [
     'beyond_hellos',
+    input.configDocId,
     input.ticketType,
+    input.subscriptionPlan,
     input.customerEmail.trim().toLowerCase(),
     input.customerPhone.trim(),
     input.city.trim().toLowerCase(),
@@ -34,22 +42,40 @@ export function normalizeBeyondHellosTicketType(value: unknown): BeyondHellosTic
 
 export function resolveTrustedBeyondHellosPrice(
   config: BeyondHellosConfig,
-  ticketType: BeyondHellosTicketType
+  ticketType: BeyondHellosTicketType,
+  subscriptionWeeks: BeyondHellosSubscriptionWeeks | null
 ) {
   if (!config.enabled) {
     throw new PaymentValidationError('Beyond Hello\'s bookings are not available right now', 404);
   }
 
-  const raw = getBeyondHellosTicketPriceRaw(config, ticketType);
-  if (!isBeyondHellosTicketListed(config, ticketType)) {
-    throw new PaymentValidationError(
-      `${getBeyondHellosTicketLabel(ticketType)} booking is not available`,
-      404
-    );
-  }
+  const ticketLabel = getBeyondHellosTicketLabel(ticketType);
+  let raw: number | string;
+  let subscriptionLabel: string | null = null;
+  let resolvedWeeks: BeyondHellosSubscriptionWeeks | null = null;
 
-  if (isTicketSoldOut(raw)) {
-    throw new PaymentValidationError(`${getBeyondHellosTicketLabel(ticketType)} is sold out`, 404);
+  if (config.subscriptionEnabled) {
+    if (subscriptionWeeks == null) {
+      throw new PaymentValidationError('Choose a 1 week, 2 week, or 4 week plan');
+    }
+    const plan = getBeyondHellosSubscriptionPlan(subscriptionWeeks);
+    raw = getBeyondHellosSubscriptionPriceRaw(config, subscriptionWeeks);
+    if (!isBeyondHellosSubscriptionPlanListed(config, subscriptionWeeks)) {
+      throw new PaymentValidationError(`${plan.label} is not available`, 404);
+    }
+    if (isTicketSoldOut(raw)) {
+      throw new PaymentValidationError(`${plan.label} is sold out`, 404);
+    }
+    subscriptionLabel = plan.label;
+    resolvedWeeks = subscriptionWeeks;
+  } else {
+    raw = getBeyondHellosTicketPriceRaw(config, ticketType);
+    if (!isBeyondHellosTicketListed(config, ticketType)) {
+      throw new PaymentValidationError(`${ticketLabel} booking is not available`, 404);
+    }
+    if (isTicketSoldOut(raw)) {
+      throw new PaymentValidationError(`${ticketLabel} is sold out`, 404);
+    }
   }
 
   const price = parseNumericTicketPrice(raw);
@@ -69,9 +95,11 @@ export function resolveTrustedBeyondHellosPrice(
     amount: price,
     amountSubunits,
     currency,
-    productLabel: config.title,
+    productLabel: subscriptionLabel ? `${config.title} · ${subscriptionLabel}` : config.title,
     ticketType,
-    ticketLabel: getBeyondHellosTicketLabel(ticketType),
+    ticketLabel,
+    subscriptionWeeks: resolvedWeeks,
+    subscriptionLabel,
     priceDisplay: raw,
   };
 }

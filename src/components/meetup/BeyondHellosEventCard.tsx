@@ -14,10 +14,14 @@ import {
 } from 'lucide-react';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { isTicketSoldOut } from '@/lib/ticket-price-utils';
+import { getCountryByCode } from '@/constants/countries';
 import {
+  BEYOND_HELLOS_SUBSCRIPTION_PLANS,
+  getBeyondHellosSubscriptionPriceRaw,
   getBeyondHellosTicketPriceRaw,
-  hasAnyBeyondHellosTicketListed,
-  isBeyondHellosFullySoldOut,
+  hasBookableBeyondHellosPrice,
+  isBeyondHellosBookingSoldOut,
+  isBeyondHellosSubscriptionPlanListed,
   isBeyondHellosTicketListed,
   type BeyondHellosConfig,
 } from '@/types/beyond-hellos';
@@ -63,10 +67,15 @@ export default function BeyondHellosEventCard({
     }
   };
 
-  const showMale = isBeyondHellosTicketListed(config, 'male');
-  const showFemale = isBeyondHellosTicketListed(config, 'female');
-  const priceAvailable = config.enabled && hasAnyBeyondHellosTicketListed(config);
-  const isEventSoldOut = isBeyondHellosFullySoldOut(config);
+  const subscriptionOn = config.subscriptionEnabled;
+  const listedPlans = BEYOND_HELLOS_SUBSCRIPTION_PLANS.filter((plan) =>
+    isBeyondHellosSubscriptionPlanListed(config, plan.weeks)
+  );
+  const showMale = !subscriptionOn && isBeyondHellosTicketListed(config, 'male');
+  const showFemale = !subscriptionOn && isBeyondHellosTicketListed(config, 'female');
+  const priceAvailable = config.enabled && hasBookableBeyondHellosPrice(config);
+  const isEventSoldOut = isBeyondHellosBookingSoldOut(config);
+  const countryName = getCountryByCode(config.countryCode)?.name;
 
   return (
     <motion.div
@@ -126,6 +135,9 @@ export default function BeyondHellosEventCard({
         <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary-400 transition-colors">
           {config.title}
         </h3>
+        {countryName ? (
+          <p className="text-sm text-primary-300/90 font-medium mb-3">{countryName}</p>
+        ) : null}
 
         <div className="flex items-center text-gray-300 text-sm mb-3">
           <Calendar className="w-4 h-4 mr-3 text-primary-400 flex-shrink-0" />
@@ -182,7 +194,32 @@ export default function BeyondHellosEventCard({
           <span>{isExpanded ? 'See Less' : 'See More'}</span>
         </button>
 
-        {priceAvailable && (showMale || showFemale) && (
+        {priceAvailable && subscriptionOn && listedPlans.length > 0 && (
+          <div className="event-ticket-prices bg-dark-800 rounded-2xl p-3 sm:p-4 mb-6">
+            <div className="mb-2">
+              <span className="text-gray-300 text-sm sm:text-base font-medium">Subscription</span>
+            </div>
+            <div className="flex flex-wrap justify-center sm:justify-between gap-x-4 gap-y-2">
+              {listedPlans.map((plan) => {
+                const raw = getBeyondHellosSubscriptionPriceRaw(config, plan.weeks);
+                return (
+                  <div key={plan.key} className="text-center min-w-0 sm:flex-1">
+                    <div className="text-primary-300 text-xs sm:text-sm mb-0.5">{plan.label}</div>
+                    <div
+                      className={`text-white font-bold text-sm sm:text-base ${
+                        isTicketSoldOut(raw) ? 'text-gray-500 line-through' : ''
+                      }`}
+                    >
+                      {formatEventPrice(raw, config.currency)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {priceAvailable && !subscriptionOn && (showMale || showFemale) && (
           <div className="event-ticket-prices bg-dark-800 rounded-2xl p-3 sm:p-4 mb-6">
             <div className="mb-2">
               <span className="text-gray-300 text-sm sm:text-base font-medium">Booking fee</span>

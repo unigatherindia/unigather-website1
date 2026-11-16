@@ -7,7 +7,7 @@ import {
 } from '@/lib/beyond-hellos-email';
 import { adminDb } from '@/lib/firebase-admin';
 import { GENDER_PREFERENCE_OPTIONS } from '@/constants/meetup-options';
-import { getBeyondHellosTicketLabel } from '@/types/beyond-hellos';
+import { getBeyondHellosTicketLabel, parseBeyondHellosSubscriptionWeeks } from '@/types/beyond-hellos';
 import { ONE_ON_ONE_MEETUP_COLLECTION } from '@/constants/meetup-options';
 import { ONE_ON_ONE_MEETUP_LABEL } from '@/constants/beyond-hellos-copy';
 import { BEYOND_HELLOS_BOOKINGS_COLLECTION } from '@/types/beyond-hellos';
@@ -52,6 +52,7 @@ async function loadBeyondHellosEmailDetails(
     city: asString(d.city),
     genderPreferenceLabel: labelForPreference(genderPreference),
     ticketLabel: asString(d.ticketLabel),
+    subscriptionLabel: asString(d.subscriptionLabel) || undefined,
     hobbies: asString(d.hobbies),
     scheduleNote: asString(d.scheduleNote, 'One week after booking'),
     duration: asString(d.duration, '4pm – 5pm'),
@@ -214,6 +215,11 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
     const ticketType = ticketTypeRaw === 'female' ? 'female' : 'male';
     const ticketLabel =
       asString(orderData.ticketLabel) || asString(meetup.ticketLabel) || getBeyondHellosTicketLabel(ticketType);
+    const subscriptionWeeks = parseBeyondHellosSubscriptionWeeks(
+      meetup.subscriptionWeeks ?? orderData.subscriptionWeeks
+    );
+    const subscriptionLabel =
+      asString(meetup.subscriptionLabel) || asString(orderData.subscriptionLabel) || null;
     const bookingPayload = {
       bookingId,
       bookingLeadId: bookingLeadId || null,
@@ -227,6 +233,8 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
       gender: ticketType,
       ticketType,
       ticketLabel,
+      subscriptionWeeks,
+      subscriptionLabel,
       genderPreference,
       hobbies: asString(meetup.hobbies),
       city: asString(meetup.city),
@@ -268,6 +276,8 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
           paymentId: input.razorpayPaymentId,
           amountPaid: input.amount,
           currency: input.currency,
+          subscriptionWeeks,
+          subscriptionLabel,
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -284,6 +294,7 @@ export async function confirmBeyondHellosAfterPayment(input: ConfirmBeyondHellos
       city: bookingPayload.city,
       genderPreferenceLabel: labelForPreference(genderPreference),
       ticketLabel,
+      subscriptionLabel: subscriptionLabel || undefined,
       hobbies: bookingPayload.hobbies,
       scheduleNote: bookingPayload.scheduleNote || 'One week after booking',
       duration: bookingPayload.duration || '4pm – 5pm',

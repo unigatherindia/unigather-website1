@@ -11,6 +11,8 @@ import {
   BEYOND_HELLOS_CONFIG_COLLECTION,
   BEYOND_HELLOS_CONFIG_DOC_ID,
   parseBeyondHellosConfig,
+  parseBeyondHellosSubscriptionWeeks,
+  resolveBeyondHellosConfigDocId,
 } from '@/types/beyond-hellos';
 import {
   PAYMENT_COLLECTIONS,
@@ -93,6 +95,7 @@ function normalizeMeetupDetails(raw: unknown) {
   }
 
   const ticketType = normalizeBeyondHellosTicketType(data.ticketType);
+  const configDocId = resolveBeyondHellosConfigDocId(data.configDocId);
 
   return {
     city,
@@ -100,9 +103,11 @@ function normalizeMeetupDetails(raw: unknown) {
     genderPreference,
     age,
     ticketType,
+    configDocId,
     contactInfo: typeof data.contactInfo === 'string' ? data.contactInfo.trim() : '',
     scheduleNote: typeof data.scheduleNote === 'string' ? data.scheduleNote.trim() : '',
     duration: typeof data.duration === 'string' ? data.duration.trim() : '',
+    subscriptionWeeks: parseBeyondHellosSubscriptionWeeks(data.subscriptionWeeks),
   };
 }
 
@@ -137,10 +142,17 @@ export async function POST(request: NextRequest) {
 
     const configSnap = await adminDb
       .collection(BEYOND_HELLOS_CONFIG_COLLECTION)
-      .doc(BEYOND_HELLOS_CONFIG_DOC_ID)
+      .doc(normalizedMeetup.configDocId)
       .get();
+    if (!configSnap.exists && normalizedMeetup.configDocId !== BEYOND_HELLOS_CONFIG_DOC_ID) {
+      throw new PaymentValidationError('This meetup card is no longer available', 404);
+    }
     const config = parseBeyondHellosConfig(configSnap.data());
-    const trustedPrice = resolveTrustedBeyondHellosPrice(config, normalizedMeetup.ticketType);
+    const trustedPrice = resolveTrustedBeyondHellosPrice(
+      config,
+      normalizedMeetup.ticketType,
+      config.subscriptionEnabled ? normalizedMeetup.subscriptionWeeks : null
+    );
 
     const nowMillis = Date.now();
     dedupeKey = createBeyondHellosOrderDedupeKey({
@@ -148,6 +160,8 @@ export async function POST(request: NextRequest) {
       customerPhone: normalizedCustomer.phone,
       city: normalizedMeetup.city,
       ticketType: normalizedMeetup.ticketType,
+      configDocId: normalizedMeetup.configDocId,
+      subscriptionPlan: trustedPrice.subscriptionWeeks ? String(trustedPrice.subscriptionWeeks) : 'none',
     });
 
     const orderCollection = adminDb.collection(PAYMENT_COLLECTIONS.orders);
@@ -219,9 +233,13 @@ export async function POST(request: NextRequest) {
           ...normalizedMeetup,
           scheduleNote: normalizedMeetup.scheduleNote || config.scheduleNote,
           duration: normalizedMeetup.duration || config.duration,
+          subscriptionWeeks: trustedPrice.subscriptionWeeks,
+          subscriptionLabel: trustedPrice.subscriptionLabel,
         },
         ticketType: trustedPrice.ticketType,
         ticketLabel: trustedPrice.ticketLabel,
+        subscriptionWeeks: trustedPrice.subscriptionWeeks,
+        subscriptionLabel: trustedPrice.subscriptionLabel,
         amount: trustedPrice.amount,
         amountSubunits: trustedPrice.amountSubunits,
         currency: trustedPrice.currency,
@@ -285,6 +303,8 @@ export async function POST(request: NextRequest) {
       bookingId: orderIntent.bookingId,
       amountQuoted: trustedPrice.amount,
       currency: orderIntent.currency,
+      subscriptionWeeks: trustedPrice.subscriptionWeeks,
+      subscriptionLabel: trustedPrice.subscriptionLabel,
     });
 
     return NextResponse.json({

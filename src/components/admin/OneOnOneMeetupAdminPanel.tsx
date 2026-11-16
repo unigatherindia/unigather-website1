@@ -48,6 +48,8 @@ type MeetupLeadRecord = {
   city?: string;
   location?: string;
   state?: string;
+  country?: string;
+  meetupTitle?: string;
   hobbies?: string;
   status?: string;
   amountPaid?: number;
@@ -56,6 +58,8 @@ type MeetupLeadRecord = {
   bookingId?: string;
   ticketType?: string;
   ticketLabel?: string;
+  subscriptionWeeks?: number | null;
+  subscriptionLabel?: string | null;
   customerEmail?: string;
   customerPhone?: string;
   createdAt?: Date | null;
@@ -140,6 +144,9 @@ export default function OneOnOneMeetupAdminPanel() {
         lead.city,
         lead.location,
         lead.state,
+        lead.country,
+        lead.meetupTitle,
+        lead.subscriptionLabel,
         lead.hobbies,
         lead.gender,
         lead.genderPreference,
@@ -196,6 +203,7 @@ export default function OneOnOneMeetupAdminPanel() {
       lead.name?.trim() || '',
       lead.age != null ? String(lead.age) : '',
       lead.ticketLabel || labelForGender(lead.gender),
+      lead.subscriptionLabel?.trim() || '',
       labelForPreference(lead.genderPreference),
       csvText(lead.contactInfo),
       lead.customerEmail?.trim() || '',
@@ -219,6 +227,7 @@ export default function OneOnOneMeetupAdminPanel() {
       'Name',
       'Age',
       'Gender',
+      'Plan',
       'Prefers',
       'Contact',
       'Email',
@@ -284,7 +293,8 @@ export default function OneOnOneMeetupAdminPanel() {
             {ONE_ON_ONE_MEETUP_LABEL}
           </h2>
           <p className="text-gray-400">
-            Event card, pricing, and paid bookings for /one-on-one-meetup
+            Add a card per country (India, UAE, …) like events. Pricing and paid bookings for
+            /one-on-one-meetup.
           </p>
         </div>
 
@@ -453,6 +463,16 @@ export default function OneOnOneMeetupAdminPanel() {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-primary-500/15 text-primary-300 border border-primary-500/30">
                           {labelForPreference(lead.genderPreference)}
                         </span>
+                        {lead.subscriptionLabel ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary-500/15 text-primary-200 border border-primary-500/30">
+                            {lead.subscriptionLabel}
+                          </span>
+                        ) : null}
+                        {(lead.country || lead.meetupTitle) && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-gray-300 border border-gray-500">
+                            {[lead.country, lead.meetupTitle].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
                         {lead.status === 'confirmed' ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 border border-green-500/30">
                             Paid

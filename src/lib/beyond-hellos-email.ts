@@ -11,6 +11,7 @@ export interface BeyondHellosConfirmationEmailInput {
   city: string;
   genderPreferenceLabel: string;
   ticketLabel: string;
+  subscriptionLabel?: string;
   hobbies: string;
   scheduleNote: string;
   duration: string;
@@ -65,6 +66,11 @@ function createBeyondHellosConfirmationHtml(input: BeyondHellosConfirmationEmail
               }
               <div class="detail-row"><span class="detail-label">City:</span><span class="detail-value">${input.city}</span></div>
               <div class="detail-row"><span class="detail-label">Ticket:</span><span class="detail-value">${input.ticketLabel}</span></div>
+              ${
+                input.subscriptionLabel
+                  ? `<div class="detail-row"><span class="detail-label">Plan:</span><span class="detail-value">${input.subscriptionLabel}</span></div>`
+                  : ''
+              }
               <div class="detail-row"><span class="detail-label">Gender preference:</span><span class="detail-value">${input.genderPreferenceLabel}</span></div>
               <div class="detail-row"><span class="detail-label">Hobbies:</span><span class="detail-value">${input.hobbies}</span></div>
               <div class="detail-row"><span class="detail-label">When:</span><span class="detail-value">${input.scheduleNote} · ${input.duration}</span></div>

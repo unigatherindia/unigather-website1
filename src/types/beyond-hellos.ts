@@ -11,11 +11,45 @@ export const BEYOND_HELLOS_CONFIG_COLLECTION = 'beyondHellosConfig';
 export const BEYOND_HELLOS_CONFIG_DOC_ID = 'default';
 export const BEYOND_HELLOS_BOOKINGS_COLLECTION = 'beyondHellosBookings';
 
+export type BeyondHellosOffer = BeyondHellosConfig & { id: string };
+
+const CONFIG_DOC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
+
+export function resolveBeyondHellosConfigDocId(value: unknown): string {
+  if (typeof value === 'string' && CONFIG_DOC_ID_PATTERN.test(value.trim())) {
+    return value.trim();
+  }
+  return BEYOND_HELLOS_CONFIG_DOC_ID;
+}
+
+export function parseBeyondHellosOffer(
+  id: string,
+  data: Record<string, unknown> | undefined
+): BeyondHellosOffer {
+  return { id, ...parseBeyondHellosConfig(data) };
+}
+
 export type BeyondHellosTicketType = 'male' | 'female';
 
 export type BeyondHellosPriceMap = {
   male: number | string;
   female: number | string;
+};
+
+export const BEYOND_HELLOS_SUBSCRIPTION_PLANS = [
+  { weeks: 1, key: 'week1', label: '1 week' },
+  { weeks: 2, key: 'week2', label: '2 weeks' },
+  { weeks: 4, key: 'week4', label: '4 weeks' },
+] as const;
+
+export type BeyondHellosSubscriptionWeeks = (typeof BEYOND_HELLOS_SUBSCRIPTION_PLANS)[number]['weeks'];
+export type BeyondHellosSubscriptionPriceKey = (typeof BEYOND_HELLOS_SUBSCRIPTION_PLANS)[number]['key'];
+export type BeyondHellosSubscriptionPrices = Record<BeyondHellosSubscriptionPriceKey, number | string>;
+
+export const EMPTY_BEYOND_HELLOS_SUBSCRIPTION_PRICES: BeyondHellosSubscriptionPrices = {
+  week1: '',
+  week2: '',
+  week4: '',
 };
 
 export type BeyondHellosConfig = {
@@ -31,6 +65,9 @@ export type BeyondHellosConfig = {
   image: string;
   highlights: string[];
   price: BeyondHellosPriceMap;
+  /** When true, the user picks 1 week, 2 weeks, or 4 weeks instead of the one-time male/female price. */
+  subscriptionEnabled: boolean;
+  subscriptionPrices: BeyondHellosSubscriptionPrices;
   currency: string;
   countryCode: string;
   enabled: boolean;
@@ -53,6 +90,8 @@ export const DEFAULT_BEYOND_HELLOS_CONFIG: BeyondHellosConfig = {
     'Verified profiles · privacy protected',
   ],
   price: { male: 499, female: 499 },
+  subscriptionEnabled: false,
+  subscriptionPrices: { ...EMPTY_BEYOND_HELLOS_SUBSCRIPTION_PRICES },
   currency: DEFAULT_CURRENCY,
   countryCode: DEFAULT_COUNTRY_CODE,
   enabled: true,
@@ -109,6 +148,81 @@ export function hasPayableBeyondHellosTicket(config: BeyondHellosConfig): boolea
   return isBeyondHellosTicketPayable(config, 'male') || isBeyondHellosTicketPayable(config, 'female');
 }
 
+export function getBeyondHellosSubscriptionPlan(weeks: BeyondHellosSubscriptionWeeks) {
+  const plan = BEYOND_HELLOS_SUBSCRIPTION_PLANS.find((item) => item.weeks === weeks);
+  return plan ?? BEYOND_HELLOS_SUBSCRIPTION_PLANS[0];
+}
+
+export function parseBeyondHellosSubscriptionWeeks(value: unknown): BeyondHellosSubscriptionWeeks | null {
+  const numeric =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : NaN;
+  if (numeric === 1 || numeric === 2 || numeric === 4) return numeric;
+  return null;
+}
+
+export function getBeyondHellosSubscriptionPriceRaw(
+  config: BeyondHellosConfig,
+  weeks: BeyondHellosSubscriptionWeeks
+): number | string {
+  return config.subscriptionPrices[getBeyondHellosSubscriptionPlan(weeks).key];
+}
+
+export function getBeyondHellosSubscriptionPriceNumeric(
+  config: BeyondHellosConfig,
+  weeks: BeyondHellosSubscriptionWeeks
+): number | undefined {
+  return parseNumericTicketPrice(getBeyondHellosSubscriptionPriceRaw(config, weeks));
+}
+
+export function isBeyondHellosSubscriptionPlanListed(
+  config: BeyondHellosConfig,
+  weeks: BeyondHellosSubscriptionWeeks
+): boolean {
+  return isTicketPriceListed(getBeyondHellosSubscriptionPriceRaw(config, weeks));
+}
+
+export function isBeyondHellosSubscriptionPlanPayable(
+  config: BeyondHellosConfig,
+  weeks: BeyondHellosSubscriptionWeeks
+): boolean {
+  const raw = getBeyondHellosSubscriptionPriceRaw(config, weeks);
+  return isTicketPricePayableOnline(raw) && !isTicketSoldOut(raw);
+}
+
+export function hasAnyBeyondHellosSubscriptionPlanListed(config: BeyondHellosConfig): boolean {
+  return BEYOND_HELLOS_SUBSCRIPTION_PLANS.some((plan) =>
+    isBeyondHellosSubscriptionPlanListed(config, plan.weeks)
+  );
+}
+
+export function isBeyondHellosSubscriptionFullySoldOut(config: BeyondHellosConfig): boolean {
+  const listed: boolean[] = [];
+  const soldOut: boolean[] = [];
+  BEYOND_HELLOS_SUBSCRIPTION_PLANS.forEach((plan) => {
+    const raw = getBeyondHellosSubscriptionPriceRaw(config, plan.weeks);
+    if (isTicketPriceListed(raw)) {
+      listed.push(true);
+      soldOut.push(isTicketSoldOut(raw));
+    }
+  });
+  return listed.length > 0 && soldOut.length === listed.length && soldOut.every(Boolean);
+}
+
+/** Price the public card and booking button should use. */
+export function hasBookableBeyondHellosPrice(config: BeyondHellosConfig): boolean {
+  if (config.subscriptionEnabled) return hasAnyBeyondHellosSubscriptionPlanListed(config);
+  return hasAnyBeyondHellosTicketListed(config);
+}
+
+export function isBeyondHellosBookingSoldOut(config: BeyondHellosConfig): boolean {
+  if (config.subscriptionEnabled) return isBeyondHellosSubscriptionFullySoldOut(config);
+  return isBeyondHellosFullySoldOut(config);
+}
+
 export function isBeyondHellosFullySoldOut(config: BeyondHellosConfig): boolean {
   const listed: boolean[] = [];
   const soldOut: boolean[] = [];
@@ -127,6 +241,7 @@ export function parseBeyondHellosConfig(data: Record<string, unknown> | undefine
     return {
       ...DEFAULT_BEYOND_HELLOS_CONFIG,
       price: { ...DEFAULT_BEYOND_HELLOS_CONFIG.price },
+      subscriptionPrices: { ...EMPTY_BEYOND_HELLOS_SUBSCRIPTION_PRICES },
     };
   }
 
@@ -153,6 +268,19 @@ export function parseBeyondHellosConfig(data: Record<string, unknown> | undefine
     data.priceFemale ?? priceObj?.female,
     legacyFallback
   );
+
+  const subscriptionObj =
+    data.subscriptionPrices &&
+    typeof data.subscriptionPrices === 'object' &&
+    !Array.isArray(data.subscriptionPrices)
+      ? (data.subscriptionPrices as Record<string, unknown>)
+      : null;
+
+  const subscriptionPrices: BeyondHellosSubscriptionPrices = {
+    week1: parseStoredPrice(data.subscriptionPriceWeek1 ?? subscriptionObj?.week1, ''),
+    week2: parseStoredPrice(data.subscriptionPriceWeek2 ?? subscriptionObj?.week2, ''),
+    week4: parseStoredPrice(data.subscriptionPriceWeek4 ?? subscriptionObj?.week4, ''),
+  };
 
   const difficulty = data.difficulty;
   const validDifficulty =
@@ -190,6 +318,8 @@ export function parseBeyondHellosConfig(data: Record<string, unknown> | undefine
     image: typeof data.image === 'string' ? data.image.trim() : '',
     highlights: highlights.length > 0 ? highlights : DEFAULT_BEYOND_HELLOS_CONFIG.highlights,
     price: { male, female },
+    subscriptionEnabled: data.subscriptionEnabled === true,
+    subscriptionPrices,
     currency:
       typeof data.currency === 'string' && data.currency.trim()
         ? data.currency.trim().toUpperCase()
