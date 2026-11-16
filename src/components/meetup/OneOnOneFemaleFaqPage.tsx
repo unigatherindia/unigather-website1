@@ -126,15 +126,27 @@ export default function OneOnOneFemaleFaqPage() {
         </motion.div>
 
         <div className="flex flex-1 flex-col gap-3">
-          {ONE_ON_ONE_MEETUP_FAQ_ITEMS.map((item) => (
-            <FaqAccordionItem
-              key={item.id}
-              question={item.question}
-              answer={item.answer}
-              highlighted={item.highlighted}
-              isOpen={openId === item.id}
-              onToggle={() => setOpenId((prev) => (prev === item.id ? null : item.id))}
-            />
+          {ONE_ON_ONE_MEETUP_FAQ_ITEMS.map((item, index) => (
+            <React.Fragment key={item.id}>
+              <FaqAccordionItem
+                question={item.question}
+                answer={item.answer}
+                highlighted={item.highlighted}
+                isOpen={openId === item.id}
+                onToggle={() => setOpenId((prev) => (prev === item.id ? null : item.id))}
+              />
+              {index === 5 ? (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={goToForm}
+                  className="w-full rounded-xl bg-gradient-to-r from-primary-500 to-primary-400 px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_28px_-8px_rgba(249,115,22,0.55)] transition hover:from-primary-400 hover:to-primary-300"
+                >
+                  Fill the form
+                </motion.button>
+              ) : null}
+            </React.Fragment>
           ))}
         </div>
 
