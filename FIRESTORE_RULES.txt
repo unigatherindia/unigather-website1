@@ -93,6 +93,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Hidden meetup entry funnel clicks (public increment, admin reads in Campaign Forms)
+    match /meetupEntryFunnel/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
     
     // Deny everything else
     match /{document=**} {

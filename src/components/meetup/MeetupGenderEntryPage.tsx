@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
+import { trackMeetupFunnelEvent } from '@/lib/meetup-entry-funnel';
 
 const MALE_REDIRECT = '/';
 
@@ -56,10 +57,25 @@ function GenderButton({
 type MeetupGenderEntryPageProps = {
   /** Same-site path after Female is selected (hidden campaign form). */
   femaleRedirect: string;
+  /** If set, Female goes here first (e.g. FAQ) instead of femaleRedirect. */
+  femaleFaqPath?: string;
+  /** Track funnel clicks for one-on-one entry only. */
+  trackOneOnOneFunnel?: boolean;
 };
 
-export default function MeetupGenderEntryPage({ femaleRedirect }: MeetupGenderEntryPageProps) {
+export default function MeetupGenderEntryPage({
+  femaleRedirect,
+  femaleFaqPath,
+  trackOneOnOneFunnel = false,
+}: MeetupGenderEntryPageProps) {
   const router = useRouter();
+
+  const handleFemaleClick = () => {
+    if (trackOneOnOneFunnel) {
+      trackMeetupFunnelEvent('female_button');
+    }
+    router.push(femaleFaqPath || femaleRedirect);
+  };
 
   const options = [
     { id: 'male' as const, label: 'Male', redirect: MALE_REDIRECT, accent: 'sky' as const },
@@ -146,7 +162,11 @@ export default function MeetupGenderEntryPage({ femaleRedirect }: MeetupGenderEn
                   label={option.label}
                   accent={option.accent}
                   delay={0.18 + index * 0.07}
-                  onClick={() => router.push(option.redirect)}
+                  onClick={
+                    option.id === 'female'
+                      ? handleFemaleClick
+                      : () => router.push(option.redirect)
+                  }
                 />
               ))}
             </div>
