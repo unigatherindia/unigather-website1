@@ -2,13 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, ExternalLink, Instagram, UserPlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, Instagram, ShieldCheck, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
 import {
   CampaignEnrollmentModalFrame,
   campaignFieldClass,
 } from '@/components/campaign/campaign-premium-ui';
+import { incrementMonthlyCityJoinCount } from '@/lib/meetup-entry-stats';
+import { saveStrangersGroupLead } from '@/lib/strangers-group-leads';
 import type { CampaignCityOption } from '@/types/campaign-landing';
 
 type Props = {
@@ -19,7 +21,7 @@ type Props = {
 type Step = 'name' | 'cities';
 
 export default function StrangersGroupRegisterModal({ cities, onClose }: Props) {
-  const { messages } = useCampaignLocale();
+  const { messages, locale } = useCampaignLocale();
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState('');
 
@@ -39,7 +41,24 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
       return;
     }
     setName(trimmed);
+    void saveStrangersGroupLead({
+      kind: 'register_name',
+      name: trimmed,
+      preferredLanguage: locale,
+    });
     setStep('cities');
+  };
+
+  const handleCityJoin = (city: CampaignCityOption) => {
+    void saveStrangersGroupLead({
+      kind: 'city_join',
+      name: name || undefined,
+      cityId: city.id,
+      cityName: city.name,
+      cityInstaGroupLink: city.instaGroupLink,
+      preferredLanguage: locale,
+    });
+    void incrementMonthlyCityJoinCount(city.id);
   };
 
   const subtitle =
@@ -130,12 +149,22 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
             exit={{ opacity: 0, x: 12 }}
             transition={{ duration: 0.2 }}
           >
+            <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-500/10 px-3.5 py-3">
+              <ShieldCheck
+                className="mt-0.5 h-4 w-4 shrink-0 text-red-300"
+                aria-hidden
+              />
+              <span className="text-[12px] font-medium leading-relaxed text-red-100">
+                {messages.registerPrivacyNotice}
+              </span>
+            </div>
+
             {cities.length === 0 ? (
               <p className="text-amber-100/90 text-sm text-center bg-amber-500/10 border border-amber-400/25 rounded-xl py-3.5 px-4">
                 {messages.registerNoCities}
               </p>
             ) : (
-              <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[52vh]">
                 {cities.map((city) =>
                   city.instaGroupLink ? (
                     <a
@@ -143,6 +172,7 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
                       href={city.instaGroupLink}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => handleCityJoin(city)}
                       className="group flex items-center justify-between gap-3 w-full py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-primary-400/40 hover:bg-white/[0.07] transition-all"
                     >
                       <span className="flex min-w-0 items-center gap-2.5 font-medium text-gray-100">

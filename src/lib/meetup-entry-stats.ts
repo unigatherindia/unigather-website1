@@ -5,15 +5,23 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
+import {
+  CAMPAIGN_LANDING_META,
+  parseCitiesList,
+  type CampaignCityOption,
+} from '@/types/campaign-landing';
 
 /**
  * Stored in the already-allowed `meetupEntryFunnel` collection so no rule changes
- * are needed. The monthly counter lives in its own document.
+ * are needed. Each monthly counter lives in its own document.
  */
 export const MEETUP_ENTRY_STATS_COLLECTION = 'meetupEntryFunnel';
 export const STRANGERS_FEMALE_STATS_DOC_ID = 'strangers-group-female-enrollments';
+export const STRANGERS_CITY_CLICKS_DOC_ID = 'strangers-group-city-clicks';
 
-/** e.g. "2026-11" — used so the counter resets automatically each month. */
+const STRANGERS_GROUP_META = CAMPAIGN_LANDING_META['strangers-group'];
+
+/** e.g. "2026-11" — used so counters reset automatically each month. */
 export function currentMonthKey(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -66,27 +74,82 @@ export async function incrementMonthlyFemaleEnrollmentCount(): Promise<number | 
   }
 }
 
-export type MonthlyMeetupCityStat = {
-  city: string;
-  meetups: number;
-};
+/** Reads the admin-configured cities for the strangers group meetup. */
+export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]> {
+  if (!db) return [];
+
+  try {
+    const snap = await getDoc(
+      doc(db, STRANGERS_GROUP_META.configCollection, STRANGERS_GROUP_META.configDocId)
+    );
+    if (!snap.exists()) return [];
+    return parseCitiesList(snap.data()?.cities);
+  } catch (error) {
+    console.error('Load strangers group cities:', error);
+    return [];
+  }
+}
 
 /**
- * Testing numbers for now — replace with live/admin data later.
- * The meetups card and total are calculated from this list.
+ * Reads this month's Instagram-group join clicks per city.
+ * Cities without a stored count are simply absent (treated as 0), so a newly
+ * added city always starts at zero.
  */
-export const MONTHLY_MEETUP_CITY_STATS: MonthlyMeetupCityStat[] = [
-  { city: 'Bhopal', meetups: 4 },
-  { city: 'Dehradun', meetups: 3 },
-  { city: 'Bangalore', meetups: 6 },
-  { city: 'Mumbai', meetups: 5 },
-  { city: 'Delhi', meetups: 3 },
-  { city: 'Pune', meetups: 2 },
-  { city: 'Lucknow', meetups: 2 },
-  { city: 'Indore', meetups: 1 },
-];
+export async function fetchMonthlyCityJoinCounts(): Promise<Record<string, number>> {
+  if (!db) return {};
 
-export const MONTHLY_MEETUP_TOTAL = MONTHLY_MEETUP_CITY_STATS.reduce(
-  (sum, item) => sum + item.meetups,
-  0
-);
+  const snap = await getDoc(
+    doc(db, MEETUP_ENTRY_STATS_COLLECTION, STRANGERS_CITY_CLICKS_DOC_ID)
+  );
+  if (!snap.exists()) return {};
+
+  const data = snap.data();
+  if (data.month !== currentMonthKey()) return {};
+
+  const raw = data.counts;
+  if (!raw || typeof raw !== 'object') return {};
+
+  const counts: Record<string, number> = {};
+  for (const [cityId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number' && value > 0) counts[cityId] = value;
+  }
+  return counts;
+}
+
+/**
+ * Atomically increments this month's join count for one city.
+ * When the stored month is stale the whole map restarts from empty, which also
+ * means any newly added city begins at zero.
+ */
+export async function incrementMonthlyCityJoinCount(cityId: string): Promise<void> {
+  if (!db || !cityId) return;
+
+  const ref = doc(db, MEETUP_ENTRY_STATS_COLLECTION, STRANGERS_CITY_CLICKS_DOC_ID);
+  const month = currentMonthKey();
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      const data = snap.data();
+      const isCurrentMonth = snap.exists() && data?.month === month;
+      const previous =
+        isCurrentMonth && data?.counts && typeof data.counts === 'object'
+          ? (data.counts as Record<string, unknown>)
+          : {};
+
+      const counts: Record<string, number> = {};
+      for (const [key, value] of Object.entries(previous)) {
+        if (typeof value === 'number' && value > 0) counts[key] = value;
+      }
+      counts[cityId] = (counts[cityId] ?? 0) + 1;
+
+      transaction.set(
+        ref,
+        { month, counts, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    });
+  } catch (error) {
+    console.error('City join counter failed:', error);
+  }
+}

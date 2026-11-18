@@ -38,6 +38,8 @@ export type CampaignLandingConfig = {
   formIntro: string;
   urgencyText: string;
   queryPhone: string;
+  /** WhatsApp number behind the "For any query contact" button (never displayed). */
+  queryWhatsapp: string;
   complaintPhone: string;
   pageEnabled: boolean;
   /** Strangers group meetup: cities in the enrollment dropdown */
@@ -186,6 +188,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     formIntro: 'To enroll, please fill the information below:',
     urgencyText: '',
     queryPhone: '7568861945',
+    queryWhatsapp: '7568861945',
     complaintPhone: '7901751593',
     pageEnabled: true,
     cities: [],
@@ -198,6 +201,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     formIntro: '',
     urgencyText: '',
     queryPhone: '7568861945',
+    queryWhatsapp: '7568861945',
     complaintPhone: '7901751593',
     pageEnabled: true,
     cities: [],
@@ -231,6 +235,12 @@ export function parseCampaignLandingConfig(
       typeof data.queryPhone === 'string' && data.queryPhone.trim()
         ? data.queryPhone
         : defaults.queryPhone,
+    queryWhatsapp:
+      typeof data.queryWhatsapp === 'string' && data.queryWhatsapp.trim()
+        ? data.queryWhatsapp.trim()
+        : typeof data.queryPhone === 'string' && data.queryPhone.trim()
+          ? data.queryPhone.trim()
+          : defaults.queryWhatsapp,
     complaintPhone:
       typeof data.complaintPhone === 'string' && data.complaintPhone.trim()
         ? data.complaintPhone

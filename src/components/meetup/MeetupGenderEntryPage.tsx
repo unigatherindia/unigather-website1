@@ -8,10 +8,14 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
 import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
 import {
+  fetchMonthlyCityJoinCounts,
   fetchMonthlyFemaleEnrollmentCount,
+  fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
 } from '@/lib/meetup-entry-stats';
+import { saveStrangersGroupLead } from '@/lib/strangers-group-leads';
 import { trackMeetupFunnelEvent } from '@/lib/meetup-entry-funnel';
+import type { CampaignCityOption } from '@/types/campaign-landing';
 
 const MALE_REDIRECT = '/';
 
@@ -77,7 +81,9 @@ export default function MeetupGenderEntryPage({
   showEntryStats = false,
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
-  const [femaleCount, setFemaleCount] = useState<number | null>(null);
+  const [femaleCount, setFemaleCount] = useState(0);
+  const [cities, setCities] = useState<CampaignCityOption[]>([]);
+  const [cityJoinCounts, setCityJoinCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!showEntryStats) return;
@@ -92,6 +98,14 @@ export default function MeetupGenderEntryPage({
         if (!cancelled) setFemaleCount(0);
       });
 
+    Promise.allSettled([fetchStrangersGroupCities(), fetchMonthlyCityJoinCounts()]).then(
+      ([citiesResult, countsResult]) => {
+        if (cancelled) return;
+        if (citiesResult.status === 'fulfilled') setCities(citiesResult.value);
+        if (countsResult.status === 'fulfilled') setCityJoinCounts(countsResult.value);
+      }
+    );
+
     return () => {
       cancelled = true;
     };
@@ -102,6 +116,7 @@ export default function MeetupGenderEntryPage({
       trackMeetupFunnelEvent('female_button');
     }
     if (showEntryStats) {
+      void saveStrangersGroupLead({ kind: 'female_gender_click', gender: 'female' });
       void incrementMonthlyFemaleEnrollmentCount().then((count) => {
         if (count !== null) setFemaleCount(count);
       });
@@ -183,8 +198,6 @@ export default function MeetupGenderEntryPage({
           transition={{ duration: 0.5, delay: 0.12 }}
           className="pb-[max(2rem,env(safe-area-inset-bottom))] pt-2 sm:pb-12"
         >
-          {showEntryStats ? <MeetupEntryStats femaleCount={femaleCount} /> : null}
-
           <div className="mx-auto w-full max-w-md rounded-[1.625rem] border border-white/[0.08] bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_80px_-32px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:max-w-lg sm:p-5">
             <p className="mb-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
               I am
@@ -205,6 +218,14 @@ export default function MeetupGenderEntryPage({
               ))}
             </div>
           </div>
+
+          {showEntryStats ? (
+            <MeetupEntryStats
+              femaleCount={femaleCount}
+              cities={cities}
+              cityJoinCounts={cityJoinCounts}
+            />
+          ) : null}
         </motion.footer>
       </div>
     </div>

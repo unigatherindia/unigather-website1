@@ -252,7 +252,7 @@ function CampaignLandingPageInner({ slug }: Props) {
   }, [config.complaintPhone, config.queryPhone, messages.contactComplaint, messages.contactQuery]);
 
   const whatsappHref = useMemo(() => {
-    const base = whatsappHrefIndian('7568861945');
+    const base = whatsappHrefIndian(config.queryWhatsapp);
     if (!base) return '';
     const text = encodeURIComponent(
       slug === 'strangers-group'
@@ -260,7 +260,7 @@ function CampaignLandingPageInner({ slug }: Props) {
         : 'Hi Unigather, I have a query.'
     );
     return `${base}?text=${text}`;
-  }, [slug]);
+  }, [config.queryWhatsapp, slug]);
 
   const genderOptions = useMemo(
     () => [

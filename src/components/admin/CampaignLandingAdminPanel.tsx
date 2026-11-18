@@ -50,6 +50,8 @@ import MeetupEntryFunnelPanel from '@/components/admin/MeetupEntryFunnelPanel';
 
 type LeadRecord = {
   id: string;
+  /** strangers-group entry events: female_gender_click | register_name | city_join */
+  kind?: string;
   name?: string;
   mobile?: string;
   email?: string;
@@ -67,6 +69,12 @@ type LeadRecord = {
   preferredLanguage?: string;
   adminEnglish?: Record<string, string>;
   archivedAt?: Date | null;
+};
+
+const LEAD_KIND_LABELS: Record<string, string> = {
+  female_gender_click: 'Female choice',
+  register_name: 'Register',
+  city_join: 'City join',
 };
 
 function isLeadArchived(lead: LeadRecord) {
@@ -223,6 +231,8 @@ export default function CampaignLandingAdminPanel() {
         lead.hobbies,
         lead.gender,
         lead.genderPreference,
+        lead.kind,
+        lead.cityId,
         String(lead.age ?? ''),
       ]
         .filter(Boolean)
@@ -620,9 +630,9 @@ export default function CampaignLandingAdminPanel() {
             ) : (
               <div className="space-y-6 max-w-3xl">
                 <p className="text-gray-400 text-sm">
-                  Cities listed here appear in the enrollment dropdown. Each city needs its own
-                  Instagram group link—the link is shown in the thank-you popup after someone
-                  submits.
+                  Cities listed here appear in the Register popup. Each city needs its own
+                  Instagram group link—tapping the city opens that group. The WhatsApp number below
+                  is used by the “For any query contact” button and is never displayed.
                 </p>
 
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -661,6 +671,22 @@ export default function CampaignLandingAdminPanel() {
                       className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
                       placeholder="7901751593"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      WhatsApp for “For any query contact” button
+                    </label>
+                    <input
+                      type="text"
+                      value={form.queryWhatsapp}
+                      onChange={(e) => setField('queryWhatsapp', e.target.value)}
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                      placeholder="7568861945"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Hidden on the page — the button opens a WhatsApp chat with this number. A
+                      10-digit Indian mobile works; 91 is added automatically.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -741,7 +767,7 @@ export default function CampaignLandingAdminPanel() {
                   className="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-lg font-semibold text-white flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Save cities &amp; links
+                  Save cities &amp; numbers
                 </button>
               </div>
             )}
@@ -901,8 +927,19 @@ export default function CampaignLandingAdminPanel() {
                       <div className="space-y-1 text-sm text-gray-300 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h3 className="text-lg font-semibold text-white">
-                            {adminLeadText(lead, 'name', lead.name || 'Unknown')}
+                            {adminLeadText(
+                              lead,
+                              'name',
+                              lead.name ||
+                                (lead.kind ? LEAD_KIND_LABELS[lead.kind] : '') ||
+                                'Unknown'
+                            )}
                           </h3>
+                          {lead.kind ? (
+                            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-primary-500/15 text-primary-200 border border-primary-500/30">
+                              {LEAD_KIND_LABELS[lead.kind] ?? lead.kind}
+                            </span>
+                          ) : null}
                           {lead.preferredLanguage && lead.preferredLanguage !== 'en' ? (
                             <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-dark-600 text-gray-400 border border-gray-500">
                               lang: {lead.preferredLanguage}

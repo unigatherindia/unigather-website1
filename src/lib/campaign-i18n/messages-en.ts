@@ -61,6 +61,8 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   registerCitiesSubtitle: 'Tap your city to join the Instagram group.',
   registerCitiesSubtitleWithName: 'Nice to meet you, {name}. Tap your city to join the Instagram group.',
   registerJoinNow: 'Join Now',
+  registerPrivacyNotice:
+    'For your privacy and safety, this group is exclusively for females.',
   registerNoCities: 'Cities are not open for registration yet. Please check back soon.',
   registerLinkSoon: 'The group link for this city is coming soon.',
   registerNameRequired: 'Please enter your name.',
