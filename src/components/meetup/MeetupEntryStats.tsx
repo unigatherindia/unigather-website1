@@ -3,6 +3,11 @@
 import React from 'react';
 import { CalendarDays, MapPin, Users } from 'lucide-react';
 import type { CampaignCityOption } from '@/types/campaign-landing';
+import {
+  FEMALE_ENROLLMENT_BASELINE,
+  MONTHLY_MEETUP_TOTAL_BASELINE,
+  meetupBaselineForCity,
+} from '@/lib/meetup-entry-stats';
 
 type Props = {
   femaleCount: number;
@@ -15,10 +20,14 @@ export default function MeetupEntryStats({
   cities,
   cityJoinCounts,
 }: Props) {
-  const totalMeetups = cities.reduce(
-    (sum, city) => sum + (cityJoinCounts[city.id] ?? 0),
-    0
-  );
+  const totalMeetups =
+    cities.length === 0
+      ? MONTHLY_MEETUP_TOTAL_BASELINE
+      : cities.reduce(
+          (sum, city) =>
+            sum + meetupBaselineForCity(city) + (cityJoinCounts[city.id] ?? 0),
+          0
+        );
 
   return (
     <div className="mx-auto mt-3 w-full max-w-md space-y-3 sm:max-w-lg">
@@ -29,7 +38,7 @@ export default function MeetupEntryStats({
             Females
           </span>
           <span className="mt-2 block text-2xl font-bold leading-none tracking-tight text-white">
-            {femaleCount}
+            {FEMALE_ENROLLMENT_BASELINE + femaleCount}
           </span>
           <span className="mt-1.5 block whitespace-nowrap text-[11px] text-gray-500">
             enrolled this month
@@ -68,7 +77,7 @@ export default function MeetupEntryStats({
               >
                 {city.name}
                 <span className="rounded-full bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary-300">
-                  {cityJoinCounts[city.id] ?? 0}
+                  {meetupBaselineForCity(city) + (cityJoinCounts[city.id] ?? 0)}
                 </span>
               </span>
             ))}

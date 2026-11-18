@@ -46,7 +46,9 @@ import {
 } from '@/types/campaign-landing';
 import { isDeveloperAdminSession } from '@/lib/adminAuth';
 import { csvDateStamp, csvText, downloadCsv } from '@/lib/csv-download';
-import MeetupEntryFunnelPanel from '@/components/admin/MeetupEntryFunnelPanel';
+import MeetupEntryFunnelPanel, {
+  StrangersGroupFunnelPanel,
+} from '@/components/admin/MeetupEntryFunnelPanel';
 
 type LeadRecord = {
   id: string;
@@ -410,23 +412,7 @@ export default function CampaignLandingAdminPanel() {
         <section className="mb-6 space-y-4">
           <MeetupEntryFunnelPanel />
           <div className="h-px bg-white/[0.06]" aria-hidden />
-          <div>
-            <h3 className="text-base font-semibold text-white mb-1">
-              Gender entry → strangers group (Male / Female)
-            </h3>
-            <p className="text-sm text-gray-400 mb-2">
-              Male → home. Female → hidden strangers group form. Not in site navigation.
-            </p>
-            <a
-              href="/meetup-start-strangers"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-400 hover:text-primary-300 text-sm font-medium inline-flex items-center gap-1"
-            >
-              /meetup-start-strangers
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
+          <StrangersGroupFunnelPanel />
         </section>
 
         <div className="flex flex-wrap gap-2 mb-6">

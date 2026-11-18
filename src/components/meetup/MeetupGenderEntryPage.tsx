@@ -13,8 +13,10 @@ import {
   fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
 } from '@/lib/meetup-entry-stats';
-import { saveStrangersGroupLead } from '@/lib/strangers-group-leads';
-import { trackMeetupFunnelEvent } from '@/lib/meetup-entry-funnel';
+import {
+  trackMeetupFunnelEvent,
+  trackStrangersGroupFemaleClick,
+} from '@/lib/meetup-entry-funnel';
 import type { CampaignCityOption } from '@/types/campaign-landing';
 
 const MALE_REDIRECT = '/';
@@ -116,7 +118,8 @@ export default function MeetupGenderEntryPage({
       trackMeetupFunnelEvent('female_button');
     }
     if (showEntryStats) {
-      void saveStrangersGroupLead({ kind: 'female_gender_click', gender: 'female' });
+      // Counted as a click (admin funnel), not stored as a submission.
+      trackStrangersGroupFemaleClick();
       void incrementMonthlyFemaleEnrollmentCount().then((count) => {
         if (count !== null) setFemaleCount(count);
       });

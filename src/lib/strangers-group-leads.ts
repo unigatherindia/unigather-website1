@@ -3,10 +3,7 @@ import { db } from '@/lib/firebase';
 
 export const STRANGERS_GROUP_LEADS_COLLECTION = 'strangersGroupMeetupLeads';
 
-export type StrangersGroupLeadKind =
-  | 'female_gender_click'
-  | 'register_name'
-  | 'city_join';
+export type StrangersGroupLeadKind = 'register_name' | 'city_join';
 
 type StrangersGroupLeadInput = {
   kind: StrangersGroupLeadKind;

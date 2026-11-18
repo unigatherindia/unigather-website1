@@ -3,6 +3,7 @@ import { doc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
 
 export const MEETUP_ENTRY_FUNNEL_COLLECTION = 'meetupEntryFunnel';
 export const ONE_ON_ONE_FUNNEL_DOC_ID = 'one-on-one';
+export const STRANGERS_GROUP_FUNNEL_DOC_ID = 'strangers-group';
 
 export type MeetupFunnelEvent = 'female_button' | 'fill_form';
 
@@ -28,6 +29,32 @@ export function trackMeetupFunnelEvent(event: MeetupFunnelEvent) {
     { merge: true }
   ).catch((error) => {
     console.error('meetup funnel track failed:', event, error);
+  });
+}
+
+/**
+ * Records a Female choice on the strangers-group gender entry page.
+ * Stored as a counter only — not as an individual submission.
+ */
+export function trackStrangersGroupFemaleClick() {
+  if (!db) return;
+
+  const ref = doc(
+    db,
+    MEETUP_ENTRY_FUNNEL_COLLECTION,
+    STRANGERS_GROUP_FUNNEL_DOC_ID
+  );
+
+  void setDoc(
+    ref,
+    {
+      funnel: 'strangers-group',
+      femaleButtonClicks: increment(1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  ).catch((error) => {
+    console.error('strangers group funnel track failed:', error);
   });
 }
 
