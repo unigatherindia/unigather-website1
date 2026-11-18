@@ -85,6 +85,38 @@ function cityKey(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function normalizeCityKey(value: string): string {
+  const key = cityKey(value);
+  return BASELINE_ALIASES[key] ?? key;
+}
+
+/**
+ * Always keeps the standard city list visible while also including any extra
+ * cities the admin added. Matching admin cities keep their own id/link so the
+ * live join counters and Instagram links keep working.
+ */
+function mergeStrangersGroupCities(
+  configured: CampaignCityOption[]
+): CampaignCityOption[] {
+  const defaults = buildDefaultStrangersGroupCities();
+  const remaining = [...configured];
+
+  const merged = defaults.map((fallbackCity) => {
+    const fallbackKey = normalizeCityKey(fallbackCity.name);
+    const index = remaining.findIndex(
+      (city) =>
+        city.id === fallbackCity.id ||
+        normalizeCityKey(city.name) === fallbackKey
+    );
+    if (index === -1) return fallbackCity;
+
+    const [match] = remaining.splice(index, 1);
+    return { ...fallbackCity, ...match, id: match.id || fallbackCity.id };
+  });
+
+  return [...merged, ...remaining];
+}
+
 /** Cities without a hardcoded seed (e.g. newly added by the admin) start at 0. */
 export function meetupBaselineForCity(city: CampaignCityOption): number {
   const idKey = city.id.trim().toLowerCase();
@@ -178,7 +210,8 @@ export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]>
     if (!snap.exists()) return buildDefaultStrangersGroupCities();
 
     const cities = parseCitiesList(snap.data()?.cities);
-    return cities.length > 0 ? cities : buildDefaultStrangersGroupCities();
+    if (cities.length === 0) return buildDefaultStrangersGroupCities();
+    return mergeStrangersGroupCities(cities);
   } catch (error) {
     console.error('Load strangers group cities:', error);
     return buildDefaultStrangersGroupCities();
