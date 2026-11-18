@@ -932,6 +932,11 @@ export default function CampaignLandingAdminPanel() {
                             </span>
                           ) : null}
                         </div>
+                        {lead.kind ? (
+                          <p>
+                            <span className="text-gray-500">Name:</span> {lead.name || '—'}
+                          </p>
+                        ) : null}
                         {meta.formFields.map((field) => {
                           if (field === 'name') return null;
                           let value: string;

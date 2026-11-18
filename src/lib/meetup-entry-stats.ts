@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import {
   CAMPAIGN_LANDING_META,
+  buildDefaultStrangersGroupCities,
   parseCitiesList,
   type CampaignCityOption,
 } from '@/types/campaign-landing';
@@ -27,29 +28,49 @@ const STRANGERS_GROUP_META = CAMPAIGN_LANDING_META['strangers-group'];
  */
 export const FEMALE_ENROLLMENT_BASELINE = 128;
 
-/** Meetups already done per city (by city id or slugified city name). */
+/**
+ * Meetups already done per city (by city id or slugified city name).
+ * Major cities get a mixed 2–3; the rest get 1 so the monthly total lands
+ * around 25–30 instead of looking inflated.
+ */
 export const MONTHLY_MEETUP_BASELINES: Record<string, number> = {
-  bhopal: 4,
-  dehradun: 3,
-  bangalore: 6,
-  jammu: 2,
-  udaipur: 2,
-  kolkata: 4,
-  agra: 2,
-  goa: 3,
-  amritsar: 2,
-  hyderabad: 5,
-  lucknow: 2,
-  pune: 3,
-  ahmedabad: 3,
-  surat: 2,
-  mumbai: 5,
-  indore: 2,
-  nagpur: 2,
-  chennai: 4,
-  jalandhar: 1,
-  ludhiana: 1,
-  chandigarh: 3,
+  // Major cities — mixed 2s and 3s
+  mumbai: 3,
+  bangalore: 3,
+  kolkata: 3,
+  delhi: 2,
+  hyderabad: 2,
+  pune: 2,
+  chennai: 2,
+
+  // Other active cities
+  bhopal: 1,
+  dehradun: 1,
+  jaipur: 1,
+  jammu: 1,
+  udaipur: 1,
+  agra: 1,
+  goa: 1,
+  amritsar: 1,
+  lucknow: 1,
+  ahmedabad: 1,
+  surat: 1,
+  indore: 1,
+  nagpur: 1,
+  chandigarh: 1,
+
+  // High-activity cities
+  jalandhar: 4,
+  ludhiana: 5,
+};
+
+/** Alternate spellings that should reuse a city's seed. */
+const BASELINE_ALIASES: Record<string, string> = {
+  'new-delhi': 'delhi',
+  bengaluru: 'bangalore',
+  bombay: 'mumbai',
+  calcutta: 'kolkata',
+  madras: 'chennai',
 };
 
 export const MONTHLY_MEETUP_TOTAL_BASELINE = Object.values(
@@ -66,7 +87,16 @@ function cityKey(value: string): string {
 
 /** Cities without a hardcoded seed (e.g. newly added by the admin) start at 0. */
 export function meetupBaselineForCity(city: CampaignCityOption): number {
-  return MONTHLY_MEETUP_BASELINES[city.id] ?? MONTHLY_MEETUP_BASELINES[cityKey(city.name)] ?? 0;
+  const idKey = city.id.trim().toLowerCase();
+  const key = cityKey(city.name);
+  const resolved = BASELINE_ALIASES[idKey] ?? BASELINE_ALIASES[key] ?? idKey;
+
+  return (
+    MONTHLY_MEETUP_BASELINES[idKey] ??
+    MONTHLY_MEETUP_BASELINES[key] ??
+    MONTHLY_MEETUP_BASELINES[resolved] ??
+    0
+  );
 }
 
 /** e.g. "2026-11" — used so counters reset automatically each month. */
@@ -132,19 +162,26 @@ export async function incrementMonthlyFemaleEnrollmentCount(): Promise<number | 
   }
 }
 
-/** Reads the admin-configured cities for the strangers group meetup. */
+/**
+ * Reads the admin-configured cities for the strangers group meetup.
+ * The stats cards fall back to the standard city list when the admin has not
+ * saved any cities yet (or Firestore is unreachable), so the section never
+ * shows an empty "No cities added yet" state.
+ */
 export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]> {
-  if (!db) return [];
+  if (!db) return buildDefaultStrangersGroupCities();
 
   try {
     const snap = await withTimeout(
       getDoc(doc(db, STRANGERS_GROUP_META.configCollection, STRANGERS_GROUP_META.configDocId))
     );
-    if (!snap.exists()) return [];
-    return parseCitiesList(snap.data()?.cities);
+    if (!snap.exists()) return buildDefaultStrangersGroupCities();
+
+    const cities = parseCitiesList(snap.data()?.cities);
+    return cities.length > 0 ? cities : buildDefaultStrangersGroupCities();
   } catch (error) {
     console.error('Load strangers group cities:', error);
-    return [];
+    return buildDefaultStrangersGroupCities();
   }
 }
 

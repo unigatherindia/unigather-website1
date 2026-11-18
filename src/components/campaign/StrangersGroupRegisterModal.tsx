@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, ExternalLink, Instagram, ShieldCheck, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -10,7 +10,10 @@ import {
   campaignFieldClass,
 } from '@/components/campaign/campaign-premium-ui';
 import { incrementMonthlyCityJoinCount } from '@/lib/meetup-entry-stats';
-import { saveStrangersGroupLead } from '@/lib/strangers-group-leads';
+import {
+  addCityToStrangersGroupRegisterLead,
+  saveStrangersGroupLead,
+} from '@/lib/strangers-group-leads';
 import type { CampaignCityOption } from '@/types/campaign-landing';
 
 type Props = {
@@ -24,6 +27,8 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
   const { messages, locale } = useCampaignLocale();
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState('');
+  /** Registration lead created on Proceed — the city is added to it later. */
+  const registerLeadPromiseRef = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -41,7 +46,7 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
       return;
     }
     setName(trimmed);
-    void saveStrangersGroupLead({
+    registerLeadPromiseRef.current = saveStrangersGroupLead({
       kind: 'register_name',
       name: trimmed,
       preferredLanguage: locale,
@@ -50,15 +55,30 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
   };
 
   const handleCityJoin = (city: CampaignCityOption) => {
-    void saveStrangersGroupLead({
-      kind: 'city_join',
-      name: name || undefined,
-      cityId: city.id,
-      cityName: city.name,
-      cityInstaGroupLink: city.instaGroupLink,
-      preferredLanguage: locale,
-    });
     void incrementMonthlyCityJoinCount(city.id);
+
+    const registerLeadPromise = registerLeadPromiseRef.current;
+    void (async () => {
+      const leadId = registerLeadPromise ? await registerLeadPromise : null;
+      if (leadId) {
+        await addCityToStrangersGroupRegisterLead(leadId, {
+          cityId: city.id,
+          cityName: city.name,
+          cityInstaGroupLink: city.instaGroupLink,
+        });
+        return;
+      }
+
+      // Fallback when the register lead could not be created (e.g. offline).
+      await saveStrangersGroupLead({
+        kind: 'city_join',
+        name: name || undefined,
+        cityId: city.id,
+        cityName: city.name,
+        cityInstaGroupLink: city.instaGroupLink,
+        preferredLanguage: locale,
+      });
+    })();
   };
 
   const subtitle =

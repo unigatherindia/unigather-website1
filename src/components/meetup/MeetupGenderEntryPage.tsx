@@ -13,6 +13,7 @@ import {
   fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
 } from '@/lib/meetup-entry-stats';
+import { buildDefaultStrangersGroupCities } from '@/types/campaign-landing';
 import {
   trackMeetupFunnelEvent,
   trackStrangersGroupFemaleClick,
@@ -84,7 +85,11 @@ export default function MeetupGenderEntryPage({
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
   const [femaleCount, setFemaleCount] = useState(0);
-  const [cities, setCities] = useState<CampaignCityOption[]>([]);
+  // Start with the standard city list so the meetup cards never sit in the
+  // "No cities added yet" state; the admin-configured list replaces it once loaded.
+  const [cities, setCities] = useState<CampaignCityOption[]>(() =>
+    showEntryStats ? buildDefaultStrangersGroupCities() : []
+  );
   const [cityJoinCounts, setCityJoinCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -100,13 +105,21 @@ export default function MeetupGenderEntryPage({
         if (!cancelled) setFemaleCount(0);
       });
 
-    Promise.allSettled([fetchStrangersGroupCities(), fetchMonthlyCityJoinCounts()]).then(
-      ([citiesResult, countsResult]) => {
-        if (cancelled) return;
-        if (citiesResult.status === 'fulfilled') setCities(citiesResult.value);
-        if (countsResult.status === 'fulfilled') setCityJoinCounts(countsResult.value);
-      }
-    );
+    fetchStrangersGroupCities()
+      .then((nextCities) => {
+        if (!cancelled) setCities(nextCities);
+      })
+      .catch((error) => {
+        console.error('Load strangers group cities:', error);
+      });
+
+    fetchMonthlyCityJoinCounts()
+      .then((counts) => {
+        if (!cancelled) setCityJoinCounts(counts);
+      })
+      .catch((error) => {
+        console.error('Load city join counts:', error);
+      });
 
     return () => {
       cancelled = true;
