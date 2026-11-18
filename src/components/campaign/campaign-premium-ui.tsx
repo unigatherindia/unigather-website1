@@ -39,6 +39,8 @@ export function CampaignPageHeader({ slug }: { slug: CampaignLandingSlug }) {
     slug === 'strangers-group' ? messages.badgeStrangers : messages.badgeOneOnOne;
   const title =
     slug === 'strangers-group' ? messages.titleStrangers : messages.titleOneOnOne;
+  const subtitle =
+    slug === 'strangers-group' ? messages.headerSubtitleStrangers : messages.headerSubtitle;
 
   return (
     <header className="mb-10 sm:mb-12">
@@ -78,7 +80,7 @@ export function CampaignPageHeader({ slug }: { slug: CampaignLandingSlug }) {
           <span className="gradient-text">{title}</span>
         </h1>
         <p className="text-gray-400 text-sm sm:text-base max-w-lg leading-relaxed">
-          {messages.headerSubtitle}
+          {subtitle}
         </p>
       </motion.div>
     </header>

@@ -6,11 +6,13 @@ export type CampaignMessages = {
   titleStrangers: string;
   titleOneOnOne: string;
   headerSubtitle: string;
+  headerSubtitleStrangers: string;
   enrollmentHeader: string;
   enrollmentYourDetails: string;
   footerPrivacy: string;
   loading: string;
   formClosed: string;
+  pageUnavailable: string;
   noCities: string;
   selectCity: string;
   selectOption: string;

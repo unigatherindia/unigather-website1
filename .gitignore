@@ -25,6 +25,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local environment variables
+.env
+.env.*
 .env.development.local
 .env.test.local
 .env.production.local
@@ -37,6 +39,7 @@ yarn-error.log*
 *.tsbuildinfo
 
 # IDE settings
+.vscode/
 .idea/
 *.swp
 *.swo

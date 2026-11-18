@@ -11,7 +11,6 @@ import type { CampaignFormField } from '@/types/campaign-landing';
 import ChatWithUsCta from '@/components/ChatWithUsCta';
 import CampaignLanguageSelect from '@/components/campaign/CampaignLanguageSelect';
 import FreeOneOnOneEnrollmentModal from '@/components/campaign/FreeOneOnOneEnrollmentModal';
-import StrangersGroupEnrollmentModal from '@/components/campaign/StrangersGroupEnrollmentModal';
 import {
   CampaignContactPills,
   CampaignFormCard,
@@ -25,7 +24,6 @@ import {
 import {
   CAMPAIGN_LANDING_META,
   DEFAULT_CAMPAIGN_LANDING_CONFIG,
-  findCampaignCity,
   parseCampaignLandingConfig,
   type CampaignLandingConfig,
   type CampaignLandingSlug,
@@ -61,10 +59,6 @@ function CampaignLandingPageInner({ slug }: Props) {
   const [form, setForm] = useState<FormState>(() => emptyForm(meta.formFields));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFreeOneOnOneSuccess, setShowFreeOneOnOneSuccess] = useState(false);
-  const [strangersEnrollment, setStrangersEnrollment] = useState<{
-    cityName: string;
-    instaGroupLink: string;
-  } | null>(null);
 
   const { promoText, formIntro, enrollmentSuccessMessage, isTranslatingCopy } = useTranslatedCopy({
     promoText: config.promoText,
@@ -79,7 +73,12 @@ function CampaignLandingPageInner({ slug }: Props) {
     }
     setIsLoadingConfig(true);
     try {
-      const snap = await getDoc(doc(db, meta.configCollection, meta.configDocId));
+      const snap = await Promise.race([
+        getDoc(doc(db, meta.configCollection, meta.configDocId)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Campaign config request timed out')), 8000)
+        ),
+      ]);
       setConfig(parseCampaignLandingConfig(slug, snap.data() as Record<string, unknown>));
     } catch (error) {
       console.error('Load campaign landing config:', error);
@@ -190,16 +189,10 @@ function CampaignLandingPageInner({ slug }: Props) {
 
     setIsSubmitting(true);
     try {
-      const selectedCity =
-        slug === 'strangers-group' ? findCampaignCity(config.cities, form.city.trim()) : undefined;
-
       const rawFields: Record<string, string> = {};
       meta.formFields.forEach((field) => {
         rawFields[field] = form[field].trim();
       });
-      if (selectedCity) {
-        rawFields.city = selectedCity.name;
-      }
 
       const adminEnglish = await fetchAdminEnglish(rawFields);
 
@@ -215,29 +208,14 @@ function CampaignLandingPageInner({ slug }: Props) {
         const raw = form[field].trim();
         if (field === 'age') {
           payload.age = Number(raw);
-        } else if (field === 'city' && selectedCity) {
-          payload.city = selectedCity.name;
-          payload.cityId = selectedCity.id;
         } else {
           payload[field] = raw;
         }
       });
 
-      if (selectedCity) {
-        payload.cityInstaGroupLink = selectedCity.instaGroupLink;
-      }
-
       await addDoc(collection(db, meta.leadsCollection), payload);
       setForm(emptyForm(meta.formFields));
-
-      if (slug === 'strangers-group') {
-        setStrangersEnrollment({
-          cityName: selectedCity?.name ?? '',
-          instaGroupLink: selectedCity?.instaGroupLink ?? '',
-        });
-      } else if (slug === 'free-one-on-one') {
-        setShowFreeOneOnOneSuccess(true);
-      }
+      setShowFreeOneOnOneSuccess(true);
     } catch (error) {
       console.error('Campaign form submit:', error);
       toast.error('Failed to submit.');
@@ -398,15 +376,6 @@ function CampaignLandingPageInner({ slug }: Props) {
           onClose={() => setShowFreeOneOnOneSuccess(false)}
         />
       )}
-      {strangersEnrollment && slug === 'strangers-group' && (
-        <StrangersGroupEnrollmentModal
-          cityName={strangersEnrollment.cityName}
-          instaGroupLink={strangersEnrollment.instaGroupLink}
-          unigatherInstagramUrl={config.unigatherInstagramUrl}
-          whatsappNumber={config.enrollmentWhatsapp}
-          onClose={() => setStrangersEnrollment(null)}
-        />
-      )}
 
       <CampaignPageBackground />
 
@@ -424,7 +393,9 @@ function CampaignLandingPageInner({ slug }: Props) {
           </div>
         ) : !config.pageEnabled ? (
           <div className="rounded-3xl border border-white/[0.08] bg-dark-900/80 backdrop-blur-xl p-10 text-center">
-            <p className="text-gray-300">{messages.formClosed}</p>
+            <p className="text-gray-300">
+              {slug === 'strangers-group' ? messages.pageUnavailable : messages.formClosed}
+            </p>
           </div>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
@@ -436,25 +407,29 @@ function CampaignLandingPageInner({ slug }: Props) {
               <ChatWithUsCta className="w-full" label={messages.chatWithUs} />
             </div>
 
-            <CampaignFormCard
-              intro={formIntro}
-              urgencyText={config.urgencyText}
-              enrollmentHeader={messages.enrollmentHeader}
-              enrollmentFallback={messages.enrollmentYourDetails}
-            >
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {meta.formFields.map((field) => renderField(field))}
-                <CampaignSubmitButton
-                  disabled={isSubmitting}
-                  isSubmitting={isSubmitting}
-                  label={submitLabel}
-                />
-              </form>
-            </CampaignFormCard>
+            {slug !== 'strangers-group' && (
+              <>
+                <CampaignFormCard
+                  intro={formIntro}
+                  urgencyText={config.urgencyText}
+                  enrollmentHeader={messages.enrollmentHeader}
+                  enrollmentFallback={messages.enrollmentYourDetails}
+                >
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {meta.formFields.map((field) => renderField(field))}
+                    <CampaignSubmitButton
+                      disabled={isSubmitting}
+                      isSubmitting={isSubmitting}
+                      label={submitLabel}
+                    />
+                  </form>
+                </CampaignFormCard>
 
-            <p className="text-center text-[11px] text-gray-600 mt-8 tracking-wide">
-              {messages.footerPrivacy}
-            </p>
+                <p className="text-center text-[11px] text-gray-600 mt-8 tracking-wide">
+                  {messages.footerPrivacy}
+                </p>
+              </>
+            )}
           </motion.div>
         )}
       </div>

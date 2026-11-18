@@ -3,17 +3,20 @@ import type { CampaignMessages } from '@/lib/campaign-i18n/messages-types';
 export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   languageLabel: 'Language',
   brandTagline: 'Gathering minds · Uniting hearts',
-  badgeStrangers: 'Exclusive enrollment',
+  badgeStrangers: 'Exclusive meetup',
   badgeOneOnOne: 'Free meetup · Limited slots',
   titleStrangers: 'Strangers Group Meetup',
   titleOneOnOne: 'One on One Meetup',
   headerSubtitle:
     'Complete the form below to secure your spot. We will guide you through the next steps.',
+  headerSubtitleStrangers:
+    'Explore the details below, then reach out to us to reserve your spot.',
   enrollmentHeader: 'Enrollment',
   enrollmentYourDetails: 'Your details',
   footerPrivacy: 'Your information is used only to process this enrollment · Unigather',
   loading: 'Loading experience…',
   formClosed: 'This form is closed at the moment. Please check back later.',
+  pageUnavailable: 'This page is temporarily unavailable. Please check back later.',
   noCities: 'No cities are open for enrollment yet. Please check back soon.',
   selectCity: 'Select your city…',
   selectOption: 'Select…',
