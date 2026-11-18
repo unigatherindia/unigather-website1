@@ -1,11 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
+import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
+import {
+  fetchMonthlyFemaleEnrollmentCount,
+  incrementMonthlyFemaleEnrollmentCount,
+} from '@/lib/meetup-entry-stats';
 import { trackMeetupFunnelEvent } from '@/lib/meetup-entry-funnel';
 
 const MALE_REDIRECT = '/';
@@ -61,18 +66,45 @@ type MeetupGenderEntryPageProps = {
   femaleFaqPath?: string;
   /** Track funnel clicks for one-on-one entry only. */
   trackOneOnOneFunnel?: boolean;
+  /** Show this month's female enrollment and city meetup stats (strangers group entry). */
+  showEntryStats?: boolean;
 };
 
 export default function MeetupGenderEntryPage({
   femaleRedirect,
   femaleFaqPath,
   trackOneOnOneFunnel = false,
+  showEntryStats = false,
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
+  const [femaleCount, setFemaleCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!showEntryStats) return;
+    let cancelled = false;
+
+    fetchMonthlyFemaleEnrollmentCount()
+      .then((count) => {
+        if (!cancelled) setFemaleCount(count);
+      })
+      .catch((error) => {
+        console.error('Load female enrollment count:', error);
+        if (!cancelled) setFemaleCount(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showEntryStats]);
 
   const handleFemaleClick = () => {
     if (trackOneOnOneFunnel) {
       trackMeetupFunnelEvent('female_button');
+    }
+    if (showEntryStats) {
+      void incrementMonthlyFemaleEnrollmentCount().then((count) => {
+        if (count !== null) setFemaleCount(count);
+      });
     }
     router.push(femaleFaqPath || femaleRedirect);
   };
@@ -151,6 +183,8 @@ export default function MeetupGenderEntryPage({
           transition={{ duration: 0.5, delay: 0.12 }}
           className="pb-[max(2rem,env(safe-area-inset-bottom))] pt-2 sm:pb-12"
         >
+          {showEntryStats ? <MeetupEntryStats femaleCount={femaleCount} /> : null}
+
           <div className="mx-auto w-full max-w-md rounded-[1.625rem] border border-white/[0.08] bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_80px_-32px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:max-w-lg sm:p-5">
             <p className="mb-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
               I am
