@@ -46,4 +46,17 @@ export type CampaignMessages = {
   contactQuery: string;
   chatWithUs: string;
   contactComplaint: string;
+  registerCta: string;
+  registerNameTitle: string;
+  registerNameSubtitle: string;
+  registerNamePlaceholder: string;
+  registerProceed: string;
+  registerCitiesTitle: string;
+  registerCitiesSubtitle: string;
+  registerCitiesSubtitleWithName: string;
+  registerJoinNow: string;
+  registerNoCities: string;
+  registerLinkSoon: string;
+  registerNameRequired: string;
+  registerBack: string;
 };

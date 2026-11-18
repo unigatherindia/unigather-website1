@@ -3,7 +3,8 @@
 import React from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, ArrowRight, UserPlus } from 'lucide-react';
+import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
 import type { CampaignLandingSlug } from '@/types/campaign-landing';
 
@@ -199,6 +200,52 @@ export function CampaignContactPills({
         </a>
       ))}
     </motion.div>
+  );
+}
+
+export function CampaignWhatsAppCta({
+  href,
+  label,
+  className = '',
+}: {
+  href: string;
+  label: string;
+  className?: string;
+}) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`group flex w-full items-center justify-center gap-2.5 py-4 px-6 rounded-2xl font-semibold text-white tracking-wide bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#2ee06f] hover:to-[#0f9d8f] transition-colors shadow-md shadow-black/25 ${className}`}
+    >
+      <WhatsAppIcon className="w-5 h-5 shrink-0" />
+      <span>{label}</span>
+      <ArrowRight className="w-5 h-5 shrink-0 opacity-90 transition-transform group-hover:translate-x-1" />
+    </a>
+  );
+}
+
+export function CampaignRegisterCta({
+  onClick,
+  label,
+  className = '',
+}: {
+  onClick: () => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group flex w-full items-center justify-center gap-2.5 py-4 px-6 rounded-2xl font-semibold text-white tracking-wide bg-gradient-to-r from-primary-500 via-orange-500 to-primary-600 hover:from-primary-400 hover:via-orange-400 hover:to-primary-500 transition-colors shadow-md shadow-black/25 ${className}`}
+    >
+      <UserPlus className="w-5 h-5 shrink-0" />
+      <span>{label}</span>
+      <ArrowRight className="w-5 h-5 shrink-0 opacity-90 transition-transform group-hover:translate-x-1" />
+    </button>
   );
 }
 

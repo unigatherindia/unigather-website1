@@ -11,13 +11,16 @@ import type { CampaignFormField } from '@/types/campaign-landing';
 import ChatWithUsCta from '@/components/ChatWithUsCta';
 import CampaignLanguageSelect from '@/components/campaign/CampaignLanguageSelect';
 import FreeOneOnOneEnrollmentModal from '@/components/campaign/FreeOneOnOneEnrollmentModal';
+import StrangersGroupRegisterModal from '@/components/campaign/StrangersGroupRegisterModal';
 import {
   CampaignContactPills,
   CampaignFormCard,
   CampaignPageBackground,
   CampaignPageHeader,
   CampaignPromoCard,
+  CampaignRegisterCta,
   CampaignSubmitButton,
+  CampaignWhatsAppCta,
   campaignFieldClass,
   campaignLabelClass,
 } from '@/components/campaign/campaign-premium-ui';
@@ -28,7 +31,11 @@ import {
   type CampaignLandingConfig,
   type CampaignLandingSlug,
 } from '@/types/campaign-landing';
-import { formatIndianPhoneDisplay, telHrefIndian } from '@/lib/indian-phone';
+import {
+  formatIndianPhoneDisplay,
+  telHrefIndian,
+  whatsappHrefIndian,
+} from '@/lib/indian-phone';
 import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
 
 type FormState = Record<CampaignFormField, string>;
@@ -59,6 +66,7 @@ function CampaignLandingPageInner({ slug }: Props) {
   const [form, setForm] = useState<FormState>(() => emptyForm(meta.formFields));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFreeOneOnOneSuccess, setShowFreeOneOnOneSuccess] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   const { promoText, formIntro, enrollmentSuccessMessage, isTranslatingCopy } = useTranslatedCopy({
     promoText: config.promoText,
@@ -243,6 +251,17 @@ function CampaignLandingPageInner({ slug }: Props) {
     ].filter(Boolean) as { label: string; phone: string; href: string }[];
   }, [config.complaintPhone, config.queryPhone, messages.contactComplaint, messages.contactQuery]);
 
+  const whatsappHref = useMemo(() => {
+    const base = whatsappHrefIndian('7568861945');
+    if (!base) return '';
+    const text = encodeURIComponent(
+      slug === 'strangers-group'
+        ? 'Hi Unigather, I have a query about the Strangers Group Meetup.'
+        : 'Hi Unigather, I have a query.'
+    );
+    return `${base}?text=${text}`;
+  }, [slug]);
+
   const genderOptions = useMemo(
     () => [
       { value: 'male', label: messages.genderMen },
@@ -377,6 +396,13 @@ function CampaignLandingPageInner({ slug }: Props) {
         />
       )}
 
+      {showRegister && slug === 'strangers-group' && (
+        <StrangersGroupRegisterModal
+          cities={config.cities}
+          onClose={() => setShowRegister(false)}
+        />
+      )}
+
       <CampaignPageBackground />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 py-10 sm:py-16 max-w-xl lg:max-w-2xl">
@@ -401,11 +427,26 @@ function CampaignLandingPageInner({ slug }: Props) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             <CampaignPromoCard>{promoText}</CampaignPromoCard>
 
-            <CampaignContactPills items={contactPills} />
+            {slug === 'strangers-group' ? (
+              <div className="mb-8 space-y-3">
+                <CampaignWhatsAppCta
+                  href={whatsappHref}
+                  label={messages.contactQuery}
+                />
+                <CampaignRegisterCta
+                  onClick={() => setShowRegister(true)}
+                  label={messages.registerCta}
+                />
+              </div>
+            ) : (
+              <>
+                <CampaignContactPills items={contactPills} />
 
-            <div className="mb-8">
-              <ChatWithUsCta className="w-full" label={messages.chatWithUs} />
-            </div>
+                <div className="mb-8">
+                  <ChatWithUsCta className="w-full" label={messages.chatWithUs} />
+                </div>
+              </>
+            )}
 
             {slug !== 'strangers-group' && (
               <>
