@@ -34,6 +34,7 @@ function FunnelPanel({ docId, title, description, path, buildMetrics }: FunnelPa
   const [stats, setStats] = useState<MeetupFunnelStats>({
     femaleButtonClicks: 0,
     maleButtonClicks: 0,
+    maleRegisterClicks: 0,
     fillFormClicks: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -175,6 +176,12 @@ export function StrangersGroupFunnelPanel() {
           caption: 'On /meetup-start-strangers → Male',
           value: stats.maleButtonClicks,
           accentClassName: 'text-sky-400',
+        },
+        {
+          label: 'Male Register clicks',
+          caption: 'Male page → Register popup opened (drop-off from Male choice)',
+          value: stats.maleRegisterClicks,
+          accentClassName: 'text-emerald-400',
         },
       ]}
     />

@@ -134,9 +134,14 @@ export default function StrangersGroupRegisterModal({
     <CampaignEnrollmentModalFrame
       titleId="strangers-register-title"
       onClose={onClose}
+      iconAccent={isMale && step === 'cities' ? 'orange' : 'green'}
       icon={
         step === 'cities' ? (
-          <WhatsAppIcon className="w-8 h-8 text-green-400" />
+          isMale ? (
+            <MapPin className="w-8 h-8 text-primary-400" aria-hidden />
+          ) : (
+            <WhatsAppIcon className="w-8 h-8 text-green-400" />
+          )
         ) : (
           <UserPlus className="w-8 h-8 text-green-400" strokeWidth={2} />
         )

@@ -13,6 +13,7 @@ type TranslatedCopySource = {
   maleUrgencyText?: string;
   maleWebsiteCtaLabel?: string;
   maleRegisterCtaLabel?: string;
+  maleQueryCtaLabel?: string;
 };
 
 export function useTranslatedCopy(source: TranslatedCopySource) {
@@ -31,6 +32,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
   const [maleRegisterCtaLabel, setMaleRegisterCtaLabel] = useState(
     source.maleRegisterCtaLabel ?? ''
   );
+  const [maleQueryCtaLabel, setMaleQueryCtaLabel] = useState(source.maleQueryCtaLabel ?? '');
   const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
       urgencyText: source.maleUrgencyText ?? '',
       websiteCtaLabel: source.maleWebsiteCtaLabel ?? '',
       registerCtaLabel: source.maleRegisterCtaLabel ?? '',
+      queryCtaLabel: source.maleQueryCtaLabel ?? '',
     };
 
     const run = async () => {
@@ -53,6 +56,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
         setMaleUrgencyText(male.urgencyText);
         setMaleWebsiteCtaLabel(male.websiteCtaLabel);
         setMaleRegisterCtaLabel(male.registerCtaLabel);
+        setMaleQueryCtaLabel(male.queryCtaLabel);
         return;
       }
 
@@ -70,6 +74,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           translatedMaleUrgency,
           translatedMaleWebsiteLabel,
           translatedMaleRegisterLabel,
+          translatedMaleQueryLabel,
         ] = await Promise.all([
           translateDynamic(source.promoText),
           translateIfPresent(source.formIntro),
@@ -79,6 +84,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           translateIfPresent(male.urgencyText),
           translateIfPresent(male.websiteCtaLabel),
           translateIfPresent(male.registerCtaLabel),
+          translateIfPresent(male.queryCtaLabel),
         ]);
         if (!cancelled) {
           setPromoText(promo);
@@ -89,6 +95,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           setMaleUrgencyText(translatedMaleUrgency);
           setMaleWebsiteCtaLabel(translatedMaleWebsiteLabel);
           setMaleRegisterCtaLabel(translatedMaleRegisterLabel);
+          setMaleQueryCtaLabel(translatedMaleQueryLabel);
         }
       } finally {
         if (!cancelled) setIsTranslating(false);
@@ -109,6 +116,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
     source.maleUrgencyText,
     source.maleWebsiteCtaLabel,
     source.maleRegisterCtaLabel,
+    source.maleQueryCtaLabel,
     translateDynamic,
   ]);
 
@@ -121,6 +129,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
     maleUrgencyText,
     maleWebsiteCtaLabel,
     maleRegisterCtaLabel,
+    maleQueryCtaLabel,
     isTranslatingCopy: isTranslating,
   };
 }

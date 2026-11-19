@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import { CampaignLocaleProvider, useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
 import { useTranslatedCopy } from '@/lib/campaign-i18n/use-translated-copy';
+import { trackStrangersGroupMaleRegisterClick } from '@/lib/meetup-entry-funnel';
 import type { CampaignFormField } from '@/types/campaign-landing';
 import ChatWithUsCta from '@/components/ChatWithUsCta';
 import CampaignLanguageSelect from '@/components/campaign/CampaignLanguageSelect';
@@ -80,6 +81,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     maleUrgencyText,
     maleWebsiteCtaLabel,
     maleRegisterCtaLabel,
+    maleQueryCtaLabel,
     isTranslatingCopy,
   } = useTranslatedCopy({
     promoText: config.promoText,
@@ -90,6 +92,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     maleUrgencyText: config.maleUrgencyText,
     maleWebsiteCtaLabel: config.maleWebsiteCtaLabel,
     maleRegisterCtaLabel: config.maleRegisterCtaLabel,
+    maleQueryCtaLabel: config.maleQueryCtaLabel,
   });
 
   const loadConfig = useCallback(async () => {
@@ -134,6 +137,22 @@ function CampaignLandingPageInner({ slug }: Props) {
     isMalePage && maleWebsiteCtaLabel.trim() ? maleWebsiteCtaLabel : messages.visitWebsite;
   const registerCtaLabel =
     isMalePage && maleRegisterCtaLabel.trim() ? maleRegisterCtaLabel : messages.registerCta;
+  const maleQueryCtaText =
+    isMalePage && maleQueryCtaLabel.trim() ? maleQueryCtaLabel : messages.contactQuery;
+  const maleQueryHref = useMemo(() => {
+    if (!isMalePage || !config.maleQueryWhatsapp.trim()) return '';
+    const base = whatsappHrefIndian(config.maleQueryWhatsapp);
+    if (!base) return '';
+    const text = encodeURIComponent(
+      'Hey Unigather! I need some information about the Group Strangers meetup.'
+    );
+    return `${base}?text=${text}`;
+  }, [config.maleQueryWhatsapp, isMalePage]);
+
+  const handleRegisterClick = () => {
+    if (isMalePage) trackStrangersGroupMaleRegisterClick();
+    setShowRegister(true);
+  };
 
   const fieldLabel = useCallback(
     (field: CampaignFormField): string => {
@@ -483,10 +502,10 @@ function CampaignLandingPageInner({ slug }: Props) {
                 ) : (
                   <CampaignWhatsAppCta href={whatsappHref} label={messages.contactQuery} />
                 )}
-                <CampaignRegisterCta
-                  onClick={() => setShowRegister(true)}
-                  label={registerCtaLabel}
-                />
+                <CampaignRegisterCta onClick={handleRegisterClick} label={registerCtaLabel} />
+                {isMalePage ? (
+                  <CampaignWhatsAppCta href={maleQueryHref} label={maleQueryCtaText} />
+                ) : null}
               </div>
             ) : (
               <>

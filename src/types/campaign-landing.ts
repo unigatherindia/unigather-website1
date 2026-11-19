@@ -59,6 +59,9 @@ export type CampaignLandingConfig = {
   maleWebsiteCtaLabel: string;
   /** Optional male Register button label (falls back to translated UI text). */
   maleRegisterCtaLabel: string;
+  /** Male page query WhatsApp + button label. Blank number hides the button. */
+  maleQueryWhatsapp: string;
+  maleQueryCtaLabel: string;
   /** Shown on enrollment success popup (WhatsApp enquiries) */
   enrollmentWhatsapp: string;
   /** Shown on enrollment success popup */
@@ -213,6 +216,8 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     maleWebsiteUrl: '',
     maleWebsiteCtaLabel: '',
     maleRegisterCtaLabel: '',
+    maleQueryWhatsapp: '',
+    maleQueryCtaLabel: '',
     enrollmentWhatsapp: '7901751593',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage: '',
@@ -234,6 +239,8 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     maleWebsiteUrl: '',
     maleWebsiteCtaLabel: '',
     maleRegisterCtaLabel: '',
+    maleQueryWhatsapp: '',
+    maleQueryCtaLabel: '',
     enrollmentWhatsapp: '',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage:
@@ -311,6 +318,14 @@ export function parseCampaignLandingConfig(
       typeof data.maleRegisterCtaLabel === 'string'
         ? data.maleRegisterCtaLabel
         : defaults.maleRegisterCtaLabel,
+    maleQueryWhatsapp:
+      typeof data.maleQueryWhatsapp === 'string'
+        ? data.maleQueryWhatsapp.trim()
+        : defaults.maleQueryWhatsapp,
+    maleQueryCtaLabel:
+      typeof data.maleQueryCtaLabel === 'string'
+        ? data.maleQueryCtaLabel
+        : defaults.maleQueryCtaLabel,
     enrollmentWhatsapp:
       typeof data.enrollmentWhatsapp === 'string'
         ? data.enrollmentWhatsapp

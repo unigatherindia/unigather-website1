@@ -282,6 +282,8 @@ type ModalFrameProps = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeLabel?: string;
+  /** Icon tile color. Defaults to green. */
+  iconAccent?: 'green' | 'orange';
 };
 
 export function CampaignEnrollmentModalFrame({
@@ -293,7 +295,9 @@ export function CampaignEnrollmentModalFrame({
   children,
   footer,
   closeLabel = 'Close',
+  iconAccent = 'green',
 }: ModalFrameProps) {
+  const isOrangeIcon = iconAccent === 'orange';
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md">
       <motion.div
@@ -317,8 +321,18 @@ export function CampaignEnrollmentModalFrame({
 
           <div className="flex flex-col items-center text-center mb-6 pt-2">
             <div className="relative mb-4">
-              <div className="absolute inset-0 bg-green-400/25 rounded-full blur-xl scale-150" />
-              <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-600/10 border border-green-400/30">
+              <div
+                className={`absolute inset-0 rounded-full blur-xl scale-150 ${
+                  isOrangeIcon ? 'bg-orange-400/25' : 'bg-green-400/25'
+                }`}
+              />
+              <div
+                className={`relative flex items-center justify-center w-16 h-16 rounded-2xl ${
+                  isOrangeIcon
+                    ? 'bg-gradient-to-br from-orange-500/25 to-amber-600/10 border border-orange-400/35'
+                    : 'bg-gradient-to-br from-green-500/20 to-emerald-600/10 border border-green-400/30'
+                }`}
+              >
                 {icon}
               </div>
             </div>

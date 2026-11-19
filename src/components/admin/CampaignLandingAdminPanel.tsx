@@ -713,9 +713,40 @@ export default function CampaignLandingAdminPanel() {
                     placeholder="https://example.com"
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    Replaces the query WhatsApp button on the male page. The link opens in a new tab.
-                    Leave blank to hide the button entirely.
+                    Shown as a button on the male page. The link opens in a new tab. Leave blank to
+                    hide the button entirely.
                   </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Male &ldquo;For any query contact&rdquo; button text
+                    </label>
+                    <input
+                      type="text"
+                      value={form.maleQueryCtaLabel}
+                      onChange={(e) => setField('maleQueryCtaLabel', e.target.value)}
+                      placeholder="For any query contact"
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Male query WhatsApp number
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.maleQueryWhatsapp}
+                      onChange={(e) => setField('maleQueryWhatsapp', e.target.value)}
+                      placeholder="7568861945"
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Hidden from the page — the button opens WhatsApp. Leave blank to remove the
+                      button. A 10-digit Indian mobile works; 91 is added automatically.
+                    </p>
+                  </div>
                 </div>
 
                 <button

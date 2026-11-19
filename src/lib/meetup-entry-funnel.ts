@@ -84,9 +84,37 @@ export function trackStrangersGroupMaleClick() {
   });
 }
 
+/**
+ * Records a Male visitor opening the Register popup on the strangers-group
+ * campaign page. Separate from the gender-choice click so admin can measure
+ * the drop-off between selecting Male and starting registration.
+ */
+export function trackStrangersGroupMaleRegisterClick() {
+  if (!db) return;
+
+  const ref = doc(
+    db,
+    MEETUP_ENTRY_FUNNEL_COLLECTION,
+    STRANGERS_GROUP_FUNNEL_DOC_ID
+  );
+
+  void setDoc(
+    ref,
+    {
+      funnel: 'strangers-group',
+      maleRegisterClicks: increment(1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  ).catch((error) => {
+    console.error('strangers group male register track failed:', error);
+  });
+}
+
 export type MeetupFunnelStats = {
   femaleButtonClicks: number;
   maleButtonClicks: number;
+  maleRegisterClicks: number;
   fillFormClicks: number;
 };
 
@@ -96,6 +124,8 @@ export function parseMeetupFunnelStats(data: Record<string, unknown> | undefined
       typeof data?.femaleButtonClicks === 'number' ? data.femaleButtonClicks : 0,
     maleButtonClicks:
       typeof data?.maleButtonClicks === 'number' ? data.maleButtonClicks : 0,
+    maleRegisterClicks:
+      typeof data?.maleRegisterClicks === 'number' ? data.maleRegisterClicks : 0,
     fillFormClicks: typeof data?.fillFormClicks === 'number' ? data.fillFormClicks : 0,
   };
 }
