@@ -132,7 +132,13 @@ export default function StrangersGroupRegisterModal({
           <UserPlus className="w-8 h-8 text-green-400" strokeWidth={2} />
         )
       }
-      title={step === 'cities' ? messages.registerCitiesTitle : messages.registerNameTitle}
+      title={
+        step === 'cities'
+          ? messages.registerCitiesTitle
+          : isMale
+            ? messages.maleRegisterNameTitle
+            : messages.registerNameTitle
+      }
       subtitle={subtitle}
       footer={
         <div className="mt-6 flex gap-2">

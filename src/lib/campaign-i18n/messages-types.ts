@@ -49,6 +49,7 @@ export type CampaignMessages = {
   registerCta: string;
   visitWebsite: string;
   registerNameTitle: string;
+  maleRegisterNameTitle: string;
   registerNameSubtitle: string;
   registerNamePlaceholder: string;
   registerProceed: string;
