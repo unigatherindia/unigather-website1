@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, UserPlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MapPin, UserPlus } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import toast from 'react-hot-toast';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
@@ -80,10 +80,15 @@ export default function StrangersGroupRegisterModal({
   const buildCityWhatsappHref = (city: CampaignCityOption) => {
     const base = whatsappHrefIndian(registerWhatsapp);
     if (!base) return '';
-    const message = isMale
-      ? `Hi Unigather! I'm ${name} from ${city.name}. I'd like to book a spot for the Group Strangers Meetup. Please share the details.`
-      : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
+    const message = `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
     return `${base}?text=${encodeURIComponent(message)}`;
+  };
+
+  const buildCityHref = (city: CampaignCityOption) => {
+    if (isMale) {
+      return `https://www.unigather.co.in/events?city=${encodeURIComponent(city.name)}&book=1`;
+    }
+    return buildCityWhatsappHref(city);
   };
 
   const handleCityJoin = (city: CampaignCityOption) => {
@@ -116,9 +121,11 @@ export default function StrangersGroupRegisterModal({
 
   const subtitle =
     step === 'cities'
-      ? name
-        ? messages.registerCitiesSubtitleWithName.replace('{name}', name)
-        : messages.registerCitiesSubtitle
+      ? isMale
+        ? messages.maleRegisterCitiesSubtitle
+        : name
+          ? messages.registerCitiesSubtitleWithName.replace('{name}', name)
+          : messages.registerCitiesSubtitle
       : isMale
         ? ''
         : messages.registerNameSubtitle;
@@ -217,7 +224,7 @@ export default function StrangersGroupRegisterModal({
             ) : (
               <div className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[52vh]">
                 {cities.map((city) => {
-                  const href = buildCityWhatsappHref(city);
+                  const href = buildCityHref(city);
                   return (
                     <a
                       key={city.id}
@@ -227,7 +234,11 @@ export default function StrangersGroupRegisterModal({
                       onClick={() => handleCityJoin(city)}
                       className="group flex w-full items-center gap-2.5 py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-primary-400/40 hover:bg-white/[0.07] transition-all"
                     >
-                      <WhatsAppIcon className="w-5 h-5 shrink-0 text-green-400" />
+                      {isMale ? (
+                        <MapPin className="w-5 h-5 shrink-0 text-primary-400" aria-hidden />
+                      ) : (
+                        <WhatsAppIcon className="w-5 h-5 shrink-0 text-green-400" />
+                      )}
                       <span className="truncate font-medium text-gray-100">{city.name}</span>
                     </a>
                   );

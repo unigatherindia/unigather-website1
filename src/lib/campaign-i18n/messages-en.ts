@@ -62,6 +62,7 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   registerCitiesTitle: 'Pick your city',
   registerCitiesSubtitle: 'Tap your city to connect with us on WhatsApp.',
   registerCitiesSubtitleWithName: 'Nice to meet you, {name}. Tap your city to connect with us on WhatsApp.',
+  maleRegisterCitiesSubtitle: 'Tap your city to proceed for Booking',
   registerNoCities: 'Cities are not open for registration yet. Please check back soon.',
   registerNameRequired: 'Please enter your name.',
   registerBack: 'Back',

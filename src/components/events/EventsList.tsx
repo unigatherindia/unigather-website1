@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Clock, Star, 
@@ -65,12 +65,24 @@ interface Event {
   freeGiftPromoHighlights?: string[];
 }
 
+/** Matches a city name from a campaign link against an event's location/address. */
+function findEventForCity(events: Event[], city: string): Event | undefined {
+  const needle = city.trim().toLowerCase();
+  if (!needle) return undefined;
+  return events.find((event) =>
+    [event.location, event.address, event.title].some((value) =>
+      typeof value === 'string' && value.toLowerCase().includes(needle)
+    )
+  );
+}
+
 const EventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
   const [viewedEventIds, setViewedEventIds] = useState<Set<string>>(new Set());
+  const bookingDeepLinkHandled = useRef(false);
 
   const markEventViewed = (eventId: string) => {
     setViewedEventIds((prev) => {
@@ -213,6 +225,29 @@ const EventsList: React.FC = () => {
 
     fetchEvents();
   }, []);
+
+  // A city row in the Male register popup links here with ?city=<name>&book=1.
+  // Open that city's Book Now popup directly instead of making the visitor
+  // expand the card first.
+  useEffect(() => {
+    if (isLoading || bookingDeepLinkHandled.current || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('book') !== '1') return;
+    const city = params.get('city');
+    if (!city) return;
+
+    bookingDeepLinkHandled.current = true;
+    const match = findEventForCity(events, city);
+    if (!match) {
+      toast(`No event found for ${city}. Please pick one below.`, { icon: '📍' });
+      return;
+    }
+
+    setExpandedEventIds((prev) => new Set(prev).add(match.id));
+    markEventViewed(match.id);
+    setSelectedEvent(match);
+  }, [events, isLoading]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
