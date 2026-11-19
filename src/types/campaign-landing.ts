@@ -50,6 +50,15 @@ export type CampaignLandingConfig = {
   registerWhatsapp: string;
   /** WhatsApp number opened by male city buttons (falls back to registerWhatsapp). */
   maleRegisterWhatsapp: string;
+  /** Male-only page copy, shown when the page is opened with ?gender=male. */
+  malePromoText: string;
+  maleFormIntro: string;
+  maleUrgencyText: string;
+  /** Male "For any query contact" WhatsApp (falls back to queryWhatsapp). */
+  maleQueryWhatsapp: string;
+  /** Optional male-only button labels (fall back to translated UI text). */
+  maleQueryCtaLabel: string;
+  maleRegisterCtaLabel: string;
   /** Shown on enrollment success popup (WhatsApp enquiries) */
   enrollmentWhatsapp: string;
   /** Shown on enrollment success popup */
@@ -198,6 +207,12 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     cities: [],
     registerWhatsapp: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
     maleRegisterWhatsapp: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
+    malePromoText: DEFAULT_STRANGERS_GROUP_PROMO,
+    maleFormIntro: '',
+    maleUrgencyText: '',
+    maleQueryWhatsapp: '',
+    maleQueryCtaLabel: '',
+    maleRegisterCtaLabel: '',
     enrollmentWhatsapp: '7901751593',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage: '',
@@ -213,6 +228,12 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     cities: [],
     registerWhatsapp: '',
     maleRegisterWhatsapp: '',
+    malePromoText: '',
+    maleFormIntro: '',
+    maleUrgencyText: '',
+    maleQueryWhatsapp: '',
+    maleQueryCtaLabel: '',
+    maleRegisterCtaLabel: '',
     enrollmentWhatsapp: '',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage:
@@ -226,6 +247,13 @@ export function parseCampaignLandingConfig(
 ): CampaignLandingConfig {
   const defaults = DEFAULT_CAMPAIGN_LANDING_CONFIG[slug];
   if (!data) return defaults;
+
+  const resolvedQueryWhatsapp =
+    typeof data.queryWhatsapp === 'string' && data.queryWhatsapp.trim()
+      ? data.queryWhatsapp.trim()
+      : typeof data.queryPhone === 'string' && data.queryPhone.trim()
+        ? data.queryPhone.trim()
+        : defaults.queryWhatsapp;
 
   return {
     promoText:
@@ -243,12 +271,7 @@ export function parseCampaignLandingConfig(
       typeof data.queryPhone === 'string' && data.queryPhone.trim()
         ? data.queryPhone
         : defaults.queryPhone,
-    queryWhatsapp:
-      typeof data.queryWhatsapp === 'string' && data.queryWhatsapp.trim()
-        ? data.queryWhatsapp.trim()
-        : typeof data.queryPhone === 'string' && data.queryPhone.trim()
-          ? data.queryPhone.trim()
-          : defaults.queryWhatsapp,
+    queryWhatsapp: resolvedQueryWhatsapp,
     complaintPhone:
       typeof data.complaintPhone === 'string' && data.complaintPhone.trim()
         ? data.complaintPhone
@@ -270,6 +293,26 @@ export function parseCampaignLandingConfig(
         : typeof data.registerWhatsapp === 'string' && data.registerWhatsapp.trim()
           ? data.registerWhatsapp.trim()
           : defaults.maleRegisterWhatsapp,
+    malePromoText:
+      typeof data.malePromoText === 'string' && data.malePromoText.trim()
+        ? data.malePromoText
+        : defaults.malePromoText,
+    maleFormIntro:
+      typeof data.maleFormIntro === 'string' ? data.maleFormIntro : defaults.maleFormIntro,
+    maleUrgencyText:
+      typeof data.maleUrgencyText === 'string' ? data.maleUrgencyText : defaults.maleUrgencyText,
+    maleQueryWhatsapp:
+      typeof data.maleQueryWhatsapp === 'string' && data.maleQueryWhatsapp.trim()
+        ? data.maleQueryWhatsapp.trim()
+        : resolvedQueryWhatsapp,
+    maleQueryCtaLabel:
+      typeof data.maleQueryCtaLabel === 'string'
+        ? data.maleQueryCtaLabel
+        : defaults.maleQueryCtaLabel,
+    maleRegisterCtaLabel:
+      typeof data.maleRegisterCtaLabel === 'string'
+        ? data.maleRegisterCtaLabel
+        : defaults.maleRegisterCtaLabel,
     enrollmentWhatsapp:
       typeof data.enrollmentWhatsapp === 'string'
         ? data.enrollmentWhatsapp

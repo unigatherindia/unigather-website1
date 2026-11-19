@@ -106,7 +106,7 @@ function formatLeadDate(date: Date | null | undefined) {
   return date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-type AdminSubTab = 'content' | 'cities' | 'submissions';
+type AdminSubTab = 'content' | 'maleContent' | 'cities' | 'submissions';
 type SubmissionView = 'active' | 'archived';
 
 const SLUGS: CampaignLandingSlug[] = ['strangers-group', 'free-one-on-one'];
@@ -229,6 +229,9 @@ export default function CampaignLandingAdminPanel() {
         lead.contactInfo,
         lead.hobbies,
         lead.gender,
+        activeSlug === 'strangers-group'
+          ? labelForCampaignGender(lead.gender || 'female')
+          : '',
         lead.genderPreference,
         lead.kind,
         lead.cityId,
@@ -237,7 +240,7 @@ export default function CampaignLandingAdminPanel() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
-  }, [activeLeads, archivedLeads, search, submissionView]);
+  }, [activeLeads, archivedLeads, search, submissionView, activeSlug]);
 
   const filteredIds = filteredLeads.map((l) => l.id);
   const allSelected =
@@ -468,6 +471,20 @@ export default function CampaignLandingAdminPanel() {
           {activeSlug === 'strangers-group' && (
             <button
               type="button"
+              onClick={() => setSubTab('maleContent')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                subTab === 'maleContent'
+                  ? 'bg-primary-500/20 text-primary-300 border border-primary-500/40'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Male page content
+            </button>
+          )}
+          {activeSlug === 'strangers-group' && (
+            <button
+              type="button"
               onClick={() => setSubTab('cities')}
               className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
                 subTab === 'cities'
@@ -598,6 +615,118 @@ export default function CampaignLandingAdminPanel() {
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                   Save page content
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {subTab === 'maleContent' && activeSlug === 'strangers-group' && (
+          <>
+            {isLoadingConfig ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary-400 mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-6 max-w-3xl">
+                <div className="rounded-lg border border-primary-500/25 bg-primary-500/5 p-4 text-sm text-gray-300">
+                  This content is shown when a visitor chooses <strong>Male</strong> and lands on{' '}
+                  <code className="text-primary-300">
+                    /strangers-group-meetup?gender=male
+                  </code>
+                  . Anything left blank falls back to the regular page content. The male city
+                  WhatsApp number is edited in the <strong>Cities &amp; Insta links</strong> tab.
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Male promo / event copy
+                  </label>
+                  <textarea
+                    value={form.malePromoText}
+                    onChange={(e) => setField('malePromoText', e.target.value)}
+                    rows={16}
+                    className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Male text above the buttons (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.maleFormIntro}
+                    onChange={(e) => setField('maleFormIntro', e.target.value)}
+                    className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Male urgency line (optional, e.g. slots left)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.maleUrgencyText}
+                    onChange={(e) => setField('maleUrgencyText', e.target.value)}
+                    className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Male &ldquo;For any query contact&rdquo; button text
+                    </label>
+                    <input
+                      type="text"
+                      value={form.maleQueryCtaLabel}
+                      onChange={(e) => setField('maleQueryCtaLabel', e.target.value)}
+                      placeholder="For any query contact"
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Male &ldquo;Register&rdquo; button text
+                    </label>
+                    <input
+                      type="text"
+                      value={form.maleRegisterCtaLabel}
+                      onChange={(e) => setField('maleRegisterCtaLabel', e.target.value)}
+                      placeholder="Register"
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Male WhatsApp for &ldquo;For any query contact&rdquo; button
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.maleQueryWhatsapp}
+                    onChange={(e) => setField('maleQueryWhatsapp', e.target.value)}
+                    className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                    placeholder="7568861945"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Hidden from the page — the button opens a WhatsApp chat with this number. Leave
+                    blank to use the shared query WhatsApp number. A 10-digit Indian mobile works;
+                    91 is added automatically.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-lg font-semibold text-white flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  Save male page content
                 </button>
               </div>
             )}
@@ -918,6 +1047,17 @@ export default function CampaignLandingAdminPanel() {
                           {lead.kind ? (
                             <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-primary-500/15 text-primary-200 border border-primary-500/30">
                               {LEAD_KIND_LABELS[lead.kind] ?? lead.kind}
+                            </span>
+                          ) : null}
+                          {activeSlug === 'strangers-group' ? (
+                            <span
+                              className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border ${
+                                lead.gender === 'male'
+                                  ? 'bg-sky-500/15 text-sky-200 border-sky-500/30'
+                                  : 'bg-pink-500/15 text-pink-200 border-pink-500/30'
+                              }`}
+                            >
+                              {labelForCampaignGender(lead.gender || 'female')}
                             </span>
                           ) : null}
                           {lead.preferredLanguage && lead.preferredLanguage !== 'en' ? (
