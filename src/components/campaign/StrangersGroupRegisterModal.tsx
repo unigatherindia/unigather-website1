@@ -23,8 +23,11 @@ import {
 
 type Props = {
   cities: CampaignCityOption[];
-  /** Number opened by every city button — controlled from the admin panel. */
+  /** Number opened by female city buttons — controlled from the admin panel. */
   whatsappNumber: string;
+  /** Number opened by male city buttons (falls back to whatsappNumber). */
+  maleWhatsappNumber?: string;
+  gender?: 'male' | 'female';
   onClose: () => void;
 };
 
@@ -33,15 +36,21 @@ type Step = 'name' | 'cities';
 export default function StrangersGroupRegisterModal({
   cities,
   whatsappNumber,
+  maleWhatsappNumber = '',
+  gender = 'female',
   onClose,
 }: Props) {
+  const isMale = gender === 'male';
   const { messages, locale } = useCampaignLocale();
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState('');
   /** Registration lead created on Proceed — the city is added to it later. */
   const registerLeadPromiseRef = useRef<Promise<string | null> | null>(null);
-  const registerWhatsapp =
-    whatsappNumber.trim() || DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
+  const registerWhatsapp = isMale
+    ? maleWhatsappNumber.trim() ||
+      whatsappNumber.trim() ||
+      DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP
+    : whatsappNumber.trim() || DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -62,6 +71,7 @@ export default function StrangersGroupRegisterModal({
     registerLeadPromiseRef.current = saveStrangersGroupLead({
       kind: 'register_name',
       name: trimmed,
+      ...(isMale ? { gender: 'male' } : {}),
       preferredLanguage: locale,
     });
     setStep('cities');
@@ -70,7 +80,9 @@ export default function StrangersGroupRegisterModal({
   const buildCityWhatsappHref = (city: CampaignCityOption) => {
     const base = whatsappHrefIndian(registerWhatsapp);
     if (!base) return '';
-    const message = `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
+    const message = isMale
+      ? `Hi Unigather! I'm ${name} from ${city.name}. I'd like to book a spot for the Group Strangers Meetup. Please share the details.`
+      : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
     return `${base}?text=${encodeURIComponent(message)}`;
   };
 
@@ -96,6 +108,7 @@ export default function StrangersGroupRegisterModal({
         cityId: city.id,
         cityName: city.name,
         cityWhatsappNumber: registerWhatsapp,
+        ...(isMale ? { gender: 'male' } : {}),
         preferredLanguage: locale,
       });
     })();

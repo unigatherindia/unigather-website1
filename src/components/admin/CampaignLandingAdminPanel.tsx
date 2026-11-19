@@ -613,10 +613,10 @@ export default function CampaignLandingAdminPanel() {
             ) : (
               <div className="space-y-6 max-w-3xl">
                 <p className="text-gray-400 text-sm">
-                  Cities listed here appear in the Register popup. Tapping any city opens a WhatsApp
-                  chat with the City Register WhatsApp number below, pre-filled with the visitor&apos;s
-                  name and selected city. The query WhatsApp number is used by the “For any query
-                  contact” button and is never displayed.
+                  Cities listed here appear in the Register popup. Tapping a city opens a WhatsApp
+                  chat with the female or male City Register WhatsApp number below, pre-filled with
+                  the visitor&apos;s name and selected city. The query WhatsApp number is used by the
+                  “For any query contact” button and is never displayed.
                 </p>
 
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -660,8 +660,24 @@ export default function CampaignLandingAdminPanel() {
                       placeholder="7973771593"
                     />
                     <p className="text-xs text-gray-500 mt-2">
-                      Every city button in the Register popup opens this number. A 10-digit Indian
+                      Female city buttons in the Register popup open this number. A 10-digit Indian
                       mobile works; 91 is added automatically.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Male City Register WhatsApp number
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.maleRegisterWhatsapp}
+                      onChange={(e) => setField('maleRegisterWhatsapp', e.target.value)}
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                      placeholder="7973771593"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Male city buttons open this number with the same prefilled message. Leave blank
+                      to use the City Register WhatsApp number above.
                     </p>
                   </div>
                   <div>

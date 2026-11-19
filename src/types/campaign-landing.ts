@@ -46,8 +46,10 @@ export type CampaignLandingConfig = {
   pageEnabled: boolean;
   /** Strangers group meetup: cities in the enrollment dropdown */
   cities: CampaignCityOption[];
-  /** WhatsApp number opened by every city button in the Register popup. */
+  /** WhatsApp number opened by female city buttons in the Register popup. */
   registerWhatsapp: string;
+  /** WhatsApp number opened by male city buttons (falls back to registerWhatsapp). */
+  maleRegisterWhatsapp: string;
   /** Shown on enrollment success popup (WhatsApp enquiries) */
   enrollmentWhatsapp: string;
   /** Shown on enrollment success popup */
@@ -195,6 +197,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     pageEnabled: true,
     cities: [],
     registerWhatsapp: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
+    maleRegisterWhatsapp: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
     enrollmentWhatsapp: '7901751593',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage: '',
@@ -209,6 +212,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     pageEnabled: true,
     cities: [],
     registerWhatsapp: '',
+    maleRegisterWhatsapp: '',
     enrollmentWhatsapp: '',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage:
@@ -260,6 +264,12 @@ export function parseCampaignLandingConfig(
       typeof data.registerWhatsapp === 'string' && data.registerWhatsapp.trim()
         ? data.registerWhatsapp.trim()
         : defaults.registerWhatsapp,
+    maleRegisterWhatsapp:
+      typeof data.maleRegisterWhatsapp === 'string' && data.maleRegisterWhatsapp.trim()
+        ? data.maleRegisterWhatsapp.trim()
+        : typeof data.registerWhatsapp === 'string' && data.registerWhatsapp.trim()
+          ? data.registerWhatsapp.trim()
+          : defaults.maleRegisterWhatsapp,
     enrollmentWhatsapp:
       typeof data.enrollmentWhatsapp === 'string'
         ? data.enrollmentWhatsapp

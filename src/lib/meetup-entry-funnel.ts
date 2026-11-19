@@ -58,8 +58,35 @@ export function trackStrangersGroupFemaleClick() {
   });
 }
 
+/**
+ * Records a Male choice on the strangers-group gender entry page.
+ * Counter only — the name/city lead is created by the Register popup.
+ */
+export function trackStrangersGroupMaleClick() {
+  if (!db) return;
+
+  const ref = doc(
+    db,
+    MEETUP_ENTRY_FUNNEL_COLLECTION,
+    STRANGERS_GROUP_FUNNEL_DOC_ID
+  );
+
+  void setDoc(
+    ref,
+    {
+      funnel: 'strangers-group',
+      maleButtonClicks: increment(1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  ).catch((error) => {
+    console.error('strangers group male funnel track failed:', error);
+  });
+}
+
 export type MeetupFunnelStats = {
   femaleButtonClicks: number;
+  maleButtonClicks: number;
   fillFormClicks: number;
 };
 
@@ -67,6 +94,8 @@ export function parseMeetupFunnelStats(data: Record<string, unknown> | undefined
   return {
     femaleButtonClicks:
       typeof data?.femaleButtonClicks === 'number' ? data.femaleButtonClicks : 0,
+    maleButtonClicks:
+      typeof data?.maleButtonClicks === 'number' ? data.maleButtonClicks : 0,
     fillFormClicks: typeof data?.fillFormClicks === 'number' ? data.fillFormClicks : 0,
   };
 }

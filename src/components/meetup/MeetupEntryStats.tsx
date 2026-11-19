@@ -12,22 +12,10 @@ import {
 type Props = {
   femaleCount: number;
   cities: CampaignCityOption[];
-  cityJoinCounts: Record<string, number>;
 };
 
-export default function MeetupEntryStats({
-  femaleCount,
-  cities,
-  cityJoinCounts,
-}: Props) {
-  const totalMeetups =
-    cities.length === 0
-      ? MONTHLY_MEETUP_TOTAL_BASELINE
-      : cities.reduce(
-          (sum, city) =>
-            sum + meetupBaselineForCity(city) + (cityJoinCounts[city.id] ?? 0),
-          0
-        );
+export default function MeetupEntryStats({ femaleCount, cities }: Props) {
+  const totalMeetups = MONTHLY_MEETUP_TOTAL_BASELINE;
 
   return (
     <div className="mx-auto mt-3 w-full max-w-md space-y-3 sm:max-w-lg">
@@ -77,7 +65,7 @@ export default function MeetupEntryStats({
               >
                 {city.name}
                 <span className="rounded-full bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary-300">
-                  {meetupBaselineForCity(city) + (cityJoinCounts[city.id] ?? 0)}
+                  {meetupBaselineForCity(city)}
                 </span>
               </span>
             ))}

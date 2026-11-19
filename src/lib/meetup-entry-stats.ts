@@ -18,6 +18,7 @@ import {
  */
 export const MEETUP_ENTRY_STATS_COLLECTION = 'meetupEntryFunnel';
 export const STRANGERS_FEMALE_STATS_DOC_ID = 'strangers-group-female-enrollments';
+export const STRANGERS_MALE_STATS_DOC_ID = 'strangers-group-male-enrollments';
 export const STRANGERS_CITY_CLICKS_DOC_ID = 'strangers-group-city-clicks';
 
 const STRANGERS_GROUP_META = CAMPAIGN_LANDING_META['strangers-group'];
@@ -29,39 +30,39 @@ const STRANGERS_GROUP_META = CAMPAIGN_LANDING_META['strangers-group'];
 export const FEMALE_ENROLLMENT_BASELINE = 128;
 
 /**
- * Meetups already done per city (by city id or slugified city name).
- * Major cities get a mixed 2–3; the rest get 1 so the monthly total lands
- * around 25–30 instead of looking inflated.
+ * Fixed display values for "Monthly Meetups Done". These are hardcoded —
+ * city clicks are not added to them. Ludhiana/Jalandhar lead with 4–5, every
+ * other city shows 2–3.
  */
 export const MONTHLY_MEETUP_BASELINES: Record<string, number> = {
-  // Major cities — mixed 2s and 3s
+  // High-activity cities
+  ludhiana: 5,
+  jalandhar: 4,
+
+  // Major cities — 3
   mumbai: 3,
   bangalore: 3,
   kolkata: 3,
-  delhi: 2,
-  hyderabad: 2,
-  pune: 2,
-  chennai: 2,
+  delhi: 3,
+  hyderabad: 3,
+  pune: 3,
+  chennai: 3,
 
-  // Other active cities
-  bhopal: 1,
-  dehradun: 1,
-  jaipur: 1,
-  jammu: 1,
-  udaipur: 1,
-  agra: 1,
-  goa: 1,
-  amritsar: 1,
-  lucknow: 1,
-  ahmedabad: 1,
-  surat: 1,
-  indore: 1,
-  nagpur: 1,
-  chandigarh: 1,
-
-  // High-activity cities
-  jalandhar: 4,
-  ludhiana: 5,
+  // Other active cities — 2
+  bhopal: 2,
+  dehradun: 2,
+  jaipur: 2,
+  jammu: 2,
+  udaipur: 2,
+  agra: 2,
+  goa: 2,
+  amritsar: 2,
+  lucknow: 2,
+  ahmedabad: 2,
+  surat: 2,
+  indore: 2,
+  nagpur: 2,
+  chandigarh: 2,
 };
 
 /** Alternate spellings that should reuse a city's seed. */
@@ -73,9 +74,8 @@ const BASELINE_ALIASES: Record<string, string> = {
   madras: 'chennai',
 };
 
-export const MONTHLY_MEETUP_TOTAL_BASELINE = Object.values(
-  MONTHLY_MEETUP_BASELINES
-).reduce((sum, value) => sum + value, 0);
+/** Fixed "Meetups this month" figure — not derived from counters or city seeds. */
+export const MONTHLY_MEETUP_TOTAL_BASELINE = 37;
 
 function cityKey(value: string): string {
   return value
@@ -117,7 +117,7 @@ function mergeStrangersGroupCities(
   return [...merged, ...remaining];
 }
 
-/** Cities without a hardcoded seed (e.g. newly added by the admin) start at 0. */
+/** Cities without a specific seed still show the standard 2 meetups. */
 export function meetupBaselineForCity(city: CampaignCityOption): number {
   const idKey = city.id.trim().toLowerCase();
   const key = cityKey(city.name);
@@ -127,7 +127,7 @@ export function meetupBaselineForCity(city: CampaignCityOption): number {
     MONTHLY_MEETUP_BASELINES[idKey] ??
     MONTHLY_MEETUP_BASELINES[key] ??
     MONTHLY_MEETUP_BASELINES[resolved] ??
-    0
+    2
   );
 }
 
@@ -194,6 +194,50 @@ export async function incrementMonthlyFemaleEnrollmentCount(): Promise<number | 
   }
 }
 
+/** Reads the current month's male entry count (0 if a new month has started). */
+export async function fetchMonthlyMaleEnrollmentCount(): Promise<number> {
+  if (!db) return 0;
+
+  const snap = await withTimeout(
+    getDoc(doc(db, MEETUP_ENTRY_STATS_COLLECTION, STRANGERS_MALE_STATS_DOC_ID))
+  );
+  if (!snap.exists()) return 0;
+
+  const data = snap.data();
+  if (data.month !== currentMonthKey()) return 0;
+
+  return typeof data.count === 'number' ? data.count : 0;
+}
+
+/** Atomically increments this month's male entry count, resetting on a new month. */
+export async function incrementMonthlyMaleEnrollmentCount(): Promise<number | null> {
+  if (!db) return null;
+
+  const ref = doc(db, MEETUP_ENTRY_STATS_COLLECTION, STRANGERS_MALE_STATS_DOC_ID);
+  const month = currentMonthKey();
+
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      const data = snap.data();
+      const isCurrentMonth =
+        snap.exists() && data?.month === month && typeof data.count === 'number';
+      const nextCount = isCurrentMonth ? (data.count as number) + 1 : 1;
+
+      transaction.set(
+        ref,
+        { count: nextCount, month, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+
+      return nextCount;
+    });
+  } catch (error) {
+    console.error('Male entry counter failed:', error);
+    return null;
+  }
+}
+
 /**
  * Reads the admin-configured cities for the strangers group meetup.
  * The stats cards fall back to the standard city list when the admin has not
@@ -216,32 +260,6 @@ export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]>
     console.error('Load strangers group cities:', error);
     return buildDefaultStrangersGroupCities();
   }
-}
-
-/**
- * Reads this month's Instagram-group join clicks per city.
- * Cities without a stored count are simply absent (treated as 0), so a newly
- * added city always starts at zero.
- */
-export async function fetchMonthlyCityJoinCounts(): Promise<Record<string, number>> {
-  if (!db) return {};
-
-  const snap = await withTimeout(
-    getDoc(doc(db, MEETUP_ENTRY_STATS_COLLECTION, STRANGERS_CITY_CLICKS_DOC_ID))
-  );
-  if (!snap.exists()) return {};
-
-  const data = snap.data();
-  if (data.month !== currentMonthKey()) return {};
-
-  const raw = data.counts;
-  if (!raw || typeof raw !== 'object') return {};
-
-  const counts: Record<string, number> = {};
-  for (const [cityId, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value === 'number' && value > 0) counts[cityId] = value;
-  }
-  return counts;
 }
 
 /**

@@ -33,6 +33,7 @@ type FunnelPanelProps = {
 function FunnelPanel({ docId, title, description, path, buildMetrics }: FunnelPanelProps) {
   const [stats, setStats] = useState<MeetupFunnelStats>({
     femaleButtonClicks: 0,
+    maleButtonClicks: 0,
     fillFormClicks: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -155,9 +156,10 @@ export function StrangersGroupFunnelPanel() {
       title="Gender entry → strangers group (Male / Female)"
       description={
         <>
-          Male → home. Female → Register popup on{' '}
-          <code className="text-primary-300/90">/strangers-group-meetup</code>. Female choices are
-          counted here instead of being stored as submissions. Not in site navigation.
+          Male and Female → Register popup on{' '}
+          <code className="text-primary-300/90">/strangers-group-meetup</code>, then city choice opens
+          WhatsApp (separate numbers can be configured in admin). Choices are counted here;
+          name/city leads are saved separately. Not in site navigation.
         </>
       }
       path="/meetup-start-strangers"
@@ -167,6 +169,12 @@ export function StrangersGroupFunnelPanel() {
           caption: 'On /meetup-start-strangers → Female',
           value: stats.femaleButtonClicks,
           accentClassName: 'text-primary-400',
+        },
+        {
+          label: 'Male button clicks',
+          caption: 'On /meetup-start-strangers → Male',
+          value: stats.maleButtonClicks,
+          accentClassName: 'text-sky-400',
         },
       ]}
     />

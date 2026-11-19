@@ -8,15 +8,16 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
 import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
 import {
-  fetchMonthlyCityJoinCounts,
   fetchMonthlyFemaleEnrollmentCount,
   fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
+  incrementMonthlyMaleEnrollmentCount,
 } from '@/lib/meetup-entry-stats';
 import { buildDefaultStrangersGroupCities } from '@/types/campaign-landing';
 import {
   trackMeetupFunnelEvent,
   trackStrangersGroupFemaleClick,
+  trackStrangersGroupMaleClick,
 } from '@/lib/meetup-entry-funnel';
 import type { CampaignCityOption } from '@/types/campaign-landing';
 
@@ -69,6 +70,8 @@ function GenderButton({
 type MeetupGenderEntryPageProps = {
   /** Same-site path after Female is selected (hidden campaign form). */
   femaleRedirect: string;
+  /** Same-site path after Male is selected (defaults to home). */
+  maleRedirect?: string;
   /** If set, Female goes here first (e.g. FAQ) instead of femaleRedirect. */
   femaleFaqPath?: string;
   /** Track funnel clicks for one-on-one entry only. */
@@ -79,6 +82,7 @@ type MeetupGenderEntryPageProps = {
 
 export default function MeetupGenderEntryPage({
   femaleRedirect,
+  maleRedirect = MALE_REDIRECT,
   femaleFaqPath,
   trackOneOnOneFunnel = false,
   showEntryStats = false,
@@ -90,7 +94,6 @@ export default function MeetupGenderEntryPage({
   const [cities, setCities] = useState<CampaignCityOption[]>(() =>
     showEntryStats ? buildDefaultStrangersGroupCities() : []
   );
-  const [cityJoinCounts, setCityJoinCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!showEntryStats) return;
@@ -113,14 +116,6 @@ export default function MeetupGenderEntryPage({
         console.error('Load strangers group cities:', error);
       });
 
-    fetchMonthlyCityJoinCounts()
-      .then((counts) => {
-        if (!cancelled) setCityJoinCounts(counts);
-      })
-      .catch((error) => {
-        console.error('Load city join counts:', error);
-      });
-
     return () => {
       cancelled = true;
     };
@@ -140,8 +135,16 @@ export default function MeetupGenderEntryPage({
     router.push(femaleFaqPath || femaleRedirect);
   };
 
+  const handleMaleClick = () => {
+    if (showEntryStats) {
+      trackStrangersGroupMaleClick();
+      void incrementMonthlyMaleEnrollmentCount();
+    }
+    router.push(maleRedirect);
+  };
+
   const options = [
-    { id: 'male' as const, label: 'Male', redirect: MALE_REDIRECT, accent: 'sky' as const },
+    { id: 'male' as const, label: 'Male', redirect: maleRedirect, accent: 'sky' as const },
     { id: 'female' as const, label: 'Female', redirect: femaleRedirect, accent: 'brand' as const },
   ];
 
@@ -226,9 +229,7 @@ export default function MeetupGenderEntryPage({
                   accent={option.accent}
                   delay={0.18 + index * 0.07}
                   onClick={
-                    option.id === 'female'
-                      ? handleFemaleClick
-                      : () => router.push(option.redirect)
+                    option.id === 'female' ? handleFemaleClick : handleMaleClick
                   }
                 />
               ))}
@@ -236,11 +237,7 @@ export default function MeetupGenderEntryPage({
           </div>
 
           {showEntryStats ? (
-            <MeetupEntryStats
-              femaleCount={femaleCount}
-              cities={cities}
-              cityJoinCounts={cityJoinCounts}
-            />
+            <MeetupEntryStats femaleCount={femaleCount} cities={cities} />
           ) : null}
         </motion.footer>
       </div>

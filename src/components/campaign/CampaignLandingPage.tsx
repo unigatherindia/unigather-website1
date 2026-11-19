@@ -67,6 +67,8 @@ function CampaignLandingPageInner({ slug }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFreeOneOnOneSuccess, setShowFreeOneOnOneSuccess] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  /** Male visitors arrive with ?gender=male from the gender entry page. */
+  const [registerGender, setRegisterGender] = useState<'male' | 'female'>('female');
 
   const { promoText, formIntro, enrollmentSuccessMessage, isTranslatingCopy } = useTranslatedCopy({
     promoText: config.promoText,
@@ -99,6 +101,16 @@ function CampaignLandingPageInner({ slug }: Props) {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    if (slug !== 'strangers-group') return;
+    // Male visitors land on the normal page first; the Register button opens
+    // the popup in male mode. Never auto-open it.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gender') === 'male') {
+      setRegisterGender('male');
+    }
+  }, [slug]);
 
   const fieldLabel = useCallback(
     (field: CampaignFormField): string => {
@@ -400,6 +412,8 @@ function CampaignLandingPageInner({ slug }: Props) {
         <StrangersGroupRegisterModal
           cities={config.cities}
           whatsappNumber={config.registerWhatsapp}
+          maleWhatsappNumber={config.maleRegisterWhatsapp}
+          gender={registerGender}
           onClose={() => setShowRegister(false)}
         />
       )}
