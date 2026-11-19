@@ -28,10 +28,12 @@ export type CampaignLandingMeta = {
 export type CampaignCityOption = {
   id: string;
   name: string;
-  instaGroupLink: string;
 };
 
 export const UNIGATHER_INSTAGRAM_URL = 'https://www.instagram.com/unigather.in/';
+
+/** Default WhatsApp number opened by every city button in the Register popup. */
+export const DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP = '7973771593';
 
 export type CampaignLandingConfig = {
   promoText: string;
@@ -44,6 +46,8 @@ export type CampaignLandingConfig = {
   pageEnabled: boolean;
   /** Strangers group meetup: cities in the enrollment dropdown */
   cities: CampaignCityOption[];
+  /** WhatsApp number opened by every city button in the Register popup. */
+  registerWhatsapp: string;
   /** Shown on enrollment success popup (WhatsApp enquiries) */
   enrollmentWhatsapp: string;
   /** Shown on enrollment success popup */
@@ -88,7 +92,6 @@ export function buildDefaultStrangersGroupCities(): CampaignCityOption[] {
   return DEFAULT_STRANGERS_GROUP_CITY_NAMES.map((name) => ({
     id: slugifyCityId(name) || `city-${name}`,
     name,
-    instaGroupLink: '',
   }));
 }
 
@@ -108,7 +111,6 @@ export function parseCitiesList(data: unknown): CampaignCityOption[] {
     cities.push({
       id,
       name,
-      instaGroupLink: typeof row.instaGroupLink === 'string' ? row.instaGroupLink.trim() : '',
     });
   }
   return cities;
@@ -192,6 +194,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     complaintPhone: '7901751593',
     pageEnabled: true,
     cities: [],
+    registerWhatsapp: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
     enrollmentWhatsapp: '7901751593',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage: '',
@@ -205,6 +208,7 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     complaintPhone: '7901751593',
     pageEnabled: true,
     cities: [],
+    registerWhatsapp: '',
     enrollmentWhatsapp: '',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
     enrollmentSuccessMessage:
@@ -252,6 +256,10 @@ export function parseCampaignLandingConfig(
           ? parseCitiesList(data.cities)
           : []
         : [],
+    registerWhatsapp:
+      typeof data.registerWhatsapp === 'string' && data.registerWhatsapp.trim()
+        ? data.registerWhatsapp.trim()
+        : defaults.registerWhatsapp,
     enrollmentWhatsapp:
       typeof data.enrollmentWhatsapp === 'string'
         ? data.enrollmentWhatsapp

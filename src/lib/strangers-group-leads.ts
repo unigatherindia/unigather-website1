@@ -11,7 +11,7 @@ type StrangersGroupLeadInput = {
   gender?: string;
   cityId?: string;
   cityName?: string;
-  cityInstaGroupLink?: string;
+  cityWhatsappNumber?: string;
   preferredLanguage?: string;
 };
 
@@ -39,8 +39,8 @@ export async function saveStrangersGroupLead(
       ...(input.gender ? { gender: input.gender } : {}),
       ...(input.cityId ? { cityId: input.cityId } : {}),
       ...(input.cityName ? { city: input.cityName } : {}),
-      ...(input.cityInstaGroupLink
-        ? { cityInstaGroupLink: input.cityInstaGroupLink }
+      ...(input.cityWhatsappNumber
+        ? { cityWhatsappNumber: input.cityWhatsappNumber }
         : {}),
     });
     return ref.id;
@@ -53,7 +53,7 @@ export async function saveStrangersGroupLead(
 type CityJoinDetails = {
   cityId: string;
   cityName: string;
-  cityInstaGroupLink?: string;
+  cityWhatsappNumber?: string;
 };
 
 /**
@@ -71,8 +71,8 @@ export async function addCityToStrangersGroupRegisterLead(
     await updateDoc(doc(db, STRANGERS_GROUP_LEADS_COLLECTION, leadId), {
       cityId: city.cityId,
       city: city.cityName,
-      ...(city.cityInstaGroupLink
-        ? { cityInstaGroupLink: city.cityInstaGroupLink }
+      ...(city.cityWhatsappNumber
+        ? { cityWhatsappNumber: city.cityWhatsappNumber }
         : {}),
       cityJoinedAt: Timestamp.now(),
     });

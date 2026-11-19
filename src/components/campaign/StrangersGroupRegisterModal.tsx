@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, ExternalLink, Instagram, ShieldCheck, UserPlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, UserPlus } from 'lucide-react';
+import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import toast from 'react-hot-toast';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
 import {
@@ -10,25 +11,37 @@ import {
   campaignFieldClass,
 } from '@/components/campaign/campaign-premium-ui';
 import { incrementMonthlyCityJoinCount } from '@/lib/meetup-entry-stats';
+import { whatsappHrefIndian } from '@/lib/indian-phone';
 import {
   addCityToStrangersGroupRegisterLead,
   saveStrangersGroupLead,
 } from '@/lib/strangers-group-leads';
-import type { CampaignCityOption } from '@/types/campaign-landing';
+import {
+  DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
+  type CampaignCityOption,
+} from '@/types/campaign-landing';
 
 type Props = {
   cities: CampaignCityOption[];
+  /** Number opened by every city button — controlled from the admin panel. */
+  whatsappNumber: string;
   onClose: () => void;
 };
 
 type Step = 'name' | 'cities';
 
-export default function StrangersGroupRegisterModal({ cities, onClose }: Props) {
+export default function StrangersGroupRegisterModal({
+  cities,
+  whatsappNumber,
+  onClose,
+}: Props) {
   const { messages, locale } = useCampaignLocale();
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState('');
   /** Registration lead created on Proceed — the city is added to it later. */
   const registerLeadPromiseRef = useRef<Promise<string | null> | null>(null);
+  const registerWhatsapp =
+    whatsappNumber.trim() || DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -54,6 +67,13 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
     setStep('cities');
   };
 
+  const buildCityWhatsappHref = (city: CampaignCityOption) => {
+    const base = whatsappHrefIndian(registerWhatsapp);
+    if (!base) return '';
+    const message = `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
+    return `${base}?text=${encodeURIComponent(message)}`;
+  };
+
   const handleCityJoin = (city: CampaignCityOption) => {
     void incrementMonthlyCityJoinCount(city.id);
 
@@ -64,7 +84,7 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
         await addCityToStrangersGroupRegisterLead(leadId, {
           cityId: city.id,
           cityName: city.name,
-          cityInstaGroupLink: city.instaGroupLink,
+          cityWhatsappNumber: registerWhatsapp,
         });
         return;
       }
@@ -75,7 +95,7 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
         name: name || undefined,
         cityId: city.id,
         cityName: city.name,
-        cityInstaGroupLink: city.instaGroupLink,
+        cityWhatsappNumber: registerWhatsapp,
         preferredLanguage: locale,
       });
     })();
@@ -94,7 +114,7 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
       onClose={onClose}
       icon={
         step === 'cities' ? (
-          <Instagram className="w-8 h-8 text-green-400" strokeWidth={2} />
+          <WhatsAppIcon className="w-8 h-8 text-green-400" />
         ) : (
           <UserPlus className="w-8 h-8 text-green-400" strokeWidth={2} />
         )
@@ -169,58 +189,28 @@ export default function StrangersGroupRegisterModal({ cities, onClose }: Props) 
             exit={{ opacity: 0, x: 12 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-500/10 px-3.5 py-3">
-              <ShieldCheck
-                className="mt-0.5 h-4 w-4 shrink-0 text-red-300"
-                aria-hidden
-              />
-              <span className="text-[12px] font-medium leading-relaxed text-red-100">
-                {messages.registerPrivacyNotice}
-              </span>
-            </div>
-
             {cities.length === 0 ? (
               <p className="text-amber-100/90 text-sm text-center bg-amber-500/10 border border-amber-400/25 rounded-xl py-3.5 px-4">
                 {messages.registerNoCities}
               </p>
             ) : (
               <div className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[52vh]">
-                {cities.map((city) =>
-                  city.instaGroupLink ? (
+                {cities.map((city) => {
+                  const href = buildCityWhatsappHref(city);
+                  return (
                     <a
                       key={city.id}
-                      href={city.instaGroupLink}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => handleCityJoin(city)}
-                      className="group flex items-center justify-between gap-3 w-full py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-primary-400/40 hover:bg-white/[0.07] transition-all"
+                      className="group flex w-full items-center gap-2.5 py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-primary-400/40 hover:bg-white/[0.07] transition-all"
                     >
-                      <span className="flex min-w-0 items-center gap-2.5 font-medium text-gray-100">
-                        <Instagram className="w-5 h-5 shrink-0 text-pink-400" />
-                        <span className="truncate">{city.name}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary-300">
-                        {messages.registerJoinNow}
-                        <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-                      </span>
+                      <WhatsAppIcon className="w-5 h-5 shrink-0 text-green-400" />
+                      <span className="truncate font-medium text-gray-100">{city.name}</span>
                     </a>
-                  ) : (
-                    <button
-                      key={city.id}
-                      type="button"
-                      onClick={() => toast.error(messages.registerLinkSoon)}
-                      className="flex items-center justify-between gap-3 w-full py-3.5 px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] opacity-70 hover:opacity-100 transition-opacity text-left"
-                    >
-                      <span className="flex min-w-0 items-center gap-2.5 font-medium text-gray-300">
-                        <Instagram className="w-5 h-5 shrink-0 text-pink-400/70" />
-                        <span className="truncate">{city.name}</span>
-                      </span>
-                      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                        {messages.registerJoinNow}
-                      </span>
-                    </button>
-                  )
-                )}
+                  );
+                })}
               </div>
             )}
           </motion.div>

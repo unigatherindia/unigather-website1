@@ -42,7 +42,7 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   modalStrangersSubtitleWithCity:
     'You enrolled for {city}. Tap below to join your group and follow Unigather.',
   modalStrangersSubtitle: 'Use the links below to stay connected.',
-  modalStrangersJoinGroup: "Join your city's Instagram group",
+  modalStrangersJoinGroup: "Join your city's WhatsApp group",
   modalStrangersNoLink:
     "Your city's group link will be shared by our team shortly on WhatsApp or email.",
   modalStrangersFollowInsta: 'Follow Unigather on Instagram',
@@ -58,13 +58,9 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   registerNamePlaceholder: 'Your name',
   registerProceed: 'Proceed',
   registerCitiesTitle: 'Pick your city',
-  registerCitiesSubtitle: 'Tap your city to join the Instagram group.',
-  registerCitiesSubtitleWithName: 'Nice to meet you, {name}. Tap your city to join the Instagram group.',
-  registerJoinNow: 'Join Now',
-  registerPrivacyNotice:
-    'For your privacy and safety, this group is exclusively for females.',
+  registerCitiesSubtitle: 'Tap your city to connect with us on WhatsApp.',
+  registerCitiesSubtitleWithName: 'Nice to meet you, {name}. Tap your city to connect with us on WhatsApp.',
   registerNoCities: 'Cities are not open for registration yet. Please check back soon.',
-  registerLinkSoon: 'The group link for this city is coming soon.',
   registerNameRequired: 'Please enter your name.',
   registerBack: 'Back',
 };

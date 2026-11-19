@@ -45,6 +45,7 @@ import {
   type CampaignLandingSlug,
 } from '@/types/campaign-landing';
 import { isDeveloperAdminSession } from '@/lib/adminAuth';
+import { whatsappHrefIndian } from '@/lib/indian-phone';
 import { csvDateStamp, csvText, downloadCsv } from '@/lib/csv-download';
 import MeetupEntryFunnelPanel, {
   StrangersGroupFunnelPanel,
@@ -67,7 +68,7 @@ type LeadRecord = {
   status?: string;
   createdAt?: Date | null;
   cityId?: string;
-  cityInstaGroupLink?: string;
+  cityWhatsappNumber?: string;
   preferredLanguage?: string;
   adminEnglish?: Record<string, string>;
   archivedAt?: Date | null;
@@ -189,11 +190,7 @@ export default function CampaignLandingAdminPanel() {
     setIsSaving(true);
     try {
       const cities = form.cities
-        .map((c) => ({
-          ...c,
-          name: c.name.trim(),
-          instaGroupLink: c.instaGroupLink.trim(),
-        }))
+        .map((c) => ({ id: c.id, name: c.name.trim() }))
         .filter((c) => c.name);
 
       await setDoc(
@@ -381,7 +378,7 @@ export default function CampaignLandingAdminPanel() {
       ...prev,
       cities: [
         ...prev.cities,
-        { id: `city-${Date.now()}`, name: '', instaGroupLink: '' },
+        { id: `city-${Date.now()}`, name: '' },
       ],
     }));
   };
@@ -616,36 +613,13 @@ export default function CampaignLandingAdminPanel() {
             ) : (
               <div className="space-y-6 max-w-3xl">
                 <p className="text-gray-400 text-sm">
-                  Cities listed here appear in the Register popup. Each city needs its own
-                  Instagram group link—tapping the city opens that group. The WhatsApp number below
-                  is used by the “For any query contact” button and is never displayed.
+                  Cities listed here appear in the Register popup. Tapping any city opens a WhatsApp
+                  chat with the City Register WhatsApp number below, pre-filled with the visitor&apos;s
+                  name and selected city. The query WhatsApp number is used by the “For any query
+                  contact” button and is never displayed.
                 </p>
 
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Query phone (shown above form)
-                    </label>
-                    <input
-                      type="text"
-                      value={form.queryPhone}
-                      onChange={(e) => setField('queryPhone', e.target.value)}
-                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
-                      placeholder="7568861945"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Complaints phone (shown above form)
-                    </label>
-                    <input
-                      type="text"
-                      value={form.complaintPhone}
-                      onChange={(e) => setField('complaintPhone', e.target.value)}
-                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
-                      placeholder="7901751593"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       WhatsApp (enquiries on success popup)
@@ -676,6 +650,22 @@ export default function CampaignLandingAdminPanel() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
+                      City Register WhatsApp number
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.registerWhatsapp}
+                      onChange={(e) => setField('registerWhatsapp', e.target.value)}
+                      className="w-full px-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                      placeholder="7973771593"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Every city button in the Register popup opens this number. A 10-digit Indian
+                      mobile works; 91 is added automatically.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Unigather Instagram URL
                     </label>
                     <input
@@ -701,7 +691,7 @@ export default function CampaignLandingAdminPanel() {
                   {form.cities.map((city, index) => (
                     <div
                       key={city.id}
-                      className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] items-end p-4 bg-dark-700/60 border border-gray-600 rounded-xl"
+                      className="grid gap-3 sm:grid-cols-[1fr_auto] items-end p-4 bg-dark-700/60 border border-gray-600 rounded-xl"
                     >
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">City name</label>
@@ -711,18 +701,6 @@ export default function CampaignLandingAdminPanel() {
                           onChange={(e) => updateCity(index, { name: e.target.value })}
                           className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
                           placeholder="Ludhiana"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Instagram group link
-                        </label>
-                        <input
-                          type="url"
-                          value={city.instaGroupLink}
-                          onChange={(e) => updateCity(index, { instaGroupLink: e.target.value })}
-                          className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-primary-500"
-                          placeholder="https://instagram.com/..."
                         />
                       </div>
                       <button
@@ -753,7 +731,7 @@ export default function CampaignLandingAdminPanel() {
                   className="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-lg font-semibold text-white flex items-center gap-2 disabled:opacity-50"
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Save cities &amp; numbers
+                  Save cities
                 </button>
               </div>
             )}
@@ -959,16 +937,16 @@ export default function CampaignLandingAdminPanel() {
                             </p>
                           );
                         })}
-                        {activeSlug === 'strangers-group' && lead.cityInstaGroupLink ? (
+                        {activeSlug === 'strangers-group' && lead.cityWhatsappNumber ? (
                           <p className="text-primary-300/90 break-all">
-                            <span className="text-gray-500">Group link:</span>{' '}
+                            <span className="text-gray-500">City WhatsApp:</span>{' '}
                             <a
-                              href={lead.cityInstaGroupLink}
+                              href={whatsappHrefIndian(lead.cityWhatsappNumber)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="underline hover:text-primary-200"
                             >
-                              {lead.cityInstaGroupLink}
+                              {lead.cityWhatsappNumber}
                             </a>
                           </p>
                         ) : null}

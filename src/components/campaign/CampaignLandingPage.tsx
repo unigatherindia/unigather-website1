@@ -399,6 +399,7 @@ function CampaignLandingPageInner({ slug }: Props) {
       {showRegister && slug === 'strangers-group' && (
         <StrangersGroupRegisterModal
           cities={config.cities}
+          whatsappNumber={config.registerWhatsapp}
           onClose={() => setShowRegister(false)}
         />
       )}

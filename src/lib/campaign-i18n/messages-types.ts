@@ -54,10 +54,7 @@ export type CampaignMessages = {
   registerCitiesTitle: string;
   registerCitiesSubtitle: string;
   registerCitiesSubtitleWithName: string;
-  registerJoinNow: string;
-  registerPrivacyNotice: string;
   registerNoCities: string;
-  registerLinkSoon: string;
   registerNameRequired: string;
   registerBack: string;
 };
