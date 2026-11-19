@@ -119,7 +119,9 @@ export default function StrangersGroupRegisterModal({
       ? name
         ? messages.registerCitiesSubtitleWithName.replace('{name}', name)
         : messages.registerCitiesSubtitle
-      : messages.registerNameSubtitle;
+      : isMale
+        ? ''
+        : messages.registerNameSubtitle;
 
   return (
     <CampaignEnrollmentModalFrame
