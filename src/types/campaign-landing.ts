@@ -54,10 +54,10 @@ export type CampaignLandingConfig = {
   malePromoText: string;
   maleFormIntro: string;
   maleUrgencyText: string;
-  /** Male "For any query contact" WhatsApp (falls back to queryWhatsapp). */
-  maleQueryWhatsapp: string;
-  /** Optional male-only button labels (fall back to translated UI text). */
-  maleQueryCtaLabel: string;
+  /** Male page "Visit Website" button: admin-provided URL and optional label. */
+  maleWebsiteUrl: string;
+  maleWebsiteCtaLabel: string;
+  /** Optional male Register button label (falls back to translated UI text). */
   maleRegisterCtaLabel: string;
   /** Shown on enrollment success popup (WhatsApp enquiries) */
   enrollmentWhatsapp: string;
@@ -210,8 +210,8 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     malePromoText: DEFAULT_STRANGERS_GROUP_PROMO,
     maleFormIntro: '',
     maleUrgencyText: '',
-    maleQueryWhatsapp: '',
-    maleQueryCtaLabel: '',
+    maleWebsiteUrl: '',
+    maleWebsiteCtaLabel: '',
     maleRegisterCtaLabel: '',
     enrollmentWhatsapp: '7901751593',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
@@ -231,8 +231,8 @@ export const DEFAULT_CAMPAIGN_LANDING_CONFIG: Record<CampaignLandingSlug, Campai
     malePromoText: '',
     maleFormIntro: '',
     maleUrgencyText: '',
-    maleQueryWhatsapp: '',
-    maleQueryCtaLabel: '',
+    maleWebsiteUrl: '',
+    maleWebsiteCtaLabel: '',
     maleRegisterCtaLabel: '',
     enrollmentWhatsapp: '',
     unigatherInstagramUrl: UNIGATHER_INSTAGRAM_URL,
@@ -301,14 +301,12 @@ export function parseCampaignLandingConfig(
       typeof data.maleFormIntro === 'string' ? data.maleFormIntro : defaults.maleFormIntro,
     maleUrgencyText:
       typeof data.maleUrgencyText === 'string' ? data.maleUrgencyText : defaults.maleUrgencyText,
-    maleQueryWhatsapp:
-      typeof data.maleQueryWhatsapp === 'string' && data.maleQueryWhatsapp.trim()
-        ? data.maleQueryWhatsapp.trim()
-        : resolvedQueryWhatsapp,
-    maleQueryCtaLabel:
-      typeof data.maleQueryCtaLabel === 'string'
-        ? data.maleQueryCtaLabel
-        : defaults.maleQueryCtaLabel,
+    maleWebsiteUrl:
+      typeof data.maleWebsiteUrl === 'string' ? data.maleWebsiteUrl.trim() : defaults.maleWebsiteUrl,
+    maleWebsiteCtaLabel:
+      typeof data.maleWebsiteCtaLabel === 'string'
+        ? data.maleWebsiteCtaLabel
+        : defaults.maleWebsiteCtaLabel,
     maleRegisterCtaLabel:
       typeof data.maleRegisterCtaLabel === 'string'
         ? data.maleRegisterCtaLabel

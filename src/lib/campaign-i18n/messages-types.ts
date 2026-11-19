@@ -47,6 +47,7 @@ export type CampaignMessages = {
   chatWithUs: string;
   contactComplaint: string;
   registerCta: string;
+  visitWebsite: string;
   registerNameTitle: string;
   registerNameSubtitle: string;
   registerNamePlaceholder: string;

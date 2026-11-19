@@ -11,7 +11,7 @@ type TranslatedCopySource = {
   malePromoText?: string;
   maleFormIntro?: string;
   maleUrgencyText?: string;
-  maleQueryCtaLabel?: string;
+  maleWebsiteCtaLabel?: string;
   maleRegisterCtaLabel?: string;
 };
 
@@ -25,7 +25,9 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
   const [malePromoText, setMalePromoText] = useState(source.malePromoText ?? '');
   const [maleFormIntro, setMaleFormIntro] = useState(source.maleFormIntro ?? '');
   const [maleUrgencyText, setMaleUrgencyText] = useState(source.maleUrgencyText ?? '');
-  const [maleQueryCtaLabel, setMaleQueryCtaLabel] = useState(source.maleQueryCtaLabel ?? '');
+  const [maleWebsiteCtaLabel, setMaleWebsiteCtaLabel] = useState(
+    source.maleWebsiteCtaLabel ?? ''
+  );
   const [maleRegisterCtaLabel, setMaleRegisterCtaLabel] = useState(
     source.maleRegisterCtaLabel ?? ''
   );
@@ -37,7 +39,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
       promoText: source.malePromoText ?? '',
       formIntro: source.maleFormIntro ?? '',
       urgencyText: source.maleUrgencyText ?? '',
-      queryCtaLabel: source.maleQueryCtaLabel ?? '',
+      websiteCtaLabel: source.maleWebsiteCtaLabel ?? '',
       registerCtaLabel: source.maleRegisterCtaLabel ?? '',
     };
 
@@ -49,7 +51,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
         setMalePromoText(male.promoText);
         setMaleFormIntro(male.formIntro);
         setMaleUrgencyText(male.urgencyText);
-        setMaleQueryCtaLabel(male.queryCtaLabel);
+        setMaleWebsiteCtaLabel(male.websiteCtaLabel);
         setMaleRegisterCtaLabel(male.registerCtaLabel);
         return;
       }
@@ -66,7 +68,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           translatedMalePromo,
           translatedMaleIntro,
           translatedMaleUrgency,
-          translatedMaleQueryLabel,
+          translatedMaleWebsiteLabel,
           translatedMaleRegisterLabel,
         ] = await Promise.all([
           translateDynamic(source.promoText),
@@ -75,7 +77,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           translateIfPresent(male.promoText),
           translateIfPresent(male.formIntro),
           translateIfPresent(male.urgencyText),
-          translateIfPresent(male.queryCtaLabel),
+          translateIfPresent(male.websiteCtaLabel),
           translateIfPresent(male.registerCtaLabel),
         ]);
         if (!cancelled) {
@@ -85,7 +87,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
           setMalePromoText(translatedMalePromo);
           setMaleFormIntro(translatedMaleIntro);
           setMaleUrgencyText(translatedMaleUrgency);
-          setMaleQueryCtaLabel(translatedMaleQueryLabel);
+          setMaleWebsiteCtaLabel(translatedMaleWebsiteLabel);
           setMaleRegisterCtaLabel(translatedMaleRegisterLabel);
         }
       } finally {
@@ -105,7 +107,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
     source.malePromoText,
     source.maleFormIntro,
     source.maleUrgencyText,
-    source.maleQueryCtaLabel,
+    source.maleWebsiteCtaLabel,
     source.maleRegisterCtaLabel,
     translateDynamic,
   ]);
@@ -117,7 +119,7 @@ export function useTranslatedCopy(source: TranslatedCopySource) {
     malePromoText,
     maleFormIntro,
     maleUrgencyText,
-    maleQueryCtaLabel,
+    maleWebsiteCtaLabel,
     maleRegisterCtaLabel,
     isTranslatingCopy: isTranslating,
   };

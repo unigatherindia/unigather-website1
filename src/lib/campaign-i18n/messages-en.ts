@@ -53,6 +53,7 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   chatWithUs: 'Chat with us',
   contactComplaint: 'For complaints contact',
   registerCta: 'Register',
+  visitWebsite: 'Visit Website',
   registerNameTitle: 'Register for the meetup',
   registerNameSubtitle: 'Tell us your name to continue.',
   registerNamePlaceholder: 'Your name',

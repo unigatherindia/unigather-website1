@@ -20,6 +20,7 @@ import {
   CampaignPromoCard,
   CampaignRegisterCta,
   CampaignSubmitButton,
+  CampaignWebsiteCta,
   CampaignWhatsAppCta,
   campaignFieldClass,
   campaignLabelClass,
@@ -77,7 +78,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     malePromoText,
     maleFormIntro,
     maleUrgencyText,
-    maleQueryCtaLabel,
+    maleWebsiteCtaLabel,
     maleRegisterCtaLabel,
     isTranslatingCopy,
   } = useTranslatedCopy({
@@ -87,7 +88,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     malePromoText: config.malePromoText,
     maleFormIntro: config.maleFormIntro,
     maleUrgencyText: config.maleUrgencyText,
-    maleQueryCtaLabel: config.maleQueryCtaLabel,
+    maleWebsiteCtaLabel: config.maleWebsiteCtaLabel,
     maleRegisterCtaLabel: config.maleRegisterCtaLabel,
   });
 
@@ -129,8 +130,8 @@ function CampaignLandingPageInner({ slug }: Props) {
 
   const isMalePage = slug === 'strangers-group' && registerGender === 'male';
   const displayedPromoText = isMalePage && malePromoText.trim() ? malePromoText : promoText;
-  const queryCtaLabel =
-    isMalePage && maleQueryCtaLabel.trim() ? maleQueryCtaLabel : messages.contactQuery;
+  const websiteCtaLabel =
+    isMalePage && maleWebsiteCtaLabel.trim() ? maleWebsiteCtaLabel : messages.visitWebsite;
   const registerCtaLabel =
     isMalePage && maleRegisterCtaLabel.trim() ? maleRegisterCtaLabel : messages.registerCta;
 
@@ -286,11 +287,7 @@ function CampaignLandingPageInner({ slug }: Props) {
   }, [config.complaintPhone, config.queryPhone, messages.contactComplaint, messages.contactQuery]);
 
   const whatsappHref = useMemo(() => {
-    const queryNumber =
-      isMalePage && config.maleQueryWhatsapp.trim()
-        ? config.maleQueryWhatsapp.trim()
-        : config.queryWhatsapp;
-    const base = whatsappHrefIndian(queryNumber);
+    const base = whatsappHrefIndian(config.queryWhatsapp);
     if (!base) return '';
     const text = encodeURIComponent(
       slug === 'strangers-group'
@@ -298,7 +295,7 @@ function CampaignLandingPageInner({ slug }: Props) {
         : 'Hi Unigather, I have a query.'
     );
     return `${base}?text=${text}`;
-  }, [config.queryWhatsapp, config.maleQueryWhatsapp, isMalePage, slug]);
+  }, [config.queryWhatsapp, slug]);
 
   const genderOptions = useMemo(
     () => [
@@ -481,7 +478,11 @@ function CampaignLandingPageInner({ slug }: Props) {
 
             {slug === 'strangers-group' ? (
               <div className="mb-8 space-y-3">
-                <CampaignWhatsAppCta href={whatsappHref} label={queryCtaLabel} />
+                {isMalePage ? (
+                  <CampaignWebsiteCta href={config.maleWebsiteUrl} label={websiteCtaLabel} />
+                ) : (
+                  <CampaignWhatsAppCta href={whatsappHref} label={messages.contactQuery} />
+                )}
                 <CampaignRegisterCta
                   onClick={() => setShowRegister(true)}
                   label={registerCtaLabel}
