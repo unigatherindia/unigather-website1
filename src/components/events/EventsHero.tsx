@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Users, Clock } from 'lucide-react';
-import ChatWithUsCta from '@/components/ChatWithUsCta';
+import { Calendar } from 'lucide-react';
 
 const EventsHero: React.FC = () => {
   return (
@@ -37,49 +36,6 @@ const EventsHero: React.FC = () => {
               Join incredible events designed to bring strangers together and create lasting friendships. 
               Every event is a new opportunity to expand your social circle and discover amazing people.
             </p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35 }}
-              className="mt-8 flex justify-center px-2"
-            >
-              <ChatWithUsCta className="w-full max-w-md sm:max-w-lg" />
-            </motion.div>
-          </motion.div>
-
-          {/* Quick Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8"
-          >
-            {[
-              { icon: Calendar, number: '15+', label: 'This Month' },
-              { icon: MapPin, number: '8', label: 'Cities' },
-              { icon: Users, number: '500+', label: 'Participants' },
-              { icon: Clock, number: '2-8hrs', label: 'Duration' }
-            ].map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
-                  className="text-center p-4 bg-dark-700/30 backdrop-blur-sm rounded-2xl border border-gray-700/50"
-                >
-                  <Icon className="w-8 h-8 text-primary-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-white mb-1">
-                    {stat.number}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {stat.label}
-                  </div>
-                </motion.div>
-              );
-            })}
           </motion.div>
         </div>
       </div>
