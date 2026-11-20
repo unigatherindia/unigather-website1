@@ -33,8 +33,7 @@ const EventsHero: React.FC = () => {
             </h1>
             
             <p className="text-xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
-              Join incredible events designed to bring strangers together and create lasting friendships. 
-              Every event is a new opportunity to expand your social circle and discover amazing people.
+              Join exciting events, meet new people, and turn strangers into lasting friendships.
             </p>
           </motion.div>
         </div>
