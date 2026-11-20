@@ -55,7 +55,7 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   registerCta: 'Register',
   visitWebsite: 'Visit Website',
   registerNameTitle: 'Register for the meetup',
-  maleRegisterNameTitle: 'Kindly share your name to confirm your booking.',
+  maleRegisterNameTitle: 'Interested in our Strangers Meetup? Please share your name!',
   registerNameSubtitle: 'Tell us your name to continue.',
   registerNamePlaceholder: 'Your name',
   registerProceed: 'Proceed',

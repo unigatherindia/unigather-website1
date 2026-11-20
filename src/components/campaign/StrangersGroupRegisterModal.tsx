@@ -78,7 +78,9 @@ export default function StrangersGroupRegisterModal({
   const buildCityWhatsappHref = (city: CampaignCityOption) => {
     const base = whatsappHrefIndian(registerWhatsapp);
     if (!base) return '';
-    const message = `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
+    const message = isMale
+      ? `Hey Unigather! I'm ${name} from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
+      : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
     return `${base}?text=${encodeURIComponent(message)}`;
   };
 
