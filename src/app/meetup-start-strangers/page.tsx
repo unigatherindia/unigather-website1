@@ -4,7 +4,7 @@ export default function MeetupStartStrangersPage() {
   return (
     <MeetupGenderEntryPage
       femaleRedirect="/strangers-group-meetup"
-      maleRedirect="/strangers-group-meetup?gender=male"
+      maleRedirect="/strangers-group-meetup?register=male"
       showEntryStats
     />
   );

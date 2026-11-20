@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, MapPin, UserPlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, UserPlus } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import toast from 'react-hot-toast';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
@@ -25,18 +25,18 @@ type Props = {
   cities: CampaignCityOption[];
   /** Number opened by female city buttons — controlled from the admin panel. */
   whatsappNumber: string;
-  /** Number opened by male city buttons (falls back to whatsappNumber). */
-  maleWhatsappNumber?: string;
   gender?: 'male' | 'female';
   onClose: () => void;
 };
 
 type Step = 'name' | 'cities';
 
+/** Hardcoded number used by male city rows to request the WhatsApp group link. */
+const MALE_GROUP_LINK_WHATSAPP = '7568861945';
+
 export default function StrangersGroupRegisterModal({
   cities,
   whatsappNumber,
-  maleWhatsappNumber = '',
   gender = 'female',
   onClose,
 }: Props) {
@@ -47,9 +47,7 @@ export default function StrangersGroupRegisterModal({
   /** Registration lead created on Proceed — the city is added to it later. */
   const registerLeadPromiseRef = useRef<Promise<string | null> | null>(null);
   const registerWhatsapp = isMale
-    ? maleWhatsappNumber.trim() ||
-      whatsappNumber.trim() ||
-      DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP
+    ? MALE_GROUP_LINK_WHATSAPP
     : whatsappNumber.trim() || DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
 
   useEffect(() => {
@@ -84,12 +82,7 @@ export default function StrangersGroupRegisterModal({
     return `${base}?text=${encodeURIComponent(message)}`;
   };
 
-  const buildCityHref = (city: CampaignCityOption) => {
-    if (isMale) {
-      return `https://www.unigather.co.in/events?city=${encodeURIComponent(city.name)}&book=1`;
-    }
-    return buildCityWhatsappHref(city);
-  };
+  const buildCityHref = (city: CampaignCityOption) => buildCityWhatsappHref(city);
 
   const handleCityJoin = (city: CampaignCityOption) => {
     void incrementMonthlyCityJoinCount(city.id);
@@ -134,14 +127,10 @@ export default function StrangersGroupRegisterModal({
     <CampaignEnrollmentModalFrame
       titleId="strangers-register-title"
       onClose={onClose}
-      iconAccent={isMale && step === 'cities' ? 'orange' : 'green'}
+      iconAccent="green"
       icon={
         step === 'cities' ? (
-          isMale ? (
-            <MapPin className="w-8 h-8 text-primary-400" aria-hidden />
-          ) : (
-            <WhatsAppIcon className="w-8 h-8 text-green-400" />
-          )
+          <WhatsAppIcon className="w-8 h-8 text-green-400" />
         ) : (
           <UserPlus className="w-8 h-8 text-green-400" strokeWidth={2} />
         )
@@ -239,11 +228,7 @@ export default function StrangersGroupRegisterModal({
                       onClick={() => handleCityJoin(city)}
                       className="group flex w-full items-center gap-2.5 py-3.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-primary-400/40 hover:bg-white/[0.07] transition-all"
                     >
-                      {isMale ? (
-                        <MapPin className="w-5 h-5 shrink-0 text-primary-400" aria-hidden />
-                      ) : (
-                        <WhatsAppIcon className="w-5 h-5 shrink-0 text-green-400" />
-                      )}
+                      <WhatsAppIcon className="w-5 h-5 shrink-0 text-green-400" />
                       <span className="truncate font-medium text-gray-100">{city.name}</span>
                     </a>
                   );

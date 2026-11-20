@@ -123,9 +123,14 @@ function CampaignLandingPageInner({ slug }: Props) {
 
   useEffect(() => {
     if (slug !== 'strangers-group') return;
-    // Male visitors land on the normal page first; the Register button opens
-    // the popup in male mode. Never auto-open it.
     const params = new URLSearchParams(window.location.search);
+    if (params.get('register') === 'male') {
+      setRegisterGender('male');
+      setShowRegister(true);
+      trackStrangersGroupMaleRegisterClick();
+      return;
+    }
+    // Kept for direct links to the male-versioned page content.
     if (params.get('gender') === 'male') {
       setRegisterGender('male');
     }
@@ -454,7 +459,6 @@ function CampaignLandingPageInner({ slug }: Props) {
         <StrangersGroupRegisterModal
           cities={config.cities}
           whatsappNumber={config.registerWhatsapp}
-          maleWhatsappNumber={config.maleRegisterWhatsapp}
           gender={registerGender}
           onClose={() => setShowRegister(false)}
         />
