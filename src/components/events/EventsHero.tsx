@@ -3,10 +3,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
+import EventsList from '@/components/events/EventsList';
 
 const EventsHero: React.FC = () => {
   return (
-    <section className="relative min-h-[60vh] flex items-center justify-center bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 overflow-hidden">
+    <section className="relative min-h-[60vh] bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-10 left-10 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -36,6 +37,10 @@ const EventsHero: React.FC = () => {
               Join exciting events, meet new people, and turn strangers into lasting friendships.
             </p>
           </motion.div>
+        </div>
+
+        <div className="mt-10">
+          <EventsList />
         </div>
       </div>
     </section>
