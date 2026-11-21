@@ -39,6 +39,9 @@ const MALE_GROUP_LINK_WHATSAPP = '7568861945';
 /** Sparkles (U+2728), written as an escape so the source stays ASCII. */
 const SPARKLE_EMOJI = '\u2728';
 
+/** TEMP: city rows point to an Instagram channel while we experiment. */
+const CITY_LINK_INSTAGRAM = 'https://ig.me/j/Abaekrzx0V336YFI/';
+
 export default function StrangersGroupRegisterModal({
   cities,
   whatsappNumber,
@@ -88,7 +91,9 @@ export default function StrangersGroupRegisterModal({
     return whatsappSendHrefIndian(registerWhatsapp, message);
   };
 
-  const buildCityHref = (city: CampaignCityOption) => buildCityWhatsappHref(city);
+  const buildCityHref = (_city: CampaignCityOption) => CITY_LINK_INSTAGRAM;
+  // Restore WhatsApp city links by reverting buildCityHref to:
+  // (city) => buildCityWhatsappHref(city)
 
   const handleCityJoin = (city: CampaignCityOption) => {
     void incrementMonthlyCityJoinCount(city.id);
