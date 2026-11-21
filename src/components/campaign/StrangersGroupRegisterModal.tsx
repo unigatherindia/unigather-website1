@@ -36,6 +36,13 @@ type Step = 'name' | 'cities';
 /** Hardcoded number used by male city rows to request the WhatsApp group link. */
 const MALE_GROUP_LINK_WHATSAPP = '7568861945';
 
+/**
+ * Sparkles with an emoji-variation-selector (U+FE0F). Without VS16 some WhatsApp
+ * clients treat U+2728 as a text symbol and render a "?" placeholder. Written as
+ * escapes so the source stays ASCII and can't be mangled by file encoding.
+ */
+const SPARKLE_EMOJI = '\u2728\uFE0F';
+
 export default function StrangersGroupRegisterModal({
   cities,
   whatsappNumber,
@@ -82,7 +89,7 @@ export default function StrangersGroupRegisterModal({
     const base = whatsappHrefIndian(registerWhatsapp);
     if (!base) return '';
     const message = isMale
-      ? `Hey Unigather ✨ ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
+      ? `Hey Unigather ${SPARKLE_EMOJI} ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
       : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
     return `${base}?text=${encodeURIComponent(message)}`;
   };
