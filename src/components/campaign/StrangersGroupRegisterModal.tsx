@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, UserPlus } from 'lucide-react';
+import { ArrowRight, UserPlus } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import toast from 'react-hot-toast';
 import { useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
@@ -152,16 +152,6 @@ export default function StrangersGroupRegisterModal({
       subtitle={subtitle}
       footer={
         <div className="mt-6 flex gap-2">
-          {step === 'cities' ? (
-            <button
-              type="button"
-              onClick={() => setStep('name')}
-              className="flex flex-1 items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white border border-white/[0.08] hover:border-white/15 hover:bg-white/[0.04] transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {messages.registerBack}
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={onClose}
