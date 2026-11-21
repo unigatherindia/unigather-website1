@@ -7,7 +7,4 @@ Disallow: /admin
 Disallow: /admin-login
 
 # Sitemap location
-Sitemap: https://www.unigather.in/sitemap.xml
-
-
-
+Sitemap: https://www.unigather.co.in/sitemap.xml
