@@ -26,6 +26,8 @@ type Props = {
   /** Number opened by female city buttons — controlled from the admin panel. */
   whatsappNumber: string;
   gender?: 'male' | 'female';
+  /** Step shown when the modal opens (male gender redirect starts at the city picker). */
+  initialStep?: Step;
   onClose: () => void;
 };
 
@@ -38,11 +40,12 @@ export default function StrangersGroupRegisterModal({
   cities,
   whatsappNumber,
   gender = 'female',
+  initialStep = 'name',
   onClose,
 }: Props) {
   const isMale = gender === 'male';
   const { messages, locale } = useCampaignLocale();
-  const [step, setStep] = useState<Step>('name');
+  const [step, setStep] = useState<Step>(initialStep);
   const [name, setName] = useState('');
   /** Registration lead created on Proceed — the city is added to it later. */
   const registerLeadPromiseRef = useRef<Promise<string | null> | null>(null);
@@ -79,7 +82,7 @@ export default function StrangersGroupRegisterModal({
     const base = whatsappHrefIndian(registerWhatsapp);
     if (!base) return '';
     const message = isMale
-      ? `Hey Unigather! I'm ${name} from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
+      ? `Hey Unigather ✨ ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
       : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
     return `${base}?text=${encodeURIComponent(message)}`;
   };
@@ -139,7 +142,9 @@ export default function StrangersGroupRegisterModal({
       }
       title={
         step === 'cities'
-          ? messages.registerCitiesTitle
+          ? isMale
+            ? messages.maleRegisterCitiesTitle
+            : messages.registerCitiesTitle
           : isMale
             ? messages.maleRegisterNameTitle
             : messages.registerNameTitle

@@ -54,6 +54,7 @@ export type CampaignMessages = {
   registerNamePlaceholder: string;
   registerProceed: string;
   registerCitiesTitle: string;
+  maleRegisterCitiesTitle: string;
   registerCitiesSubtitle: string;
   registerCitiesSubtitleWithName: string;
   maleRegisterCitiesSubtitle: string;

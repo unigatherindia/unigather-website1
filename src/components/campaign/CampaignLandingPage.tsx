@@ -71,6 +71,8 @@ function CampaignLandingPageInner({ slug }: Props) {
   const [showRegister, setShowRegister] = useState(false);
   /** Male visitors arrive with ?gender=male from the gender entry page. */
   const [registerGender, setRegisterGender] = useState<'male' | 'female'>('female');
+  /** Male gender redirect opens straight at the city picker, skipping the name step. */
+  const [registerStartAtCities, setRegisterStartAtCities] = useState(false);
 
   const {
     promoText,
@@ -126,6 +128,7 @@ function CampaignLandingPageInner({ slug }: Props) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('register') === 'male') {
       setRegisterGender('male');
+      setRegisterStartAtCities(true);
       setShowRegister(true);
       trackStrangersGroupMaleRegisterClick();
       return;
@@ -156,6 +159,7 @@ function CampaignLandingPageInner({ slug }: Props) {
 
   const handleRegisterClick = () => {
     if (isMalePage) trackStrangersGroupMaleRegisterClick();
+    setRegisterStartAtCities(false);
     setShowRegister(true);
   };
 
@@ -460,6 +464,7 @@ function CampaignLandingPageInner({ slug }: Props) {
           cities={config.cities}
           whatsappNumber={config.registerWhatsapp}
           gender={registerGender}
+          initialStep={registerStartAtCities ? 'cities' : 'name'}
           onClose={() => setShowRegister(false)}
         />
       )}
