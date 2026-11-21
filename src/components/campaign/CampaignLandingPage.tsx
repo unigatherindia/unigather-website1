@@ -36,7 +36,7 @@ import {
 import {
   formatIndianPhoneDisplay,
   telHrefIndian,
-  whatsappHrefIndian,
+  whatsappSendHrefIndian,
 } from '@/lib/indian-phone';
 import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
 
@@ -149,12 +149,10 @@ function CampaignLandingPageInner({ slug }: Props) {
     isMalePage && maleQueryCtaLabel.trim() ? maleQueryCtaLabel : messages.contactQuery;
   const maleQueryHref = useMemo(() => {
     if (!isMalePage || !config.maleQueryWhatsapp.trim()) return '';
-    const base = whatsappHrefIndian(config.maleQueryWhatsapp);
-    if (!base) return '';
-    const text = encodeURIComponent(
+    return whatsappSendHrefIndian(
+      config.maleQueryWhatsapp,
       'Hey Unigather! I need some information about the Group Strangers meetup.'
     );
-    return `${base}?text=${text}`;
   }, [config.maleQueryWhatsapp, isMalePage]);
 
   const handleRegisterClick = () => {
@@ -315,14 +313,12 @@ function CampaignLandingPageInner({ slug }: Props) {
   }, [config.complaintPhone, config.queryPhone, messages.contactComplaint, messages.contactQuery]);
 
   const whatsappHref = useMemo(() => {
-    const base = whatsappHrefIndian(config.queryWhatsapp);
-    if (!base) return '';
-    const text = encodeURIComponent(
+    return whatsappSendHrefIndian(
+      config.queryWhatsapp,
       slug === 'strangers-group'
         ? 'Hi Unigather, I have a query about the Strangers Group Meetup.'
         : 'Hi Unigather, I have a query.'
     );
-    return `${base}?text=${text}`;
   }, [config.queryWhatsapp, slug]);
 
   const genderOptions = useMemo(

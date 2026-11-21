@@ -11,7 +11,7 @@ import {
   campaignFieldClass,
 } from '@/components/campaign/campaign-premium-ui';
 import { incrementMonthlyCityJoinCount } from '@/lib/meetup-entry-stats';
-import { whatsappHrefIndian } from '@/lib/indian-phone';
+import { whatsappSendHrefIndian } from '@/lib/indian-phone';
 import {
   addCityToStrangersGroupRegisterLead,
   saveStrangersGroupLead,
@@ -36,12 +36,8 @@ type Step = 'name' | 'cities';
 /** Hardcoded number used by male city rows to request the WhatsApp group link. */
 const MALE_GROUP_LINK_WHATSAPP = '7568861945';
 
-/**
- * Waving hand (U+1F44B). Written as a surrogate-pair escape so the source stays
- * ASCII and cannot be mangled by file encoding. Unlike U+2728 sparkles, this is
- * a full emoji codepoint and renders reliably in WhatsApp's own emoji font.
- */
-const GREETING_EMOJI = '\uD83D\uDC4B';
+/** Sparkles (U+2728), written as an escape so the source stays ASCII. */
+const SPARKLE_EMOJI = '\u2728';
 
 export default function StrangersGroupRegisterModal({
   cities,
@@ -86,12 +82,10 @@ export default function StrangersGroupRegisterModal({
   };
 
   const buildCityWhatsappHref = (city: CampaignCityOption) => {
-    const base = whatsappHrefIndian(registerWhatsapp);
-    if (!base) return '';
     const message = isMale
-      ? `Hey Unigather ${GREETING_EMOJI} ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
+      ? `Hey Unigather ${SPARKLE_EMOJI} ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
       : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
-    return `${base}?text=${encodeURIComponent(message)}`;
+    return whatsappSendHrefIndian(registerWhatsapp, message);
   };
 
   const buildCityHref = (city: CampaignCityOption) => buildCityWhatsappHref(city);

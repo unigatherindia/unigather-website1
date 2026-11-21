@@ -28,3 +28,15 @@ export function whatsappHrefIndian(phone: string): string {
   const normalized = digits.length === 10 ? `91${digits}` : digits.replace(/\D/g, '');
   return normalized ? `https://wa.me/${normalized}` : '';
 }
+
+/**
+ * WhatsApp link with a prefilled message. Uses api.whatsapp.com instead of wa.me
+ * because the wa.me redirect mangles non-ASCII characters (emoji become U+FFFD).
+ */
+export function whatsappSendHrefIndian(phone: string, message: string): string {
+  const digits = indianMobileDigits(phone);
+  const normalized = digits.length === 10 ? `91${digits}` : digits.replace(/\D/g, '');
+  if (!normalized) return '';
+  const text = message.trim();
+  return `https://api.whatsapp.com/send?phone=${normalized}${text ? `&text=${encodeURIComponent(text)}` : ''}`;
+}

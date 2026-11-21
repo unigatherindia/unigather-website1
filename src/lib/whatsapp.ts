@@ -40,7 +40,7 @@ ${details.customerName}
   `.trim();
 
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodedMessage}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=${businessPhone}&text=${encodedMessage}`;
   
   return whatsappUrl;
 };
@@ -107,6 +107,6 @@ Thank you for choosing Unigather! 🎉
   `.trim();
 
   const encodedMessage = encodeURIComponent(message);
-  return `https://wa.me/917901751593?text=${encodedMessage}`;
+  return `https://api.whatsapp.com/send?phone=917901751593&text=${encodedMessage}`;
 };
 
