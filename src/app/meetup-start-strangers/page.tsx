@@ -6,6 +6,7 @@ export default function MeetupStartStrangersPage() {
       femaleRedirect="/strangers-group-meetup"
       maleRedirect="/strangers-group-meetup?register=male"
       showEntryStats
+      showCountryStats
     />
   );
 }

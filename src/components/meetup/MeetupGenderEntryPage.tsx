@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
 import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
+import MeetupCountryEntryStats from '@/components/meetup/MeetupCountryEntryStats';
 import {
   fetchMonthlyFemaleEnrollmentCount,
   fetchStrangersGroupCities,
@@ -20,8 +21,14 @@ import {
   trackStrangersGroupMaleClick,
 } from '@/lib/meetup-entry-funnel';
 import type { CampaignCityOption } from '@/types/campaign-landing';
+import { whatsappSendHrefIndian } from '@/lib/indian-phone';
 
 const MALE_REDIRECT = '/';
+
+type WhatsAppRedirect = {
+  number: string;
+  message: string;
+};
 
 function GenderButton({
   label,
@@ -78,6 +85,11 @@ type MeetupGenderEntryPageProps = {
   trackOneOnOneFunnel?: boolean;
   /** Show this month's female enrollment and city meetup stats (strangers group entry). */
   showEntryStats?: boolean;
+  /** If set, opening the gender button opens WhatsApp instead of the same-site redirect. */
+  femaleWhatsappRedirect?: WhatsAppRedirect;
+  maleWhatsappRedirect?: WhatsAppRedirect;
+  /** Show country-based "Monthly Meetups Done" cards instead of female/city stats. */
+  showCountryStats?: boolean;
 };
 
 export default function MeetupGenderEntryPage({
@@ -86,6 +98,9 @@ export default function MeetupGenderEntryPage({
   femaleFaqPath,
   trackOneOnOneFunnel = false,
   showEntryStats = false,
+  femaleWhatsappRedirect,
+  maleWhatsappRedirect,
+  showCountryStats = false,
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
   const [femaleCount, setFemaleCount] = useState(0);
@@ -121,9 +136,18 @@ export default function MeetupGenderEntryPage({
     };
   }, [showEntryStats]);
 
+  const openWhatsappRedirect = (redirect: WhatsAppRedirect) => {
+    const href = whatsappSendHrefIndian(redirect.number, redirect.message);
+    if (href) window.open(href, '_blank', 'noopener,noreferrer');
+  };
+
   const handleFemaleClick = () => {
     if (trackOneOnOneFunnel) {
       trackMeetupFunnelEvent('female_button');
+    }
+    if (femaleWhatsappRedirect) {
+      openWhatsappRedirect(femaleWhatsappRedirect);
+      return;
     }
     if (showEntryStats) {
       // Counted as a click (admin funnel), not stored as a submission.
@@ -136,6 +160,10 @@ export default function MeetupGenderEntryPage({
   };
 
   const handleMaleClick = () => {
+    if (maleWhatsappRedirect) {
+      openWhatsappRedirect(maleWhatsappRedirect);
+      return;
+    }
     if (showEntryStats) {
       trackStrangersGroupMaleClick();
       void incrementMonthlyMaleEnrollmentCount();
@@ -236,7 +264,9 @@ export default function MeetupGenderEntryPage({
             </div>
           </div>
 
-          {showEntryStats ? (
+          {showCountryStats ? (
+            <MeetupCountryEntryStats femaleCount={femaleCount} />
+          ) : showEntryStats ? (
             <MeetupEntryStats femaleCount={femaleCount} cities={cities} />
           ) : null}
         </motion.footer>

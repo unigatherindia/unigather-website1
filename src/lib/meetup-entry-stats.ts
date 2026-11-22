@@ -77,6 +77,18 @@ const BASELINE_ALIASES: Record<string, string> = {
 /** Fixed "Meetups this month" figure — not derived from counters or city seeds. */
 export const MONTHLY_MEETUP_TOTAL_BASELINE = 37;
 
+/** Hardcoded country counts for the one-on-one meetup entry page. */
+export const MONTHLY_MEETUP_COUNTRIES: { name: string; count: number }[] = [
+  { name: 'Dubai', count: 4 },
+  { name: 'India', count: 10 },
+  { name: 'United Kingdom', count: 3 },
+  { name: 'New York', count: 2 },
+  { name: 'Saudi Arabia', count: 5 },
+  { name: 'Indonesia', count: 1 },
+  { name: 'Canada', count: 3 },
+  { name: 'Germany', count: 3 },
+];
+
 function cityKey(value: string): string {
   return value
     .trim()

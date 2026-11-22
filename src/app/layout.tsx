@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
+import LogoReveal from '@/components/LogoReveal';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -86,6 +87,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} bg-dark-900 text-white antialiased`}>
+        <LogoReveal />
         <AuthProvider>
           {children}
           <Toaster
