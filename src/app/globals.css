@@ -586,16 +586,19 @@ a {
   transform-origin: 50% 50%;
 }
 
+/* Timings are compressed so the complete wordmark and tagline land before the
+   3.2s hold ends. The inline --d values from the artwork are scaled, keeping
+   their original stagger/order. */
 .unigather-logo-reveal.go .pc {
-  animation: ug-reveal-gather 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d) both;
+  animation: ug-reveal-gather 0.68s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.65) both;
 }
 
 .unigather-logo-reveal.go .pl {
-  animation: ug-reveal-lift 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d) both;
+  animation: ug-reveal-lift 0.64s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.65) both;
 }
 
 .unigather-logo-reveal.go .tag {
-  animation: ug-reveal-fade 1.2s ease 3.6s both;
+  animation: ug-reveal-fade 0.7s ease 1.9s both;
 }
 
 @keyframes ug-reveal-gather {
