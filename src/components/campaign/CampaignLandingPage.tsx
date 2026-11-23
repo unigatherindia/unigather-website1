@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -62,7 +61,6 @@ export default function CampaignLandingPage(props: Props) {
 
 function CampaignLandingPageInner({ slug }: Props) {
   const meta = CAMPAIGN_LANDING_META[slug];
-  const router = useRouter();
   const { locale, messages, dir } = useCampaignLocale();
   const [config, setConfig] = useState<CampaignLandingConfig>(
     DEFAULT_CAMPAIGN_LANDING_CONFIG[slug]
@@ -470,7 +468,7 @@ function CampaignLandingPageInner({ slug }: Props) {
           whatsappNumber={config.registerWhatsapp}
           gender={registerGender}
           initialStep={registerStartAtCities ? 'cities' : 'name'}
-          onClose={() => router.replace('/meetup-start-strangers')}
+          onClose={() => setShowRegister(false)}
         />
       )}
 

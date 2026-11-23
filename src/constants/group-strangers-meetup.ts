@@ -2,7 +2,7 @@
 export const GROUP_STRANGERS_MEETUP_LABEL = 'Explore Events';
 
 /** Header / mobile nav label (links to /events). */
-export const GROUP_STRANGERS_MEETUP_NAV_LABEL = 'Explore Events';
+export const GROUP_STRANGERS_MEETUP_NAV_LABEL = 'Group Meetups';
 
 /** White three-people icon sizing on orange hero CTAs. */
 export const GROUP_STRANGERS_MEETUP_CTA_ICON_CLASS =
