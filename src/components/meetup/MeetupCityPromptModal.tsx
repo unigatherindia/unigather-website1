@@ -61,7 +61,7 @@ export default function MeetupCityPromptModal({ number, messageTemplate, onClose
             type="text"
             value={city}
             onChange={(event) => setCity(event.target.value)}
-            placeholder="e.g. Pune, Mumbai, Delhi..."
+            placeholder="e.g. Pune , Mumbai , Dubai"
             className={campaignFieldClass}
             autoFocus
             autoComplete="address-level2"
