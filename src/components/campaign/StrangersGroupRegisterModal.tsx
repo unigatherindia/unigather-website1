@@ -38,6 +38,8 @@ const MALE_GROUP_LINK_WHATSAPP = '7568861945';
 
 /** Sparkles (U+2728), written as an escape so the source stays ASCII. */
 const SPARKLE_EMOJI = '\u2728';
+/** Hugging face (U+1F917), written as an escape so the source stays ASCII. */
+const HUGGING_EMOJI = '\uD83E\uDD17';
 
 export default function StrangersGroupRegisterModal({
   cities,
@@ -83,8 +85,8 @@ export default function StrangersGroupRegisterModal({
 
   const buildCityWhatsappHref = (city: CampaignCityOption) => {
     const message = isMale
-      ? `Hey Unigather ${SPARKLE_EMOJI} ! I'm from ${city.name}. I'd like to know more about the Group Strangers Meetup.`
-      : `Hi Unigather! I'm ${name} from ${city.name}. I've registered for the Group Strangers Meetup. Please share the group link.`;
+      ? `Hey Unigather ${HUGGING_EMOJI} ! I'm from ${city.name} . I'd like to know more about the Group Strangers Meetup.`
+      : `Hi Unigather ${SPARKLE_EMOJI} ! I am from ${city.name} . I've registered for the Group Strangers Meetup. Please share the group link.`;
     return whatsappSendHrefIndian(registerWhatsapp, message);
   };
 

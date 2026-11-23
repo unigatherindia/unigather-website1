@@ -71,7 +71,7 @@ function CampaignLandingPageInner({ slug }: Props) {
   const [showRegister, setShowRegister] = useState(false);
   /** Male visitors arrive with ?gender=male from the gender entry page. */
   const [registerGender, setRegisterGender] = useState<'male' | 'female'>('female');
-  /** Male gender redirect opens straight at the city picker, skipping the name step. */
+  /** Gender redirects open straight at the city picker, skipping the name step. */
   const [registerStartAtCities, setRegisterStartAtCities] = useState(false);
 
   const {
@@ -131,6 +131,12 @@ function CampaignLandingPageInner({ slug }: Props) {
       setRegisterStartAtCities(true);
       setShowRegister(true);
       trackStrangersGroupMaleRegisterClick();
+      return;
+    }
+    if (params.get('register') === 'female') {
+      setRegisterGender('female');
+      setRegisterStartAtCities(true);
+      setShowRegister(true);
       return;
     }
     // Kept for direct links to the male-versioned page content.

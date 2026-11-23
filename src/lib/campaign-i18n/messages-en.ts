@@ -59,11 +59,12 @@ export const EN_CAMPAIGN_MESSAGES: CampaignMessages = {
   registerNameSubtitle: 'Tell us your name to continue.',
   registerNamePlaceholder: 'Your name',
   registerProceed: 'Proceed',
-  registerCitiesTitle: 'Pick your city',
+  registerCitiesTitle:
+    'Interested in joining a UNIGATHER Strangers Meetup? Pick your city',
   maleRegisterCitiesTitle:
     'Interested in joining a UNIGATHER Strangers Meetup? Pick your city',
-  registerCitiesSubtitle: 'Tap your city to connect with us on WhatsApp.',
-  registerCitiesSubtitleWithName: 'Nice to meet you, {name}. Tap your city to connect with us on WhatsApp.',
+  registerCitiesSubtitle: 'Tap your city to proceed for Booking',
+  registerCitiesSubtitleWithName: 'Tap your city to proceed for Booking',
   maleRegisterCitiesSubtitle: 'Tap your city to proceed for Booking',
   registerNoCities: 'Cities are not open for registration yet. Please check back soon.',
   registerNameRequired: 'Please enter your name.',

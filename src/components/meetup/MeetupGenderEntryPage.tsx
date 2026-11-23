@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
+import MeetupCityPromptModal from '@/components/meetup/MeetupCityPromptModal';
 import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
 import MeetupCountryEntryStats from '@/components/meetup/MeetupCountryEntryStats';
 import {
@@ -90,6 +91,10 @@ type MeetupGenderEntryPageProps = {
   maleWhatsappRedirect?: WhatsAppRedirect;
   /** Show country-based "Monthly Meetups Done" cards instead of female/city stats. */
   showCountryStats?: boolean;
+  /** Copy shown under the heading. Defaults to the original intro. */
+  description?: string;
+  /** Ask for a city first, then open WhatsApp with the city injected in the message. */
+  collectCityBeforeWhatsapp?: boolean;
 };
 
 export default function MeetupGenderEntryPage({
@@ -101,9 +106,12 @@ export default function MeetupGenderEntryPage({
   femaleWhatsappRedirect,
   maleWhatsappRedirect,
   showCountryStats = false,
+  description = 'Turn strangers into lifelong friends through exciting events and meaningful connections. Every gathering is a new beginning, every stranger a potential best friend.',
+  collectCityBeforeWhatsapp = false,
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
   const [femaleCount, setFemaleCount] = useState(0);
+  const [cityPrompt, setCityPrompt] = useState<WhatsAppRedirect | null>(null);
   // Start with the standard city list so the meetup cards never sit in the
   // "No cities added yet" state; the admin-configured list replaces it once loaded.
   const [cities, setCities] = useState<CampaignCityOption[]>(() =>
@@ -136,7 +144,11 @@ export default function MeetupGenderEntryPage({
     };
   }, [showEntryStats]);
 
-  const openWhatsappRedirect = (redirect: WhatsAppRedirect) => {
+  const startWhatsappRedirect = (redirect: WhatsAppRedirect) => {
+    if (collectCityBeforeWhatsapp) {
+      setCityPrompt(redirect);
+      return;
+    }
     const href = whatsappSendHrefIndian(redirect.number, redirect.message);
     if (href) window.open(href, '_blank', 'noopener,noreferrer');
   };
@@ -146,7 +158,7 @@ export default function MeetupGenderEntryPage({
       trackMeetupFunnelEvent('female_button');
     }
     if (femaleWhatsappRedirect) {
-      openWhatsappRedirect(femaleWhatsappRedirect);
+      startWhatsappRedirect(femaleWhatsappRedirect);
       return;
     }
     if (showEntryStats) {
@@ -161,7 +173,7 @@ export default function MeetupGenderEntryPage({
 
   const handleMaleClick = () => {
     if (maleWhatsappRedirect) {
-      openWhatsappRedirect(maleWhatsappRedirect);
+      startWhatsappRedirect(maleWhatsappRedirect);
       return;
     }
     if (showEntryStats) {
@@ -232,9 +244,7 @@ export default function MeetupGenderEntryPage({
             />
 
             <p className="mx-auto max-w-xl text-[0.9375rem] leading-[1.7] text-gray-400 sm:text-lg sm:leading-relaxed">
-              Turn strangers into lifelong friends through exciting events and meaningful
-              connections. Every gathering is a new beginning, every stranger a potential best
-              friend.
+              {description}
             </p>
           </motion.div>
         </main>
@@ -271,6 +281,14 @@ export default function MeetupGenderEntryPage({
           ) : null}
         </motion.footer>
       </div>
+
+      {cityPrompt ? (
+        <MeetupCityPromptModal
+          number={cityPrompt.number}
+          messageTemplate={cityPrompt.message}
+          onClose={() => setCityPrompt(null)}
+        />
+      ) : null}
     </div>
   );
 }

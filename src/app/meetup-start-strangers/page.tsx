@@ -3,7 +3,7 @@ import MeetupGenderEntryPage from '@/components/meetup/MeetupGenderEntryPage';
 export default function MeetupStartStrangersPage() {
   return (
     <MeetupGenderEntryPage
-      femaleRedirect="/strangers-group-meetup"
+      femaleRedirect="/strangers-group-meetup?register=female"
       maleRedirect="/strangers-group-meetup?register=male"
       showEntryStats
       showCountryStats
