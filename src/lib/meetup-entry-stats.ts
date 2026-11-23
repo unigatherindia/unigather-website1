@@ -279,18 +279,27 @@ export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]>
   }
 }
 
-/** Reads the admin-configured WhatsApp number used by female city registrations. */
-export async function fetchStrangersGroupRegisterWhatsapp(): Promise<string> {
-  if (!db) return DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
+/**
+ * Reads the raw admin register settings — only the cities saved in admin (no
+ * seeded defaults) and the female register WhatsApp number.
+ */
+export async function fetchStrangersGroupRegisterConfig(): Promise<{
+  cities: CampaignCityOption[];
+  whatsappNumber: string;
+}> {
+  if (!db) {
+    return { cities: [], whatsappNumber: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP };
+  }
 
   try {
     const snap = await withTimeout(
       getDoc(doc(db, STRANGERS_GROUP_META.configCollection, STRANGERS_GROUP_META.configDocId))
     );
-    return parseCampaignLandingConfig('strangers-group', snap.data()).registerWhatsapp;
+    const config = parseCampaignLandingConfig('strangers-group', snap.data());
+    return { cities: config.cities, whatsappNumber: config.registerWhatsapp };
   } catch (error) {
-    console.error('Load strangers group register WhatsApp:', error);
-    return DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
+    console.error('Load strangers group register config:', error);
+    return { cities: [], whatsappNumber: DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP };
   }
 }
 

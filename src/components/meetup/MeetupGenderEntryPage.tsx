@@ -13,7 +13,7 @@ import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
 import MeetupCountryEntryStats from '@/components/meetup/MeetupCountryEntryStats';
 import {
   fetchMonthlyFemaleEnrollmentCount,
-  fetchStrangersGroupRegisterWhatsapp,
+  fetchStrangersGroupRegisterConfig,
   fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
   incrementMonthlyMaleEnrollmentCount,
@@ -122,6 +122,7 @@ export default function MeetupGenderEntryPage({
   const [femaleCount, setFemaleCount] = useState(0);
   const [cityPrompt, setCityPrompt] = useState<WhatsAppRedirect | null>(null);
   const [groupRegisterGender, setGroupRegisterGender] = useState<'male' | 'female' | null>(null);
+  const [registerCities, setRegisterCities] = useState<CampaignCityOption[]>([]);
   const [registerWhatsapp, setRegisterWhatsapp] = useState(
     DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP
   );
@@ -152,12 +153,15 @@ export default function MeetupGenderEntryPage({
         console.error('Load strangers group cities:', error);
       });
 
-    fetchStrangersGroupRegisterWhatsapp()
-      .then((number) => {
-        if (!cancelled) setRegisterWhatsapp(number);
+    fetchStrangersGroupRegisterConfig()
+      .then((config) => {
+        if (!cancelled) {
+          setRegisterCities(config.cities);
+          setRegisterWhatsapp(config.whatsappNumber);
+        }
       })
       .catch((error) => {
-        console.error('Load strangers group register WhatsApp:', error);
+        console.error('Load strangers group register config:', error);
       });
 
     return () => {
@@ -322,7 +326,7 @@ export default function MeetupGenderEntryPage({
       {groupRegisterGender ? (
         <CampaignLocaleProvider>
           <StrangersGroupRegisterModal
-            cities={cities}
+            cities={registerCities}
             whatsappNumber={registerWhatsapp}
             gender={groupRegisterGender}
             initialStep="cities"
