@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
 import { CampaignLocaleProvider, useCampaignLocale } from '@/lib/campaign-i18n/CampaignLocaleContext';
@@ -474,7 +475,18 @@ function CampaignLandingPageInner({ slug }: Props) {
       <CampaignPageBackground />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 py-10 sm:py-16 max-w-xl lg:max-w-2xl">
-        <div className="flex justify-end mb-2 sm:mb-4">
+        <div className="mb-2 flex items-center justify-between gap-3 sm:mb-4">
+          {slug === 'strangers-group' ? (
+            <Link
+              href="/meetup-start-strangers"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-medium text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Back
+            </Link>
+          ) : (
+            <span />
+          )}
           <CampaignLanguageSelect />
         </div>
 
