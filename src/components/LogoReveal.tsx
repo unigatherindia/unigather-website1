@@ -20,36 +20,21 @@ export default function LogoReveal() {
   const timersRef = useRef<number[]>([]);
 
   useEffect(() => {
-    let finished = false;
-
-    const clearTimers = () => {
-      timersRef.current.forEach((timer) => window.clearTimeout(timer));
-      timersRef.current = [];
-    };
-
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      clearTimers();
-      overlayRef.current?.classList.add('is-hiding');
-      timersRef.current = [window.setTimeout(() => setMounted(false), 500)];
-    };
-
     const prefersReducedMotion = window.matchMedia(
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
-    // Reduced motion still gets a brief logo, but skips the long hold/hint.
-    const hold = prefersReducedMotion ? 900 : 3200;
-    timersRef.current = [window.setTimeout(finish, hold)];
-
-    window.addEventListener('pointerdown', finish, { passive: true });
-    window.addEventListener('keydown', finish);
+    // Reduced motion still gets a brief logo.
+    const hold = prefersReducedMotion ? 500 : 1700;
+    const hideTimer = window.setTimeout(() => {
+      overlayRef.current?.classList.add('is-hiding');
+      timersRef.current = [window.setTimeout(() => setMounted(false), 350)];
+    }, hold);
+    timersRef.current = [hideTimer];
 
     return () => {
-      clearTimers();
-      window.removeEventListener('pointerdown', finish);
-      window.removeEventListener('keydown', finish);
+      timersRef.current.forEach((timer) => window.clearTimeout(timer));
+      timersRef.current = [];
     };
   }, []);
 
@@ -59,7 +44,6 @@ export default function LogoReveal() {
     <div ref={overlayRef} className="unigather-logo-reveal go" aria-hidden="true">
       <div className="logo-holder" dangerouslySetInnerHTML={{ __html: LOGO_SVG }} />
       <div className="tag">GATHERING MINDS · UNITING HEARTS</div>
-      <div className="skip-hint">Tap anywhere or press any key to skip</div>
     </div>
   );
 }

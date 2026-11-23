@@ -1,5 +1,5 @@
 /** Label for the main /events CTA. */
-export const GROUP_STRANGERS_MEETUP_LABEL = 'Explore Events';
+export const GROUP_STRANGERS_MEETUP_LABEL = 'Group Meetups';
 
 /** Header / mobile nav label (links to /events). */
 export const GROUP_STRANGERS_MEETUP_NAV_LABEL = 'Group Meetups';

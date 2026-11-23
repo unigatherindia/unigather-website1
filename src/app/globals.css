@@ -522,9 +522,9 @@ a {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px 88px;
+  padding: 32px 20px;
   padding-top: calc(32px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   overflow: hidden;
   background: var(--reveal-bg);
@@ -535,7 +535,7 @@ a {
 .unigather-logo-reveal.is-hiding {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.32s ease;
 }
 
 .unigather-logo-reveal .logo-holder {
@@ -557,23 +557,6 @@ a {
   white-space: nowrap;
 }
 
-.unigather-logo-reveal .skip-hint {
-  position: absolute;
-  bottom: calc(26px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  text-align: center;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--reveal-text);
-  opacity: 0.5;
-  animation: ug-reveal-fade 0.8s ease 0.6s both;
-}
-
 .unigather-logo-reveal .pc,
 .unigather-logo-reveal .pl,
 .unigather-logo-reveal .tag {
@@ -586,19 +569,19 @@ a {
   transform-origin: 50% 50%;
 }
 
-/* Timings are compressed so the complete wordmark and tagline land before the
-   3.2s hold ends. The inline --d values from the artwork are scaled, keeping
-   their original stagger/order. */
+/* Timings are compressed so the complete wordmark and tagline land inside the
+   1.7s reveal. The inline --d values from the artwork are scaled, keeping their
+   original stagger/order. */
 .unigather-logo-reveal.go .pc {
-  animation: ug-reveal-gather 0.68s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.65) both;
+  animation: ug-reveal-gather 0.44s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.28) both;
 }
 
 .unigather-logo-reveal.go .pl {
-  animation: ug-reveal-lift 0.64s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.65) both;
+  animation: ug-reveal-lift 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--d) * 0.28) both;
 }
 
 .unigather-logo-reveal.go .tag {
-  animation: ug-reveal-fade 0.7s ease 1.9s both;
+  animation: ug-reveal-fade 0.45s ease 0.9s both;
 }
 
 @keyframes ug-reveal-gather {
@@ -643,9 +626,5 @@ a {
   .unigather-logo-reveal.go .pl,
   .unigather-logo-reveal.go .tag {
     animation: none;
-  }
-
-  .unigather-logo-reveal .skip-hint {
-    display: none;
   }
 }
