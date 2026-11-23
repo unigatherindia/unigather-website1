@@ -6,16 +6,22 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { CampaignPageBackground } from '@/components/campaign/campaign-premium-ui';
+import { CampaignLocaleProvider } from '@/lib/campaign-i18n/CampaignLocaleContext';
+import StrangersGroupRegisterModal from '@/components/campaign/StrangersGroupRegisterModal';
 import MeetupCityPromptModal from '@/components/meetup/MeetupCityPromptModal';
 import MeetupEntryStats from '@/components/meetup/MeetupEntryStats';
 import MeetupCountryEntryStats from '@/components/meetup/MeetupCountryEntryStats';
 import {
   fetchMonthlyFemaleEnrollmentCount,
+  fetchStrangersGroupRegisterWhatsapp,
   fetchStrangersGroupCities,
   incrementMonthlyFemaleEnrollmentCount,
   incrementMonthlyMaleEnrollmentCount,
 } from '@/lib/meetup-entry-stats';
-import { buildDefaultStrangersGroupCities } from '@/types/campaign-landing';
+import {
+  buildDefaultStrangersGroupCities,
+  DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
+} from '@/types/campaign-landing';
 import {
   trackMeetupFunnelEvent,
   trackStrangersGroupFemaleClick,
@@ -95,6 +101,8 @@ type MeetupGenderEntryPageProps = {
   description?: string;
   /** Ask for a city first, then open WhatsApp with the city injected in the message. */
   collectCityBeforeWhatsapp?: boolean;
+  /** Open the group city picker here instead of navigating to the campaign form. */
+  groupCityPicker?: boolean;
 };
 
 export default function MeetupGenderEntryPage({
@@ -108,10 +116,15 @@ export default function MeetupGenderEntryPage({
   showCountryStats = false,
   description = 'Turn strangers into lifelong friends through exciting events and meaningful connections. Every gathering is a new beginning, every stranger a potential best friend.',
   collectCityBeforeWhatsapp = false,
+  groupCityPicker = false,
 }: MeetupGenderEntryPageProps) {
   const router = useRouter();
   const [femaleCount, setFemaleCount] = useState(0);
   const [cityPrompt, setCityPrompt] = useState<WhatsAppRedirect | null>(null);
+  const [groupRegisterGender, setGroupRegisterGender] = useState<'male' | 'female' | null>(null);
+  const [registerWhatsapp, setRegisterWhatsapp] = useState(
+    DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP
+  );
   // Start with the standard city list so the meetup cards never sit in the
   // "No cities added yet" state; the admin-configured list replaces it once loaded.
   const [cities, setCities] = useState<CampaignCityOption[]>(() =>
@@ -137,6 +150,14 @@ export default function MeetupGenderEntryPage({
       })
       .catch((error) => {
         console.error('Load strangers group cities:', error);
+      });
+
+    fetchStrangersGroupRegisterWhatsapp()
+      .then((number) => {
+        if (!cancelled) setRegisterWhatsapp(number);
+      })
+      .catch((error) => {
+        console.error('Load strangers group register WhatsApp:', error);
       });
 
     return () => {
@@ -168,6 +189,10 @@ export default function MeetupGenderEntryPage({
         if (count !== null) setFemaleCount(count);
       });
     }
+    if (groupCityPicker) {
+      setGroupRegisterGender('female');
+      return;
+    }
     router.push(femaleFaqPath || femaleRedirect);
   };
 
@@ -179,6 +204,10 @@ export default function MeetupGenderEntryPage({
     if (showEntryStats) {
       trackStrangersGroupMaleClick();
       void incrementMonthlyMaleEnrollmentCount();
+    }
+    if (groupCityPicker) {
+      setGroupRegisterGender('male');
+      return;
     }
     router.push(maleRedirect);
   };
@@ -288,6 +317,18 @@ export default function MeetupGenderEntryPage({
           messageTemplate={cityPrompt.message}
           onClose={() => setCityPrompt(null)}
         />
+      ) : null}
+
+      {groupRegisterGender ? (
+        <CampaignLocaleProvider>
+          <StrangersGroupRegisterModal
+            cities={cities}
+            whatsappNumber={registerWhatsapp}
+            gender={groupRegisterGender}
+            initialStep="cities"
+            onClose={() => setGroupRegisterGender(null)}
+          />
+        </CampaignLocaleProvider>
       ) : null}
     </div>
   );

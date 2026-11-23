@@ -7,7 +7,9 @@ import {
 } from 'firebase/firestore';
 import {
   CAMPAIGN_LANDING_META,
+  DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP,
   buildDefaultStrangersGroupCities,
+  parseCampaignLandingConfig,
   parseCitiesList,
   type CampaignCityOption,
 } from '@/types/campaign-landing';
@@ -74,10 +76,7 @@ const BASELINE_ALIASES: Record<string, string> = {
   madras: 'chennai',
 };
 
-/** Fixed "Meetups this month" figure — not derived from counters or city seeds. */
-export const MONTHLY_MEETUP_TOTAL_BASELINE = 37;
-
-/** Hardcoded country counts for the one-on-one meetup entry page. */
+/** Hardcoded country counts for the meetup entry pages. */
 export const MONTHLY_MEETUP_COUNTRIES: { name: string; count: number }[] = [
   { name: 'Dubai', count: 4 },
   { name: 'India', count: 10 },
@@ -88,6 +87,12 @@ export const MONTHLY_MEETUP_COUNTRIES: { name: string; count: number }[] = [
   { name: 'Canada', count: 3 },
   { name: 'Germany', count: 3 },
 ];
+
+/** "Meetups this month" total — derived so it always matches the country breakdown. */
+export const MONTHLY_MEETUP_TOTAL_BASELINE = MONTHLY_MEETUP_COUNTRIES.reduce(
+  (total, country) => total + country.count,
+  0
+);
 
 function cityKey(value: string): string {
   return value
@@ -271,6 +276,21 @@ export async function fetchStrangersGroupCities(): Promise<CampaignCityOption[]>
   } catch (error) {
     console.error('Load strangers group cities:', error);
     return buildDefaultStrangersGroupCities();
+  }
+}
+
+/** Reads the admin-configured WhatsApp number used by female city registrations. */
+export async function fetchStrangersGroupRegisterWhatsapp(): Promise<string> {
+  if (!db) return DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
+
+  try {
+    const snap = await withTimeout(
+      getDoc(doc(db, STRANGERS_GROUP_META.configCollection, STRANGERS_GROUP_META.configDocId))
+    );
+    return parseCampaignLandingConfig('strangers-group', snap.data()).registerWhatsapp;
+  } catch (error) {
+    console.error('Load strangers group register WhatsApp:', error);
+    return DEFAULT_STRANGERS_GROUP_REGISTER_WHATSAPP;
   }
 }
 
