@@ -13,6 +13,7 @@ import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
+import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { formatEventDate } from '@/lib/formatEventDate';
@@ -338,18 +339,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
       });
     }
   }, [bookingForm.ticketType, event.price, event.customTicketOptions]);
-
-  // Load Razorpay script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
 
   const handleInputChange = (field: keyof BookingForm, value: string | boolean) => {
     setBookingForm(prev => ({
@@ -806,6 +795,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
           }
         }
       };
+
+      const checkoutReady = await loadRazorpayCheckout();
+      if (!checkoutReady || typeof window.Razorpay !== 'function') {
+        throw new Error(
+          'Payment checkout could not load. Please check your connection and try again.'
+        );
+      }
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();

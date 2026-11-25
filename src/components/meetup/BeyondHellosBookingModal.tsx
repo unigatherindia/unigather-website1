@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
+import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { GENDER_PREFERENCE_OPTIONS, ONE_ON_ONE_MEETUP_COLLECTION } from '@/constants/meetup-options';
@@ -148,16 +149,6 @@ export default function BeyondHellosBookingModal({ config, configId, onClose }: 
       }));
     }
   }, [user]);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
 
   useEffect(() => {
     const body = document.body;
@@ -443,6 +434,13 @@ export default function BeyondHellosBookingModal({ config, configId, onClose }: 
           },
         },
       };
+
+      const checkoutReady = await loadRazorpayCheckout();
+      if (!checkoutReady || typeof window.Razorpay !== 'function') {
+        throw new Error(
+          'Payment checkout could not load. Please check your connection and try again.'
+        );
+      }
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', () => {

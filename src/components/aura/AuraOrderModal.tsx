@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
+import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
@@ -108,16 +109,6 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
       }));
     }
   }, [user]);
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
 
   useEffect(() => {
     const body = document.body;
@@ -355,6 +346,13 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
           ondismiss: () => setIsLoading(false),
         },
       };
+
+      const checkoutReady = await loadRazorpayCheckout();
+      if (!checkoutReady || typeof window.Razorpay !== 'function') {
+        throw new Error(
+          'Payment checkout could not load. Please check your connection and try again.'
+        );
+      }
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', () => {
