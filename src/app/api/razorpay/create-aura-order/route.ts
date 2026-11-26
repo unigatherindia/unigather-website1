@@ -12,8 +12,10 @@ import {
 import {
   PAYMENT_COLLECTIONS,
   PaymentValidationError,
+  createExpiredOrderUpdate,
   createPaymentBookingId,
   getOrderCreationRetryAfterSeconds,
+  isExpirablePendingOrder,
   isOrderCreationInFlight,
   isReusablePendingOrder,
   normalizePaymentCustomer,
@@ -65,6 +67,7 @@ function buildReusedResponse(
     currency: orderIntent.currency,
     companyName: razorpayConfig.checkout.companyName,
     themeColor: '#D4AF37',
+    paymentTimeoutSeconds: razorpayConfig.paymentTimeoutSeconds,
     reused: true,
   });
 }
@@ -169,6 +172,19 @@ export async function POST(request: NextRequest) {
             { retryAfterSeconds }
           );
         }
+
+        const staleOrderId =
+          typeof data.internalOrderId === 'string' ? data.internalOrderId.trim() : '';
+        if (staleOrderId) {
+          const staleOrderRef = orderCollection.doc(staleOrderId);
+          const staleOrderSnapshot = await transaction.get(staleOrderRef);
+          if (
+            staleOrderSnapshot.exists &&
+            isExpirablePendingOrder(staleOrderSnapshot.data() || {}, nowMillis)
+          ) {
+            transaction.set(staleOrderRef, createExpiredOrderUpdate(), { merge: true });
+          }
+        }
       }
 
       const productRef = adminDb.collection('auraProducts').doc(normalizedProductId);
@@ -272,6 +288,7 @@ export async function POST(request: NextRequest) {
       currency: order.currency,
       companyName: razorpayConfig.checkout.companyName,
       themeColor: '#D4AF37',
+      paymentTimeoutSeconds: razorpayConfig.paymentTimeoutSeconds,
     });
   } catch (error: unknown) {
     console.error('create-aura-order error:', error);

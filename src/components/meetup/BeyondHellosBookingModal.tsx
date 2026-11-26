@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
-import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
+import { getCheckoutTimeoutSeconds, loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { GENDER_PREFERENCE_OPTIONS, ONE_ON_ONE_MEETUP_COLLECTION } from '@/constants/meetup-options';
@@ -379,6 +379,7 @@ export default function BeyondHellosBookingModal({ config, configId, onClose }: 
           'Beyond Hellos'
         ),
         order_id: orderData.orderId,
+        timeout: getCheckoutTimeoutSeconds(orderData.paymentTimeoutSeconds),
         theme: { color: orderData.themeColor || '#f97316' },
         prefill: {
           name: form.name.trim(),

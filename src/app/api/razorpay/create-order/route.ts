@@ -6,9 +6,11 @@ import { getCachedEventData } from '@/lib/event-data-cache';
 import {
   PAYMENT_COLLECTIONS,
   PaymentValidationError,
+  createExpiredOrderUpdate,
   createOrderDedupeKey,
   createPaymentBookingId,
   getOrderCreationRetryAfterSeconds,
+  isExpirablePendingOrder,
   isOrderCreationInFlight,
   isReusablePendingOrder,
   normalizePaymentBookingDetails,
@@ -82,6 +84,7 @@ async function buildReusedOrderResponse(
     currency: orderIntent.currency,
     companyName: razorpayConfig.checkout.companyName,
     themeColor: razorpayConfig.checkout.themeColor,
+    paymentTimeoutSeconds: razorpayConfig.paymentTimeoutSeconds,
     reused: true,
   });
 }
@@ -206,6 +209,23 @@ export async function POST(request: NextRequest) {
             { retryAfterSeconds }
           );
         }
+
+        // Close out an unpaid order whose payment window has elapsed before
+        // creating a replacement. Check the authoritative order document so a
+        // captured/processing payment is never marked expired. The dedupe
+        // document is overwritten with the replacement below.
+        const staleOrderId =
+          typeof data.internalOrderId === 'string' ? data.internalOrderId.trim() : '';
+        if (staleOrderId) {
+          const staleOrderRef = orderCollection.doc(staleOrderId);
+          const staleOrderSnapshot = await transaction.get(staleOrderRef);
+          if (
+            staleOrderSnapshot.exists &&
+            isExpirablePendingOrder(staleOrderSnapshot.data() || {}, nowMillis)
+          ) {
+            transaction.set(staleOrderRef, createExpiredOrderUpdate(), { merge: true });
+          }
+        }
       }
 
       const receipt = createRazorpayReceipt(newInternalOrderId);
@@ -319,6 +339,7 @@ export async function POST(request: NextRequest) {
       currency: order.currency,
       companyName: razorpayConfig.checkout.companyName,
       themeColor: razorpayConfig.checkout.themeColor,
+      paymentTimeoutSeconds: razorpayConfig.paymentTimeoutSeconds,
     });
   } catch (error: any) {
     console.error('Razorpay order creation error:', error);

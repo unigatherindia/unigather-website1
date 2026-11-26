@@ -55,6 +55,11 @@ export function getRazorpayPaymentTimeoutMs() {
   return minutes * 60 * 1000;
 }
 
+/** Razorpay Checkout's `timeout` option is in seconds. */
+export function getRazorpayPaymentTimeoutSeconds() {
+  return Math.floor(getRazorpayPaymentTimeoutMs() / 1000);
+}
+
 export function createRazorpayReceipt(internalOrderId: string) {
   const prefix = readEnv('RAZORPAY_RECEIPT_PREFIX') || DEFAULT_RAZORPAY_RECEIPT_PREFIX;
   return `${prefix}_${internalOrderId}`.slice(0, 40);
@@ -73,6 +78,7 @@ export function getServerRazorpayConfig() {
     keySecret: getRazorpayKeySecret(),
     currency: getRazorpayCurrency(),
     paymentTimeoutMs: getRazorpayPaymentTimeoutMs(),
+    paymentTimeoutSeconds: getRazorpayPaymentTimeoutSeconds(),
     checkout: getRazorpayCheckoutConfig(),
   };
 }

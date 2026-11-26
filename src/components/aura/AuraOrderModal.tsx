@@ -19,7 +19,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
-import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
+import { getCheckoutTimeoutSeconds, loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { collection, addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
@@ -279,6 +279,7 @@ const AuraOrderModal: React.FC<AuraOrderModalProps> = ({ product, onClose }) => 
         name: orderData.companyName || 'Unigather Fragrance',
         description: toRazorpayAscii(product.title, 250, 'Aura order'),
         order_id: orderData.orderId,
+        timeout: getCheckoutTimeoutSeconds(orderData.paymentTimeoutSeconds),
         theme: { color: orderData.themeColor || '#D4AF37' },
         prefill: {
           name: form.name,

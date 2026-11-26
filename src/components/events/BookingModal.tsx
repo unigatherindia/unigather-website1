@@ -13,7 +13,7 @@ import AuthModal from '@/components/auth/AuthModal';
 import { createWhatsAppSupportLink, createCustomerBookingConfirmation, WhatsAppBookingDetails } from '@/lib/whatsapp';
 import { db } from '@/lib/firebase';
 import { toRazorpayAscii } from '@/lib/razorpayUtf8';
-import { loadRazorpayCheckout } from '@/lib/razorpay-checkout';
+import { getCheckoutTimeoutSeconds, loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 import { DEFAULT_CURRENCY } from '@/constants/countries';
 import { formatEventPrice } from '@/lib/formatPrice';
 import { formatEventDate } from '@/lib/formatEventDate';
@@ -654,6 +654,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         currency?: string;
         companyName?: string;
         themeColor?: string;
+        paymentTimeoutSeconds?: number;
         retryAfterSeconds?: number;
       };
       try {
@@ -689,6 +690,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ event, onClose }) => {
         name: orderData.companyName,
         description: toRazorpayAscii(event.title, 250, 'Event booking'),
         order_id: orderData.orderId,
+        timeout: getCheckoutTimeoutSeconds(orderData.paymentTimeoutSeconds),
         handler: async function (response: any) {
           try {
             // Verify payment

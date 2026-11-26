@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { FieldValue } from 'firebase-admin/firestore';
 import { resolveEventCurrency } from '@/constants/countries';
 import { getRazorpayCurrency } from '@/lib/razorpay-config';
 
@@ -38,6 +39,40 @@ export function isReusablePendingOrder(
     typeof data.razorpayOrderId === 'string' &&
     data.razorpayOrderId.length > 0
   );
+}
+
+/**
+ * A Razorpay order is safe to mark expired only when it was never paid and its
+ * payment window has elapsed. Paid/attempted orders stay intact so webhook and
+ * browser verification can still reconcile them.
+ */
+export function isExpirablePendingOrder(
+  data: Record<string, unknown>,
+  nowMillis = Date.now()
+): boolean {
+  if (data.status !== 'pending' || data.paymentState !== 'created') return false;
+  if (typeof data.razorpayOrderId !== 'string' || !data.razorpayOrderId.trim()) return false;
+  if (typeof data.internalOrderId !== 'string' || !data.internalOrderId.trim()) return false;
+
+  const expiresAtMillis = readExpiryMillis(data.expiresAt);
+  return expiresAtMillis > 0 && expiresAtMillis <= nowMillis;
+}
+
+export function createExpiredOrderUpdate() {
+  return {
+    status: 'expired' as const,
+    updatedAt: FieldValue.serverTimestamp(),
+    expiredAt: FieldValue.serverTimestamp(),
+    expiryReason: 'payment_timeout',
+  };
+}
+
+function readExpiryMillis(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value instanceof Date) return value.getTime();
+
+  const millis = (value as { toMillis?: () => number } | undefined)?.toMillis?.();
+  return typeof millis === 'number' && Number.isFinite(millis) ? millis : 0;
 }
 
 export function isStaleIncompleteOrder(

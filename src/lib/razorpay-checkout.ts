@@ -1,8 +1,17 @@
 'use client';
 
 const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+const DEFAULT_CHECKOUT_TIMEOUT_SECONDS = 15 * 60;
 
 let pendingLoad: Promise<boolean> | null = null;
+
+/** Razorpay Checkout's `timeout` option is in seconds. */
+export function getCheckoutTimeoutSeconds(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.max(1, Math.floor(parsed))
+    : DEFAULT_CHECKOUT_TIMEOUT_SECONDS;
+}
 
 /**
  * Loads the Razorpay checkout script and resolves only once `window.Razorpay`
